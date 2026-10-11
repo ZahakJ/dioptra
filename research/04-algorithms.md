@@ -226,6 +226,10 @@ above it is wrong too.
   median as center and is SciPy's `levene(center='median')`. Prism reports both
   (the second as a homogeneity-of-variance check). The fixtures carry both,
   labelled `brown_forsythe_means_Fstar` and `brown_forsythe_levene_median`.
+  The F* p-value uses numerator df k-1 (the 1974 test). statsmodels'
+  `anova_oneway(use_var='bf')` reports by default a p with Mehrotra's 1997
+  modified numerator df (doi:10.1080/03610919708813431) and keeps the 1974 one
+  as `pvalue2`; the fixture stores both (`mehrotra_1997_*`).
 - **Bartlett's test** is also printed by Prism as a variance check
   (`scipy.stats.bartlett`).
 
@@ -264,10 +268,13 @@ above it is wrong too.
   eps = k^2 (sbar_dd - sbar)^2 / ((k-1)(sum s_ij^2 - 2k sum sbar_i.^2 + k^2 sbar^2)).
   The fixtures check that the two forms agree.
 - **Huynh-Feldt** with the Lecoutre 1991 correction
-  (doi:10.3102/10769986016004371), as R's `car` and recent SPSS use it:
-  eps_HF = (n(k-1) eps_GG - 2) / ((k-1)(n - 1 - (k-1) eps_GG)), capped at 1.
-  (The original Huynh & Feldt 1976 form uses n where Lecoutre uses n-1 in the
-  denominator. That only matters for one-group designs.)
+  (doi:10.3102/10769986016004371), as R's `car` and recent SPSS use it. With
+  N subjects in g groups:
+  eps_HF = ((N-g+1)(k-1) eps_GG - 2) / ((k-1)(N - g - (k-1) eps_GG)), capped at 1.
+  The original Huynh & Feldt 1976 numerator has N where Lecoutre has N-g+1.
+  For the one-group design Prism runs (g=1, N=n) the two forms are identical:
+  eps_HF = (n(k-1) eps_GG - 2) / ((k-1)(n - 1 - (k-1) eps_GG)). The fixture
+  records both the capped and the uncapped value.
 - **Mauchly's W** (Mauchly 1940, doi:10.1214/aoms/1177731915):
   W = det(S_c) / (tr(S_c)/(k-1))^{k-1}. The test statistic is
   chi2 = -(n - 1 - (2(k-1)^2 + (k-1) + 2)/(6(k-1))) ln W, with
@@ -313,9 +320,18 @@ above it is wrong too.
 - **Dunnett** (Dunnett 1955, doi:10.1080/01621459.1955.10501294): compare each
   treatment with the control,
   t_i = (m_i - m_0)/sqrt(MS_w (1/n_i + 1/n_0)), and compute the adjusted p from
-  the (k-1)-variate t with the correlations in section 0. SciPy's
-  `stats.dunnett` integrates with randomized QMC, so its p is good to about
-  1e-4 relative, even with a fixed rng. The tolerances in doc 05 reflect that.
+  the (k-1)-variate t with the correlations in section 0. Because the
+  correlation has product form rho_ij = lam_i lam_j, lam_i = sqrt(n_i/(n_i+n_0)),
+  the probability reduces to a double integral:
+  P(max|T_i| <= c) = int f_u(u) int phi(z) prod_i [Phi((cu - lam_i z)/sqrt(1-lam_i^2))
+  - Phi((-cu - lam_i z)/sqrt(1-lam_i^2))] dz du, with u = s/sigma ~ chi_nu/sqrt(nu).
+  The fixture computes it that way (400-point Gauss-Legendre in z, adaptive in u,
+  about 1e-12), so the expected Dunnett p and critical value are exact to
+  near double precision. SciPy's `stats.dunnett` integrates with randomized QMC
+  and is good to only about 1e-4, even with a fixed rng; its values are
+  recorded with a loose tolerance as a sanity check. The Rust code can use the
+  same 1-D-in-z, 1-D-in-u integral for many-to-one comparisons; Genz-Bretz is
+  needed only for general correlation structures.
   Prism 6 and later compute exact multiplicity-adjusted p for Dunnett, Tukey and
   Sidak.
 - **Bonferroni**: p_adj = min(1, m p). **Sidak**: 1 - (1-p)^m. Holm 1979
@@ -665,10 +681,26 @@ Bland & Altman 1986 (doi:10.1016/S0140-6736(86)90837-8) and 1999
 The fixture `distributions.json` holds the cdf, sf and ppf of t, F, chi2,
 normal, beta, gamma, binomial, hypergeometric and noncentral t on grids that
 reach p = 1e-12 in both tails, plus regularized I_x(a,b) and P(a,x)/Q(a,x) at
-awkward arguments. All of it comes from SciPy (Boost.Math and Cephes), checked
-in places against mpmath where installed. The algorithms are in section 0. For
-the far tails, SciPy's `sf` is the reference, not `1 - cdf`. The Rust API must
-expose the upper tail directly.
+awkward arguments (a=0.5, b=1000; a=b=5000; a=b=1e-3; x within 1e-6 of 0 or 1;
+a up to 1e5). The expected values are **not** SciPy output. They are
+32-digit mpmath references rounded to double:
+
+- I_x(a,b) from the positive-term series x^a(1-x)^b/(a B(a,b)) 2F1(a+b,1;a+1;x)
+  on whichever side of the mean avoids cancellation (80 working digits),
+  checked against mpmath's `betainc` in the body.
+- P(a,x), Q(a,x) from the power series (x < a+1) and the Lentz continued
+  fraction for Q (otherwise), at 80 digits, checked against mpmath's `gammainc`.
+- t, F, chi2 through those; quantiles by a 32-digit secant root of cdf or sf.
+- Noncentral t by quadrature of int Phi(xu - nc) f_u(u) du, confirmed in the
+  far tail by a second representation.
+
+SciPy's worst relative error per table is stored in the fixture. Two SciPy
+weaknesses turned up: `stats.f.isf` in the far upper tail (sf(isf(q)) is off
+by about 5e-9 relative at q = 1e-8 and about 1e-4 at q = 1e-12 when df2 is
+small), and `stats.nct.cdf` in the far lower tail (x=-3, df=5, nc=8: SciPy
+8.0e-20, true value 1.90e-20). The Rust code must beat SciPy there, not copy
+it. The algorithms are in section 0. For the far tails, compute `sf` directly
+rather than `1 - cdf`. The Rust API must expose the upper tail directly.
 
 ---
 
@@ -693,5 +725,5 @@ expose the upper tail directly.
 | Hazard ratio | Cox (lifelines) | logrank and Mantel-Haenszel both |
 | Robust fit | fixed-scale Cauchy loss | Lorentzian with adaptive RSDR |
 | AICc K | user's choice | parameters + 1 |
-| Dunnett p | randomized QMC (~1e-4) | exact |
+| Dunnett p | randomized QMC (~1e-4) | exact (fixture: double integral, ~1e-12) |
 | One-tailed p | `alternative=` | p2/2 if direction predicted, else 1 - p2/2 |
