@@ -107,6 +107,34 @@ layouts.
 `dioptra render graph --pdf`, `dioptra bench`. Wasm package built by `wasm-bindgen` into
 `apps/dioptra/src/engine/wasm/`. README with screenshots captured from the Linux build.
 
+## Phase 6b — Public presence (owner instruction, added 2026-10-11)
+
+Dioptra is public from the first release and must look like a project other scientists can
+adopt.
+
+- Leak scan over the tree and the full history (home paths, owner username or email other
+  than the noreply author, session ids, `.env`, the oracle venv, keystores); history rewrite
+  if anything is found; then `gh repo edit --visibility public`.
+- README under ~150 lines: what, why, install lines per platform, screenshots, feature
+  table, correctness in one sentence with a link, links to the manual and landing page,
+  licence, contributing, citation.
+- Documentation site (mdBook, `docs/manual/`) published to GitHub Pages on push to `main`
+  at `/manual/`: getting started, table types, formula reference, every analysis (assumptions,
+  method and reference, inputs and outputs, worked example), every graph, file format,
+  correctness record, architecture, complaint map, FAQ, changelog.
+- Landing page at the Pages root (`site/`): one-line promise, three captures, the no-Excel
+  story, a download block reading the latest release from the GitHub API, the correctness
+  claim, "open source, free, your data stays on your machine", link to the manual. App
+  identity, light and dark, phone-friendly.
+- Hygiene: issue and PR templates, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CITATION.cff,
+  `docs/ROADMAP.md`, repo topics, description and website field, release notes with a
+  changelog section.
+- Licence: **MIT**. Reasons: it matches the owner's other public projects, it is the
+  licence scientists and institutions accept without review, and the bundled Inter font
+  (OFL) and every dependency are compatible. Apache-2.0's patent clause was considered and
+  not needed for a project with no patent exposure; dual licensing adds friction for no
+  gain here.
+
 ## Phase 7 — Release
 
 `verify` green; `ci.yml` green on push; `release.yml` on `v0.1.0` building Linux (AppImage,
