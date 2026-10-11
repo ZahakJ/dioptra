@@ -1,0 +1,381 @@
+{
+ "test": "correlation",
+ "reference": "scipy.stats.pearsonr (+confidence_interval, Fisher z), spearmanr, kendalltau(variant='b'); exact Spearman by full enumeration here",
+ "notes": [
+  "Pearson CI: tanh(atanh(r) +/- 1.959964/sqrt(n-3)).",
+  "Spearman p_t_approx: t = rho sqrt((n-2)/(1-rho^2)) on n-2 df (scipy). Exact p (n<=8): fraction of all n! permutations of y-ranks with |rho| >= |rho_obs| (ties kept as midranks).",
+  "Kendall tau-b; p_exact only without ties (Kendall's recurrence); p_asymptotic uses the tie-corrected variance."
+ ],
+ "generator": {
+  "script": "scripts/oracle/gen_fixtures.py",
+  "seed": 20261011,
+  "versions": {
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "statsmodels": "0.15.0",
+   "lifelines": "0.30.3",
+   "sklearn": "1.9.1",
+   "pandas": "2.3.3",
+   "mpmath": "1.4.1",
+   "python": "3.14.7"
+  }
+ },
+ "cases": [
+  {
+   "name": "anscombe1_classic",
+   "input": {
+    "x": [
+     10.0,
+     8.0,
+     13.0,
+     9.0,
+     11.0,
+     14.0,
+     6.0,
+     4.0,
+     12.0,
+     7.0,
+     5.0
+    ],
+    "y": [
+     8.04,
+     6.95,
+     7.58,
+     8.81,
+     8.33,
+     9.96,
+     7.24,
+     4.26,
+     10.84,
+     4.82,
+     5.68
+    ]
+   },
+   "expected": {
+    "pearson_r": 0.8164205163448395,
+    "pearson_p_two_sided": 0.0021696288730788152,
+    "pearson_ci95_fisher_z": [
+     0.4243912133932152,
+     0.9506932537865604
+    ],
+    "pearson_p_greater": 0.0010848144365394076,
+    "r_squared": 0.6665424595087743,
+    "spearman_rho": 0.8181818181818182,
+    "spearman_p_t_approx_two_sided": 0.0020831448404786917,
+    "kendall_tau_b": 0.6363636363636364,
+    "kendall_p_two_sided_scipy_auto": 0.005707170915504249,
+    "kendall_p_asymptotic": 0.006435091231559117,
+    "kendall_p_exact": 0.005707170915504249,
+    "kendall_tau_c": 0.6363636363636364
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n5",
+   "input": {
+    "x": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ],
+    "y": [
+     2.1,
+     3.9,
+     6.2,
+     7.8,
+     9.9
+    ]
+   },
+   "expected": {
+    "pearson_r": 0.9989103962001905,
+    "pearson_p_two_sided": 4.316838258671575e-05,
+    "pearson_ci95_fisher_z": [
+     0.9827210374345411,
+     0.999931811724971
+    ],
+    "pearson_p_greater": 2.1584191293357875e-05,
+    "r_squared": 0.9978219796368216,
+    "spearman_rho": 0.9999999999999999,
+    "spearman_p_t_approx_two_sided": 1.4042654220543602e-24,
+    "spearman_p_exact_two_sided": 0.016666666666666666,
+    "spearman_p_exact_greater": 0.008333333333333333,
+    "spearman_p_exact_less": 1.0,
+    "spearman_n_permutations": 120,
+    "kendall_tau_b": 0.9999999999999999,
+    "kendall_p_two_sided_scipy_auto": 0.016666666666666666,
+    "kendall_p_asymptotic": 0.014305878435429648,
+    "kendall_p_exact": 0.016666666666666666,
+    "kendall_tau_c": 1.0
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n7_with_ties",
+   "input": {
+    "x": [
+     1.0,
+     2.0,
+     2.0,
+     3.0,
+     4.0,
+     4.0,
+     5.0
+    ],
+    "y": [
+     3.0,
+     1.0,
+     4.0,
+     4.0,
+     5.0,
+     9.0,
+     2.0
+    ]
+   },
+   "expected": {
+    "pearson_r": 0.3195048252113469,
+    "pearson_p_two_sided": 0.4848479377610874,
+    "pearson_ci95_fisher_z": [
+     -0.5709198553775422,
+     0.8645478050901275
+    ],
+    "pearson_p_greater": 0.2424239688805437,
+    "r_squared": 0.10208333333333332,
+    "spearman_rho": 0.3027650354097492,
+    "spearman_p_t_approx_two_sided": 0.5092404282807681,
+    "spearman_p_exact_two_sided": 0.5253968253968254,
+    "spearman_p_exact_greater": 0.2626984126984127,
+    "spearman_p_exact_less": 0.7642857142857142,
+    "spearman_n_permutations": 5040,
+    "kendall_tau_b": 0.30779350562554614,
+    "kendall_p_two_sided_scipy_auto": 0.35124185644642814,
+    "kendall_p_asymptotic": 0.35124185644642814,
+    "kendall_tau_c": 0.3061224489795918
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n8_no_ties",
+   "input": {
+    "x": [
+     -0.007,
+     1.157,
+     -1.282,
+     -1.162,
+     -0.244,
+     -0.41,
+     -1.857,
+     0.152
+    ],
+    "y": [
+     -1.215,
+     2.573,
+     -1.449,
+     -0.586,
+     -1.223,
+     -0.955,
+     1.153,
+     1.335
+    ]
+   },
+   "expected": {
+    "pearson_r": 0.4066014269195035,
+    "pearson_p_two_sided": 0.31748140708518147,
+    "pearson_ci95_fisher_z": [
+     -0.4177719444097943,
+     0.8637825108356952
+    ],
+    "pearson_p_greater": 0.15874070354259073,
+    "r_squared": 0.16532472037297635,
+    "spearman_rho": 0.4285714285714286,
+    "spearman_p_t_approx_two_sided": 0.2894032248467901,
+    "spearman_p_exact_two_sided": 0.2992063492063492,
+    "spearman_p_exact_greater": 0.1496031746031746,
+    "spearman_p_exact_less": 0.8662698412698413,
+    "spearman_n_permutations": 40320,
+    "kendall_tau_b": 0.2857142857142857,
+    "kendall_p_two_sided_scipy_auto": 0.39875992063492066,
+    "kendall_p_asymptotic": 0.32229959587191925,
+    "kendall_p_exact": 0.39875992063492066,
+    "kendall_tau_c": 0.2857142857142857
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n40_moderate",
+   "input": {
+    "x": [
+     -3.004,
+     -0.826,
+     0.342,
+     -0.39,
+     0.095,
+     0.21,
+     -1.2,
+     0.63,
+     0.527,
+     -1.486,
+     0.099,
+     0.047,
+     0.058,
+     0.989,
+     -0.155,
+     0.63,
+     1.093,
+     -0.618,
+     -0.221,
+     0.572,
+     0.623,
+     -0.691,
+     -1.453,
+     1.013,
+     0.201,
+     0.568,
+     0.748,
+     0.738,
+     -1.669,
+     0.025,
+     -1.223,
+     -1.411,
+     0.83,
+     -0.445,
+     -0.116,
+     -0.326,
+     -1.486,
+     -1.159,
+     -2.016,
+     1.623
+    ],
+    "y": [
+     -3.171,
+     0.061,
+     -0.334,
+     0.262,
+     0.782,
+     -0.402,
+     -0.298,
+     0.622,
+     1.494,
+     -0.567,
+     0.167,
+     0.318,
+     0.824,
+     -0.163,
+     -0.988,
+     0.55,
+     3.0,
+     -1.363,
+     -0.299,
+     0.606,
+     -0.728,
+     -1.535,
+     1.023,
+     2.914,
+     0.293,
+     0.816,
+     1.666,
+     0.143,
+     -0.852,
+     -1.05,
+     -1.042,
+     -0.941,
+     -1.066,
+     -2.38,
+     -0.917,
+     1.795,
+     -0.264,
+     -0.617,
+     -1.128,
+     2.251
+    ]
+   },
+   "expected": {
+    "pearson_r": 0.6190025055121998,
+    "pearson_p_two_sided": 2.0637739650555748e-05,
+    "pearson_ci95_fisher_z": [
+     0.3809498339917622,
+     0.7800907943975602
+    ],
+    "pearson_p_greater": 1.0318869825277874e-05,
+    "r_squared": 0.38316410183038097,
+    "spearman_rho": 0.554554838729098,
+    "spearman_p_t_approx_two_sided": 0.00020466237038378626,
+    "kendall_tau_b": 0.39024422397661396,
+    "kendall_p_two_sided_scipy_auto": 0.0003965106309268018,
+    "kendall_p_asymptotic": 0.0003965106309268018,
+    "kendall_tau_c": 0.3902702702702703
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "negative_strong_n12",
+   "input": {
+    "x": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     7.0,
+     8.0,
+     9.0,
+     10.0,
+     11.0,
+     12.0
+    ],
+    "y": [
+     30.5,
+     29.0,
+     27.4,
+     25.1,
+     26.0,
+     22.3,
+     20.0,
+     19.4,
+     17.2,
+     15.5,
+     16.1,
+     12.0
+    ]
+   },
+   "expected": {
+    "pearson_r": -0.988604652919796,
+    "pearson_p_two_sided": 1.4846434768108117e-09,
+    "pearson_ci95_fisher_z": [
+     -0.9969020943748198,
+     -0.9585446787530424
+    ],
+    "pearson_p_greater": 0.9999999992576782,
+    "r_squared": 0.9773391597746705,
+    "spearman_rho": -0.9860139860139862,
+    "spearman_p_t_approx_two_sided": 4.1168959116543235e-09,
+    "kendall_tau_b": -0.9393939393939392,
+    "kendall_p_two_sided_scipy_auto": 3.2150205761316875e-07,
+    "kendall_p_asymptotic": 2.123454219485974e-05,
+    "kendall_p_exact": 3.2150205761316875e-07,
+    "kendall_tau_c": -0.9393939393939394
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  }
+ ]
+}

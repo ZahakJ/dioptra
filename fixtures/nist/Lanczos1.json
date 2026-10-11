@@ -1,0 +1,135 @@
+{
+ "name": "Lanczos1",
+ "class": "nonlinear_regression",
+ "difficulty": "Average",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/Lanczos1.dat",
+ "model_text": "Exponential Class | 6 Parameters (b1 to b6) | y = b1*exp(-b2*x) + b3*exp(-b4*x) + b5*exp(-b6*x)  +  e",
+ "equation": "b1*exp(-b2*x) + b3*exp(-b4*x) + b5*exp(-b6*x)",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 6,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 1.2,
+   "start2": 0.5,
+   "certified": 0.095100000027,
+   "certified_text": "9.5100000027E-02",
+   "std_dev": 5.3347304234e-11,
+   "std_dev_text": "5.3347304234E-11"
+  },
+  {
+   "name": "b2",
+   "start1": 0.3,
+   "start2": 0.7,
+   "certified": 1.0000000001,
+   "certified_text": "1.0000000001E+00",
+   "std_dev": 2.7473038179e-10,
+   "std_dev_text": "2.7473038179E-10"
+  },
+  {
+   "name": "b3",
+   "start1": 5.6,
+   "start2": 3.6,
+   "certified": 0.86070000013,
+   "certified_text": "8.6070000013E-01",
+   "std_dev": 1.3576062225e-10,
+   "std_dev_text": "1.3576062225E-10"
+  },
+  {
+   "name": "b4",
+   "start1": 5.5,
+   "start2": 4.2,
+   "certified": 3.0000000002,
+   "certified_text": "3.0000000002E+00",
+   "std_dev": 3.3308253069e-10,
+   "std_dev_text": "3.3308253069E-10"
+  },
+  {
+   "name": "b5",
+   "start1": 6.5,
+   "start2": 4.0,
+   "certified": 1.5575999998,
+   "certified_text": "1.5575999998E+00",
+   "std_dev": 1.8815731448e-10,
+   "std_dev_text": "1.8815731448E-10"
+  },
+  {
+   "name": "b6",
+   "start1": 7.6,
+   "start2": 6.3,
+   "certified": 5.0000000001,
+   "certified_text": "5.0000000001E+00",
+   "std_dev": 1.1057500538e-10,
+   "std_dev_text": "1.1057500538E-10"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 1.4307867721e-25,
+  "text": "1.4307867721E-25"
+ },
+ "residual_std_dev": {
+  "value": 8.9156129349e-14,
+  "text": "8.9156129349E-14"
+ },
+ "degrees_of_freedom": 18,
+ "n_observations": 24,
+ "check_rss_at_certified_params": 3.9833187760278596e-21,
+ "data": {
+  "y": [
+   2.5134,
+   2.044333373291,
+   1.668404436564,
+   1.366418021208,
+   1.123232487372,
+   0.9268897180037,
+   0.7679338563728,
+   0.6388775523106,
+   0.5337835317402,
+   0.4479363617347,
+   0.377584788435,
+   0.3197393199326,
+   0.2720130773746,
+   0.2324965529032,
+   0.1996589546065,
+   0.1722704126914,
+   0.1493405660168,
+   0.1300700206922,
+   0.1138119324644,
+   0.1000415587559,
+   0.0883320908454,
+   0.0783354401935,
+   0.06976693743449,
+   0.06239312536719
+  ],
+  "x": [
+   0.0,
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.25,
+   0.3,
+   0.35,
+   0.4,
+   0.45,
+   0.5,
+   0.55,
+   0.6,
+   0.65,
+   0.7,
+   0.75,
+   0.8,
+   0.85,
+   0.9,
+   0.95,
+   1.0,
+   1.05,
+   1.1,
+   1.15
+  ]
+ },
+ "dat_file": "Lanczos1.dat"
+}

@@ -1,0 +1,292 @@
+[
+ {
+  "name": "Misra1a",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Chwirut2",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Chwirut1",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Lanczos3",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Gauss1",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Gauss2",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "DanWood",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Misra1b",
+  "class": "nonlinear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Kirby2",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Hahn1",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Nelson",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "MGH17",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Lanczos1",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Lanczos2",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Gauss3",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Misra1c",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Misra1d",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Roszman1",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "ENSO",
+  "class": "nonlinear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "MGH09",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Thurber",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "BoxBOD",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Rat42",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "MGH10",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Eckerle4",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Rat43",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Bennett5",
+  "class": "nonlinear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Norris",
+  "class": "linear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Pontius",
+  "class": "linear_regression",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "NoInt1",
+  "class": "linear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "NoInt2",
+  "class": "linear_regression",
+  "difficulty": "Average"
+ },
+ {
+  "name": "Filip",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Longley",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Wampler1",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Wampler2",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Wampler3",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Wampler4",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "Wampler5",
+  "class": "linear_regression",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "SiRstv",
+  "class": "anova_one_way",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "SmLs01",
+  "class": "anova_one_way",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "SmLs02",
+  "class": "anova_one_way",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "SmLs03",
+  "class": "anova_one_way",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "SmLs04",
+  "class": "anova_one_way",
+  "difficulty": "Average"
+ },
+ {
+  "name": "SmLs05",
+  "class": "anova_one_way",
+  "difficulty": "Average"
+ },
+ {
+  "name": "SmLs06",
+  "class": "anova_one_way",
+  "difficulty": "Average"
+ },
+ {
+  "name": "SmLs07",
+  "class": "anova_one_way",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "SmLs08",
+  "class": "anova_one_way",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "SmLs09",
+  "class": "anova_one_way",
+  "difficulty": "Higher"
+ },
+ {
+  "name": "AtmWtAg",
+  "class": "anova_one_way",
+  "difficulty": "Average"
+ },
+ {
+  "name": "PiDigits",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Lottery",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Lew",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Mavro",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "Michelso",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "NumAcc1",
+  "class": "univariate",
+  "difficulty": "Lower"
+ },
+ {
+  "name": "NumAcc2",
+  "class": "univariate",
+  "difficulty": "Average"
+ },
+ {
+  "name": "NumAcc3",
+  "class": "univariate",
+  "difficulty": "Average"
+ },
+ {
+  "name": "NumAcc4",
+  "class": "univariate",
+  "difficulty": "Higher"
+ }
+]

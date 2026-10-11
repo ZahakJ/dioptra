@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/dioptra-stats",
+  "crates/dioptra-core",
+  "crates/dioptra-plot",
+  "crates/dioptra-wasm",
+  "crates/dioptra-cli",
+  "apps/dioptra/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/ZahakJ/dioptra"
+rust-version = "1.85"
+
+[workspace.dependencies]
+dioptra-stats = { path = "crates/dioptra-stats" }
+dioptra-core = { path = "crates/dioptra-core" }
+dioptra-plot = { path = "crates/dioptra-plot" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+thiserror = "2"
+libm = "0.2"
+nalgebra = { version = "0.35", default-features = false, features = ["std"] }
+indexmap = { version = "2", features = ["serde"] }
+csv = "1.4"
+calamine = "0.36"
+rust_xlsxwriter = "0.99"
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+quick-xml = "0.42"
+usvg = "0.48"
+resvg = "0.48"
+svg2pdf = "0.13"
+fontdb = "0.24"
+uuid = { version = "1", features = ["v4", "serde", "js"] }
+log = "0.4"
+tempfile = "3"
+wasm-bindgen = "=0.2.129"
+serde-wasm-bindgen = "0.6"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+rand = "0.9"
+rand_chacha = "0.9"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+opt-level = 3
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release.package.dioptra-wasm]
+opt-level = "s"

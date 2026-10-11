@@ -1,0 +1,143 @@
+{
+ "name": "Wampler3",
+ "class": "linear_regression",
+ "difficulty": "Higher",
+ "source_url": "https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Wampler3.dat",
+ "model_text": "Polynomial Class | 6 Parameters (B0,B1,...,B5) | y = B0 + B1*x + B2*(x**2) + B3*(x**3)+ B4*(x**4) + B5*(x**5)",
+ "model": {
+  "kind": "polynomial",
+  "degree": 5,
+  "intercept": true
+ },
+ "parameters": [
+  {
+   "name": "B0",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 2152.3262467817,
+   "std_dev_text": "2152.32624678170"
+  },
+  {
+   "name": "B1",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 2363.55173469681,
+   "std_dev_text": "2363.55173469681"
+  },
+  {
+   "name": "B2",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 779.343524331583,
+   "std_dev_text": "779.343524331583"
+  },
+  {
+   "name": "B3",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 101.47550755035,
+   "std_dev_text": "101.475507550350"
+  },
+  {
+   "name": "B4",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 5.64566512170752,
+   "std_dev_text": "5.64566512170752"
+  },
+  {
+   "name": "B5",
+   "certified": 1.0,
+   "certified_text": "1.00000000000000",
+   "std_dev": 0.112324854679312,
+   "std_dev_text": "0.112324854679312"
+  }
+ ],
+ "residual_std_dev": {
+  "value": 2360.14502379268,
+  "text": "2360.14502379268"
+ },
+ "r_squared": {
+  "value": 0.99999555902582,
+  "text": "0.999995559025820"
+ },
+ "anova": {
+  "regression": {
+   "df": 5,
+   "ss": {
+    "value": 18814317208116.7,
+    "text": "18814317208116.7"
+   },
+   "ms": {
+    "value": 3762863441623.33,
+    "text": "3762863441623.33"
+   },
+   "f": {
+    "value": 675524.458240122,
+    "text": "675524.458240122"
+   },
+   "note": "f value null when NIST prints Infinity"
+  },
+  "residual": {
+   "df": 15,
+   "ss": {
+    "value": 83554268.0,
+    "text": "83554268.0000000"
+   },
+   "ms": {
+    "value": 5570284.53333333,
+    "text": "5570284.53333333"
+   }
+  }
+ },
+ "n_observations": 21,
+ "data": {
+  "y": [
+   760.0,
+   -2042.0,
+   2111.0,
+   -1684.0,
+   3888.0,
+   1858.0,
+   11379.0,
+   17560.0,
+   39287.0,
+   64382.0,
+   113159.0,
+   175108.0,
+   273291.0,
+   400186.0,
+   581243.0,
+   811568.0,
+   1121004.0,
+   1506550.0,
+   2002767.0,
+   2611612.0,
+   3369180.0
+  ],
+  "x": [
+   0.0,
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   5.0,
+   6.0,
+   7.0,
+   8.0,
+   9.0,
+   10.0,
+   11.0,
+   12.0,
+   13.0,
+   14.0,
+   15.0,
+   16.0,
+   17.0,
+   18.0,
+   19.0,
+   20.0
+  ]
+ },
+ "dat_file": "Wampler3.dat"
+}

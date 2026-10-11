@@ -1,0 +1,91 @@
+{
+ "name": "MGH09",
+ "class": "nonlinear_regression",
+ "difficulty": "Higher",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/MGH09.dat",
+ "model_text": "Rational Class (linear/quadratic) | 4 Parameters (b1 to b4) | y = b1*(x**2+x*b2) / (x**2+x*b3+b4)  +  e",
+ "equation": "b1*(x^2+x*b2)/(x^2+x*b3+b4)",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 4,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 25.0,
+   "start2": 0.25,
+   "certified": 0.19280693458,
+   "certified_text": "1.9280693458E-01",
+   "std_dev": 0.011435312227,
+   "std_dev_text": "1.1435312227E-02"
+  },
+  {
+   "name": "b2",
+   "start1": 39.0,
+   "start2": 0.39,
+   "certified": 0.19128232873,
+   "certified_text": "1.9128232873E-01",
+   "std_dev": 0.19633220911,
+   "std_dev_text": "1.9633220911E-01"
+  },
+  {
+   "name": "b3",
+   "start1": 41.5,
+   "start2": 0.415,
+   "certified": 0.12305650693,
+   "certified_text": "1.2305650693E-01",
+   "std_dev": 0.080842031232,
+   "std_dev_text": "8.0842031232E-02"
+  },
+  {
+   "name": "b4",
+   "start1": 39.0,
+   "start2": 0.39,
+   "certified": 0.13606233068,
+   "certified_text": "1.3606233068E-01",
+   "std_dev": 0.090025542308,
+   "std_dev_text": "9.0025542308E-02"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 0.00030750560385,
+  "text": "3.0750560385E-04"
+ },
+ "residual_std_dev": {
+  "value": 0.0066279236551,
+  "text": "6.6279236551E-03"
+ },
+ "degrees_of_freedom": 7,
+ "n_observations": 11,
+ "check_rss_at_certified_params": 0.0003075056038492374,
+ "data": {
+  "y": [
+   0.1957,
+   0.1947,
+   0.1735,
+   0.16,
+   0.0844,
+   0.0627,
+   0.0456,
+   0.0342,
+   0.0323,
+   0.0235,
+   0.0246
+  ],
+  "x": [
+   4.0,
+   2.0,
+   1.0,
+   0.5,
+   0.25,
+   0.167,
+   0.125,
+   0.1,
+   0.0833,
+   0.0714,
+   0.0625
+  ]
+ },
+ "dat_file": "MGH09.dat"
+}

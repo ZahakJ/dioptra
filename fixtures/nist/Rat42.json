@@ -1,0 +1,78 @@
+{
+ "name": "Rat42",
+ "class": "nonlinear_regression",
+ "difficulty": "Higher",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/Rat42.dat",
+ "model_text": "Exponential Class | 3 Parameters (b1 to b3) | y = b1 / (1+exp[b2-b3*x])  +  e",
+ "equation": "b1/(1+exp(b2-b3*x))",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 3,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 100.0,
+   "start2": 75.0,
+   "certified": 72.462237576,
+   "certified_text": "7.2462237576E+01",
+   "std_dev": 1.7340283401,
+   "std_dev_text": "1.7340283401E+00"
+  },
+  {
+   "name": "b2",
+   "start1": 1.0,
+   "start2": 2.5,
+   "certified": 2.6180768402,
+   "certified_text": "2.6180768402E+00",
+   "std_dev": 0.088295217536,
+   "std_dev_text": "8.8295217536E-02"
+  },
+  {
+   "name": "b3",
+   "start1": 0.1,
+   "start2": 0.07,
+   "certified": 0.067359200066,
+   "certified_text": "6.7359200066E-02",
+   "std_dev": 0.0034465663377,
+   "std_dev_text": "3.4465663377E-03"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 8.0565229338,
+  "text": "8.0565229338E+00"
+ },
+ "residual_std_dev": {
+  "value": 1.1587725499,
+  "text": "1.1587725499E+00"
+ },
+ "degrees_of_freedom": 6,
+ "n_observations": 9,
+ "check_rss_at_certified_params": 8.056522933811268,
+ "data": {
+  "y": [
+   8.93,
+   10.8,
+   18.59,
+   22.33,
+   39.35,
+   56.11,
+   61.73,
+   64.62,
+   67.08
+  ],
+  "x": [
+   9.0,
+   14.0,
+   21.0,
+   28.0,
+   42.0,
+   57.0,
+   63.0,
+   70.0,
+   79.0
+  ]
+ },
+ "dat_file": "Rat42.dat"
+}

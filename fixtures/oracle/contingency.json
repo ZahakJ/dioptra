@@ -1,0 +1,795 @@
+{
+ "test": "contingency",
+ "reference": "scipy.stats chi2_contingency/chisquare/fisher_exact/contingency.odds_ratio/relative_risk; statsmodels mcnemar/Table2x2; r x c Fisher and Cochran-Armitage implemented here",
+ "notes": [
+  "Fisher 2x2 one-sided: 'less' = H1 OR<1, 'greater' = H1 OR>1, table [[a,b],[c,d]], OR = ad/bc.",
+  "odds_ratio_conditional_mle and its CI: conditional MLE of the noncentral hypergeometric (R fisher.test estimate/CI).",
+  "odds_ratio_woolf_ci95 = exp(ln OR +/- 1.959964 sqrt(1/a+1/b+1/c+1/d)); relative_risk_katz_ci95 = RR exp(+/- z sqrt(1/a - 1/(a+b) + 1/c - 1/(c+d))); RR = (a/(a+b))/(c/(c+d)).",
+  "fisher_rxc: exact enumeration of every table with the observed margins (n_tables given); two-sided p sums tables with P <= P_obs(1+1e-7) as R does.",
+  "Cochran-Armitage z = sum t_i(x_i - n_i pbar)/sqrt(pbar(1-pbar)[sum n_i t_i^2 - (sum n_i t_i)^2/N]); chi2 = z^2 equals R prop.trend.test. z_with_N_over_N_minus_1 is the variant some texts use."
+ ],
+ "generator": {
+  "script": "scripts/oracle/gen_fixtures.py",
+  "seed": 20261011,
+  "versions": {
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "statsmodels": "0.15.0",
+   "lifelines": "0.30.3",
+   "sklearn": "1.9.1",
+   "pandas": "2.3.3",
+   "mpmath": "1.4.1",
+   "python": "3.14.7"
+  }
+ },
+ "cases": [
+  {
+   "name": "chi2_independence/r_chisq_example_classic",
+   "input": {
+    "table": [
+     [
+      762,
+      327,
+      468
+     ],
+     [
+      484,
+      239,
+      477
+     ]
+    ]
+   },
+   "expected": {
+    "pearson": {
+     "chi2": 30.070149095754672,
+     "df": 2,
+     "p": 2.9535891832117595e-07
+    },
+    "yates": {
+     "chi2": 30.070149095754672,
+     "df": 2,
+     "p": 2.9535891832117595e-07
+    },
+    "expected": [
+     [
+      703.6713819368879,
+      319.64526659412405,
+      533.683351468988
+     ],
+     [
+      542.3286180631121,
+      246.35473340587595,
+      411.316648531012
+     ]
+    ],
+    "g_test": {
+     "G": 30.016692613239655,
+     "p": 3.0335979106388314e-07
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "Yates correction applies only to 2x2 (scipy applies it when dof==1)."
+  },
+  {
+   "name": "chi2_independence/tea_tasting_2x2_classic",
+   "input": {
+    "table": [
+     [
+      3,
+      1
+     ],
+     [
+      1,
+      3
+     ]
+    ]
+   },
+   "expected": {
+    "pearson": {
+     "chi2": 2.0,
+     "df": 1,
+     "p": 0.15729920705028105
+    },
+    "yates": {
+     "chi2": 0.5,
+     "df": 1,
+     "p": 0.47950012218695337
+    },
+    "expected": [
+     [
+      2.0,
+      2.0
+     ],
+     [
+      2.0,
+      2.0
+     ]
+    ],
+    "g_test": {
+     "G": 2.0929925750581915,
+     "p": 0.14797595938502317
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "Yates correction applies only to 2x2 (scipy applies it when dof==1)."
+  },
+  {
+   "name": "chi2_independence/small_2x2",
+   "input": {
+    "table": [
+     [
+      12,
+      5
+     ],
+     [
+      7,
+      15
+     ]
+    ]
+   },
+   "expected": {
+    "pearson": {
+     "chi2": 5.769596115958342,
+     "df": 1,
+     "p": 0.01630578158465016
+    },
+    "yates": {
+     "chi2": 4.322120391218687,
+     "df": 1,
+     "p": 0.03762001663483994
+    },
+    "expected": [
+     [
+      8.282051282051283,
+      8.717948717948717
+     ],
+     [
+      10.717948717948717,
+      11.282051282051283
+     ]
+    ],
+    "g_test": {
+     "G": 5.921101441044494,
+     "p": 0.01496060322891995
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "Yates correction applies only to 2x2 (scipy applies it when dof==1)."
+  },
+  {
+   "name": "chi2_independence/3x3",
+   "input": {
+    "table": [
+     [
+      10,
+      6,
+      4
+     ],
+     [
+      5,
+      12,
+      8
+     ],
+     [
+      2,
+      7,
+      15
+     ]
+    ]
+   },
+   "expected": {
+    "pearson": {
+     "chi2": 15.075011764705879,
+     "df": 4,
+     "p": 0.0045481397832880174
+    },
+    "yates": {
+     "chi2": 15.075011764705879,
+     "df": 4,
+     "p": 0.0045481397832880174
+    },
+    "expected": [
+     [
+      4.927536231884058,
+      7.246376811594203,
+      7.826086956521739
+     ],
+     [
+      6.159420289855072,
+      9.057971014492754,
+      9.782608695652174
+     ],
+     [
+      5.913043478260869,
+      8.695652173913043,
+      9.391304347826088
+     ]
+    ],
+    "g_test": {
+     "G": 14.642006494383129,
+     "p": 0.005504328936124603
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "Yates correction applies only to 2x2 (scipy applies it when dof==1)."
+  },
+  {
+   "name": "chi2_gof/mendel_peas_classic",
+   "input": {
+    "observed": [
+     315,
+     108,
+     101,
+     32
+    ],
+    "expected_proportions": [
+     0.5625,
+     0.1875,
+     0.1875,
+     0.0625
+    ]
+   },
+   "expected": {
+    "chi2": 0.4700239808153477,
+    "df": 3,
+    "p": 0.925425895103616
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "chi2_gof/uniform_die",
+   "input": {
+    "observed": [
+     8,
+     12,
+     9,
+     15,
+     6,
+     10
+    ],
+    "expected_proportions": null
+   },
+   "expected": {
+    "chi2": 5.0,
+    "df": 5,
+    "p": 0.4158801869955079
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_2x2/tea_tasting_classic",
+   "input": {
+    "table": [
+     [
+      3,
+      1
+     ],
+     [
+      1,
+      3
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.48571428571428565,
+    "p_less": 0.9857142857142858,
+    "p_greater": 0.24285714285714283,
+    "odds_ratio_conditional_mle": 6.408319658199662,
+    "odds_ratio_conditional_ci95": [
+     0.21173559544657966,
+     626.2435305888141
+    ],
+    "odds_ratio_sample": 9.0,
+    "odds_ratio_woolf_ci95": [
+     0.36663693192554553,
+     220.92700692915736
+    ],
+    "scipy_sample_or_ci95": [
+     0.36663693192554553,
+     220.92700692915736
+    ],
+    "relative_risk": 3.0,
+    "relative_risk_katz_ci95": [
+     0.5012843093869408,
+     17.953883318244678
+    ],
+    "risk_difference": 0.5
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_2x2/moderate",
+   "input": {
+    "table": [
+     [
+      12,
+      5
+     ],
+     [
+      7,
+      15
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.024841720377823295,
+    "p_less": 0.9971488972166053,
+    "p_greater": 0.018162714632221817,
+    "odds_ratio_conditional_mle": 4.908241742404547,
+    "odds_ratio_conditional_ci95": [
+     1.0878360069157857,
+     25.78545857213267
+    ],
+    "odds_ratio_sample": 5.142857142857143,
+    "odds_ratio_woolf_ci95": [
+     1.2990586510365651,
+     20.36011197087379
+    ],
+    "scipy_sample_or_ci95": [
+     1.2990586510365651,
+     20.36011197087379
+    ],
+    "relative_risk": 2.2184873949579833,
+    "relative_risk_katz_ci95": [
+     1.1190559624436558,
+     4.398069879222207
+    ],
+    "risk_difference": 0.38770053475935834
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_2x2/zero_cell",
+   "input": {
+    "table": [
+     [
+      0,
+      10
+     ],
+     [
+      6,
+      8
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.02387143748699813,
+    "p_less": 0.022311212814645313,
+    "p_greater": 1.0,
+    "odds_ratio_conditional_mle": 0,
+    "odds_ratio_conditional_ci95": [
+     0,
+     0.9550449965763825
+    ],
+    "odds_ratio_sample": 0.0,
+    "risk_difference": -0.42857142857142855
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_2x2/larger",
+   "input": {
+    "table": [
+     [
+      45,
+      55
+     ],
+     [
+      25,
+      75
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.004679048076588124,
+    "p_less": 0.9991242258875335,
+    "p_greater": 0.002339524038294062,
+    "odds_ratio_conditional_mle": 2.443287258246797,
+    "odds_ratio_conditional_ci95": [
+     1.2935897888966186,
+     4.692603362271829
+    ],
+    "odds_ratio_sample": 2.4545454545454546,
+    "odds_ratio_woolf_ci95": [
+     1.3469840372131627,
+     4.472802365865244
+    ],
+    "scipy_sample_or_ci95": [
+     1.3469840372131627,
+     4.472802365865244
+    ],
+    "relative_risk": 1.8,
+    "relative_risk_katz_ci95": [
+     1.2032814308814779,
+     2.692636915061924
+    ],
+    "risk_difference": 0.2
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_2x2/extreme_p",
+   "input": {
+    "table": [
+     [
+      30,
+      1
+     ],
+     [
+      2,
+      40
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 5.264166649037098e-17,
+    "p_less": 1.0,
+    "p_greater": 5.264166649037097e-17,
+    "odds_ratio_conditional_mle": 438.9469915645446,
+    "odds_ratio_conditional_ci95": [
+     43.961739113751335,
+     24983.655786210216
+    ],
+    "odds_ratio_sample": 600.0,
+    "odds_ratio_woolf_ci95": [
+     51.948012653515875,
+     6930.005241993314
+    ],
+    "scipy_sample_or_ci95": [
+     51.948012653515875,
+     6930.005241993314
+    ],
+    "relative_risk": 20.322580645161292,
+    "relative_risk_katz_ci95": [
+     5.247243087212322,
+     78.709386474889
+    ],
+    "risk_difference": 0.9201228878648233
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_rxc/2x3",
+   "input": {
+    "table": [
+     [
+      3,
+      1,
+      4
+     ],
+     [
+      1,
+      5,
+      2
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.23076923076922964,
+    "p_observed_table": 0.027972027972027837,
+    "n_tables": 29,
+    "sum_prob_check": 0.999999999999995
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_rxc/3x3",
+   "input": {
+    "table": [
+     [
+      2,
+      0,
+      3
+     ],
+     [
+      1,
+      4,
+      0
+     ],
+     [
+      0,
+      2,
+      5
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.016659810777457717,
+    "p_observed_table": 0.0005141916906622753,
+    "n_tables": 205,
+    "sum_prob_check": 0.9999999999999931
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_rxc/2x4",
+   "input": {
+    "table": [
+     [
+      1,
+      2,
+      6,
+      0
+     ],
+     [
+      4,
+      3,
+      1,
+      5
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.018485384584455596,
+    "p_observed_table": 0.0007036307345904807,
+    "n_tables": 156,
+    "sum_prob_check": 0.9999999999999902
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_rxc/3x2_from_2x3_transpose",
+   "input": {
+    "table": [
+     [
+      3,
+      1
+     ],
+     [
+      1,
+      5
+     ],
+     [
+      4,
+      2
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.2307692307692296,
+    "p_observed_table": 0.027972027972027837,
+    "n_tables": 29,
+    "sum_prob_check": 0.9999999999999954
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "fisher_rxc/2x2_matches_scipy",
+   "input": {
+    "table": [
+     [
+      12,
+      5
+     ],
+     [
+      7,
+      15
+     ]
+    ]
+   },
+   "expected": {
+    "p_two_sided": 0.024841720377823895,
+    "p_observed_table": 0.015311611848827506,
+    "n_tables": 18,
+    "sum_prob_check": 1.000000000000026
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "mcnemar/r_mcnemar_example_classic",
+   "input": {
+    "table": [
+     [
+      794,
+      86
+     ],
+     [
+      150,
+      570
+     ]
+    ]
+   },
+   "expected": {
+    "nocc": {
+     "chi2": 17.35593220338983,
+     "p": 3.099293441045215e-05
+    },
+    "cc": {
+     "chi2": 16.81779661016949,
+     "p": 4.114562281345944e-05
+    },
+    "exact_binomial": {
+     "statistic_min_discordant": 86.0,
+     "p": 3.7159361395713866e-05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "table[0][1] and table[1][0] are the discordant pairs."
+  },
+  {
+   "name": "mcnemar/small",
+   "input": {
+    "table": [
+     [
+      10,
+      3
+     ],
+     [
+      9,
+      12
+     ]
+    ]
+   },
+   "expected": {
+    "nocc": {
+     "chi2": 3.0,
+     "p": 0.08326451666355042
+    },
+    "cc": {
+     "chi2": 2.0833333333333335,
+     "p": 0.14891467317876161
+    },
+    "exact_binomial": {
+     "statistic_min_discordant": 3.0,
+     "p": 0.14599609375
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "table[0][1] and table[1][0] are the discordant pairs."
+  },
+  {
+   "name": "mcnemar/tiny_discordant",
+   "input": {
+    "table": [
+     [
+      5,
+      1
+     ],
+     [
+      4,
+      6
+     ]
+    ]
+   },
+   "expected": {
+    "nocc": {
+     "chi2": 1.8,
+     "p": 0.17971249487899593
+    },
+    "cc": {
+     "chi2": 0.8,
+     "p": 0.37109336952269756
+    },
+    "exact_binomial": {
+     "statistic_min_discordant": 1.0,
+     "p": 0.375
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   },
+   "note": "table[0][1] and table[1][0] are the discordant pairs."
+  },
+  {
+   "name": "cochran_armitage/dose_4_levels",
+   "input": {
+    "successes": [
+     2,
+     5,
+     9,
+     14
+    ],
+    "totals": [
+     20,
+     20,
+     20,
+     20
+    ],
+    "scores": [
+     0,
+     1,
+     2,
+     3
+    ]
+   },
+   "expected": {
+    "z": 4.1311822359545785,
+    "chi2": 17.06666666666667,
+    "p_two_sided": 3.609023236748418e-05,
+    "z_with_N_over_N_minus_1": 4.105281151557508
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "cochran_armitage/unequal_n_scores",
+   "input": {
+    "successes": [
+     15,
+     8,
+     4,
+     1
+    ],
+    "totals": [
+     40,
+     30,
+     35,
+     25
+    ],
+    "scores": [
+     1,
+     2,
+     4,
+     8
+    ]
+   },
+   "expected": {
+    "z": -3.3563808918462366,
+    "chi2": 11.265292691150538,
+    "p_two_sided": 0.0007896972786532988,
+    "z_with_N_over_N_minus_1": -3.3434468133239843
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  }
+ ]
+}

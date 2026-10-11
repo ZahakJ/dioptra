@@ -1,0 +1,15 @@
+[package]
+name = "dioptra-wasm"
+description = "Dioptra engine compiled to WebAssembly for the browser build and end-to-end tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+dioptra-core.workspace = true
+wasm-bindgen.workspace = true
+getrandom.workspace = true

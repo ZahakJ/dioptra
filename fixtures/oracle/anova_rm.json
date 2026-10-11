@@ -1,0 +1,295 @@
+{
+ "test": "anova_rm",
+ "reference": "statsmodels.stats.anova.AnovaRM; epsilons and Mauchly computed here from the sample covariance matrix",
+ "notes": [
+  "S = k x k sample covariance (n-1) of the conditions; C = (k-1) x k orthonormal Helmert contrasts; Sc = C S C'.",
+  "gg_epsilon = tr(Sc)^2 / ((k-1) tr(Sc^2)); equals the Box (1954) double-centred formula k^2 (mean diag S - mean S)^2 / ((k-1)(sum s_ij^2 - 2k sum rowmean_i^2 + k^2 mean^2)) (asserted).",
+  "hf_epsilon = min(1, (n(k-1)gg - 2)/((k-1)(n-1-(k-1)gg))). General form with g groups and N subjects (Lecoutre 1991): ((N-g+1)(k-1)gg - 2)/((k-1)(N-g-(k-1)gg)); the original Huynh-Feldt 1976 numerator used N instead of N-g+1, identical when g=1.",
+  "Mauchly W = det(Sc)/(tr(Sc)/(k-1))^(k-1); chi2 = -(n-1)(1 - (2p^2+p+2)/(6p(n-1))) ln W, p=k-1, df = p(p+1)/2 - 1.",
+  "p_gg / p_hf: F referred to F(eps*(k-1), eps*(n-1)(k-1))."
+ ],
+ "generator": {
+  "script": "scripts/oracle/gen_fixtures.py",
+  "seed": 20261011,
+  "versions": {
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "statsmodels": "0.15.0",
+   "lifelines": "0.30.3",
+   "sklearn": "1.9.1",
+   "pandas": "2.3.3",
+   "mpmath": "1.4.1",
+   "python": "3.14.7"
+  }
+ },
+ "cases": [
+  {
+   "name": "n8_k4_spherical_ish",
+   "input": {
+    "Y_subjects_by_conditions": [
+     [
+      51.17,
+      52.74,
+      54.41,
+      53.7
+     ],
+     [
+      50.66,
+      51.22,
+      54.33,
+      54.42
+     ],
+     [
+      47.27,
+      48.55,
+      50.35,
+      50.79
+     ],
+     [
+      49.26,
+      49.4,
+      50.32,
+      49.84
+     ],
+     [
+      53.13,
+      53.47,
+      53.09,
+      52.44
+     ],
+     [
+      49.98,
+      50.61,
+      52.23,
+      53.14
+     ],
+     [
+      53.87,
+      51.43,
+      53.05,
+      55.13
+     ],
+     [
+      48.09,
+      50.15,
+      51.95,
+      51.87
+     ]
+    ]
+   },
+   "expected": {
+    "F": 9.79151390803214,
+    "df1": 3.0,
+    "df2": 21.0,
+    "p": 0.00030478698631105754,
+    "ss_treatment": 29.468837500000127,
+    "ss_subjects": 74.48583750000002,
+    "ss_error": 21.06741249999986,
+    "ss_total": 125.0220875,
+    "ms_treatment": 9.822945833333376,
+    "ms_error": 1.0032101190476124,
+    "gg_epsilon": 0.6514367870890906,
+    "gg_epsilon_box_formula": 0.6514367870890899,
+    "hf_epsilon_uncapped": 0.9007346776064358,
+    "hf_epsilon": 0.9007346776064358,
+    "lower_bound_epsilon": 0.3333333333333333,
+    "mauchly_W": 0.13644626117043185,
+    "mauchly_chi2": 11.397662032893821,
+    "mauchly_df": 5.0,
+    "mauchly_p": 0.04404133941183576,
+    "p_gg": 0.0023969015509085214,
+    "df1_gg": 1.9543103612672716,
+    "df2_gg": 13.680172528870902,
+    "p_hf": 0.000545888835576737,
+    "df1_hf": 2.7022040328193073,
+    "df2_hf": 18.915428229735152,
+    "friedman_chi2": 10.049999999999983,
+    "friedman_p": 0.018145863797500154
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n10_k5_nonspherical",
+   "input": {
+    "Y_subjects_by_conditions": [
+     [
+      9.82,
+      12.49,
+      11.15,
+      12.85,
+      23.78
+     ],
+     [
+      12.62,
+      14.96,
+      14.75,
+      13.08,
+      10.45
+     ],
+     [
+      12.41,
+      16.25,
+      13.77,
+      16.38,
+      20.52
+     ],
+     [
+      8.83,
+      9.4,
+      9.76,
+      16.51,
+      8.17
+     ],
+     [
+      9.98,
+      11.17,
+      11.82,
+      11.62,
+      20.8
+     ],
+     [
+      11.06,
+      12.21,
+      12.76,
+      17.4,
+      14.11
+     ],
+     [
+      12.72,
+      18.33,
+      18.89,
+      13.42,
+      20.6
+     ],
+     [
+      7.02,
+      6.53,
+      10.36,
+      3.8,
+      20.42
+     ],
+     [
+      9.49,
+      12.54,
+      11.62,
+      7.73,
+      26.13
+     ],
+     [
+      12.11,
+      14.59,
+      9.03,
+      14.56,
+      10.02
+     ]
+    ]
+   },
+   "expected": {
+    "F": 4.5642790712302554,
+    "df1": 4.0,
+    "df2": 36.0,
+    "p": 0.004383652886524647,
+    "ss_treatment": 262.1290280000004,
+    "ss_subjects": 210.27229799999998,
+    "ss_error": 516.8748919999998,
+    "ss_total": 989.2762180000002,
+    "ms_treatment": 65.5322570000001,
+    "ms_error": 14.357635888888884,
+    "gg_epsilon": 0.36383827240360733,
+    "gg_epsilon_box_formula": 0.3638382724036076,
+    "hf_epsilon_uncapped": 0.4159747647985936,
+    "hf_epsilon": 0.4159747647985936,
+    "lower_bound_epsilon": 0.25,
+    "mauchly_W": 0.021179804659358037,
+    "mauchly_chi2": 28.58907811618986,
+    "mauchly_df": 9.0,
+    "mauchly_p": 0.0007599425497929668,
+    "p_gg": 0.040640902808958934,
+    "df1_gg": 1.4553530896144293,
+    "df2_gg": 13.098177806529865,
+    "p_hf": 0.03367413368227166,
+    "df1_hf": 1.6638990591943743,
+    "df2_hf": 14.975091532749369,
+    "friedman_chi2": 9.680000000000007,
+    "friedman_p": 0.046177195661305556
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  },
+  {
+   "name": "n6_k3_textbook_like",
+   "input": {
+    "Y_subjects_by_conditions": [
+     [
+      45.0,
+      50.0,
+      55.0
+     ],
+     [
+      42.0,
+      42.0,
+      45.0
+     ],
+     [
+      36.0,
+      41.0,
+      43.0
+     ],
+     [
+      39.0,
+      35.0,
+      40.0
+     ],
+     [
+      51.0,
+      55.0,
+      59.0
+     ],
+     [
+      44.0,
+      49.0,
+      56.0
+     ]
+    ]
+   },
+   "expected": {
+    "F": 12.53398058252427,
+    "df1": 2.0,
+    "df2": 10.0,
+    "p": 0.001885590647025538,
+    "ss_treatment": 143.44444444444423,
+    "ss_subjects": 658.2777777777778,
+    "ss_error": 57.222222222222285,
+    "ss_total": 858.9444444444443,
+    "ms_treatment": 71.72222222222211,
+    "ms_error": 5.7222222222222285,
+    "gg_epsilon": 0.6383795545243166,
+    "gg_epsilon_box_formula": 0.638379554524336,
+    "hf_epsilon_uncapped": 0.7601649772445166,
+    "hf_epsilon": 0.7601649772445166,
+    "lower_bound_epsilon": 0.5,
+    "mauchly_W": 0.43353379206334014,
+    "mauchly_chi2": 3.3431421363856395,
+    "mauchly_df": 2.0,
+    "mauchly_p": 0.18795154886081947,
+    "p_gg": 0.008985215284780796,
+    "df1_gg": 1.2767591090486332,
+    "df2_gg": 6.383795545243166,
+    "p_hf": 0.005284457777114215,
+    "df1_hf": 1.5203299544890332,
+    "df2_hf": 7.601649772445166,
+    "friedman_chi2": 10.17391304347826,
+    "friedman_p": 0.006176790235910907
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10
+   }
+  }
+ ]
+}

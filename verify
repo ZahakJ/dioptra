@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# The release gate. Everything must pass before a tag is pushed:
+#   1. cargo fmt --check
+#   2. cargo clippy --workspace --all-targets -D warnings
+#   3. cargo test --workspace (engine against NIST + oracle fixtures, core, plot snapshots)
+#   4. wasm build of the engine (wasm32-unknown-unknown + wasm-bindgen)
+#   5. frontend: tsc, vitest
+#   6. frontend build, Tauri desktop debug build, CLI build
+#   7. e2e: Playwright on system Chrome against the wasm build (unless DIOPTRA_VERIFY_SKIP_E2E=1)
+#
+# Usage: ./verify            full gate
+#        ./verify --quick    steps 1-5 only
+set -euo pipefail
+cd "$(dirname "$0")"
+
+export PATH="$HOME/.cargo/bin:$PATH"
+if [[ -z "${CARGO_BUILD_JOBS:-}" ]]; then
+  avail=$(free -g 2>/dev/null | awk '/^Mem:/{print $7}')
+  if [[ -n "$avail" && "$avail" -gt 10 ]]; then export CARGO_BUILD_JOBS=6; else export CARGO_BUILD_JOBS=4; fi
+fi
+QUICK=0
+[[ "${1:-}" == "--quick" ]] && QUICK=1
+
+step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
+
+step "fmt"
+cargo fmt --all -- --check
+
+step "clippy (engine crates)"
+cargo clippy -p dioptra-stats -p dioptra-core -p dioptra-plot -p dioptra-cli -p dioptra-wasm --all-targets -- -D warnings
+
+step "cargo test"
+cargo test --workspace --exclude dioptra-app
+
+step "wasm build"
+./scripts/build-wasm.sh
+
+step "frontend typecheck + unit tests"
+( cd apps/dioptra && pnpm typecheck && pnpm test )
+
+if [[ $QUICK == 1 ]]; then
+  echo; echo "verify --quick: green"
+  exit 0
+fi
+
+step "frontend build"
+( cd apps/dioptra && pnpm build )
+
+step "clippy (app)"
+cargo clippy --workspace --all-targets -- -D warnings
+
+step "tauri desktop build (debug)"
+cargo build -p dioptra-app
+
+step "cli build"
+cargo build -p dioptra-cli
+
+if [[ "${DIOPTRA_VERIFY_SKIP_E2E:-0}" != "1" ]]; then
+  step "e2e (Playwright, system Chrome, wasm engine)"
+  ( cd apps/dioptra && pnpm test:e2e )
+else
+  echo "(e2e skipped: DIOPTRA_VERIFY_SKIP_E2E=1)"
+fi
+
+echo; echo "verify: green"

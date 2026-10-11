@@ -1,0 +1,63 @@
+{
+ "name": "BoxBOD",
+ "class": "nonlinear_regression",
+ "difficulty": "Higher",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/BoxBOD.dat",
+ "model_text": "Exponential Class | 2 Parameters (b1 and b2) | y = b1*(1-exp[-b2*x])  +  e",
+ "equation": "b1*(1-exp(-b2*x))",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 2,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 1.0,
+   "start2": 100.0,
+   "certified": 213.80940889,
+   "certified_text": "2.1380940889E+02",
+   "std_dev": 12.354515176,
+   "std_dev_text": "1.2354515176E+01"
+  },
+  {
+   "name": "b2",
+   "start1": 1.0,
+   "start2": 0.75,
+   "certified": 0.54723748542,
+   "certified_text": "5.4723748542E-01",
+   "std_dev": 0.10455993237,
+   "std_dev_text": "1.0455993237E-01"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 1168.0088766,
+  "text": "1.1680088766E+03"
+ },
+ "residual_std_dev": {
+  "value": 17.088072423,
+  "text": "1.7088072423E+01"
+ },
+ "degrees_of_freedom": 4,
+ "n_observations": 6,
+ "check_rss_at_certified_params": 1168.0088765555538,
+ "data": {
+  "y": [
+   109.0,
+   149.0,
+   149.0,
+   191.0,
+   213.0,
+   224.0
+  ],
+  "x": [
+   1.0,
+   2.0,
+   3.0,
+   5.0,
+   7.0,
+   10.0
+  ]
+ },
+ "dat_file": "BoxBOD.dat"
+}
