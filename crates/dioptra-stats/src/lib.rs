@@ -8,14 +8,20 @@
 // so invalid parameters are rejected in one comparison.
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
+pub mod anova;
+pub mod contingency;
+pub mod correlation;
 pub mod descriptive;
 pub mod dist;
 mod lilliefors_table;
+mod linalg;
 pub mod mannwhitney;
 pub mod normality;
 pub mod outliers;
+pub mod posthoc;
 pub mod quad;
 pub mod rank;
+pub mod regression;
 pub mod roots;
 pub mod special;
 pub mod ttest;

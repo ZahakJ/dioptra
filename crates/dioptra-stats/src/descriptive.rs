@@ -67,7 +67,7 @@ fn need(v: &[f64], n: usize, what: &str) -> Result<()> {
     Ok(())
 }
 
-fn mean_of(v: &[f64]) -> f64 {
+pub(crate) fn mean_of(v: &[f64]) -> f64 {
     let n = v.len() as f64;
     let m0 = compensated_sum(v.iter().copied()) / n;
     // Second pass: add the mean residual (Higham 2002, §1.9 / ch. 4).
@@ -76,7 +76,7 @@ fn mean_of(v: &[f64]) -> f64 {
 
 /// Sum of squared deviations about the mean, by the corrected two-pass algorithm
 /// sum (x - m)^2 - (sum (x - m))^2 / n (Chan, Golub & LeVeque 1983).
-fn ss_of(v: &[f64], m: f64) -> f64 {
+pub(crate) fn ss_of(v: &[f64], m: f64) -> f64 {
     let n = v.len() as f64;
     let s1 = compensated_sum(v.iter().map(|x| x - m));
     let s2 = compensated_sum(v.iter().map(|x| (x - m) * (x - m)));

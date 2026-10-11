@@ -135,3 +135,104 @@ fn bench_tests() {
         .p
     });
 }
+
+#[test]
+#[ignore]
+fn bench_fisher_rxc_and_tukey() {
+    use dioptra_stats::contingency::fisher_exact_rxc;
+    use dioptra_stats::posthoc::tukey_kramer;
+    // Largest supported shapes (N <= 200, r c <= 30), moderately structured counts.
+    let tables: Vec<(&str, Vec<Vec<u64>>)> = vec![
+        (
+            "Fisher r x c 3x3 N=60",
+            vec![vec![8, 5, 7], vec![4, 9, 7], vec![6, 6, 8]],
+        ),
+        (
+            "Fisher r x c 2x10 N=100",
+            vec![
+                vec![3, 6, 4, 7, 5, 6, 4, 5, 3, 7],
+                vec![7, 4, 6, 3, 5, 4, 6, 5, 7, 3],
+            ],
+        ),
+        (
+            "Fisher r x c 3x5 N=150",
+            vec![
+                vec![12, 9, 11, 8, 10],
+                vec![8, 12, 10, 11, 9],
+                vec![10, 9, 9, 11, 11],
+            ],
+        ),
+        (
+            "Fisher r x c 5x6 N=60",
+            vec![
+                vec![3, 2, 1, 2, 2, 2],
+                vec![1, 3, 2, 2, 2, 2],
+                vec![2, 2, 3, 1, 2, 2],
+                vec![2, 2, 2, 3, 1, 2],
+                vec![2, 1, 2, 2, 3, 2],
+            ],
+        ),
+        (
+            "Fisher r x c 4x5 N=200",
+            vec![
+                vec![12, 8, 10, 9, 11],
+                vec![9, 11, 10, 12, 8],
+                vec![10, 10, 11, 9, 10],
+                vec![9, 11, 9, 10, 11],
+            ],
+        ),
+        (
+            "Fisher r x c 3x10 N=200",
+            vec![
+                vec![7, 6, 8, 5, 7, 6, 8, 7, 6, 7],
+                vec![6, 7, 5, 8, 6, 7, 6, 7, 7, 6],
+                vec![7, 7, 7, 7, 7, 7, 6, 6, 7, 7],
+            ],
+        ),
+        (
+            "Fisher r x c 5x6 N=200",
+            vec![
+                vec![8, 6, 7, 6, 7, 6],
+                vec![6, 8, 6, 7, 6, 7],
+                vec![7, 6, 8, 6, 7, 6],
+                vec![6, 7, 6, 8, 6, 7],
+                vec![7, 6, 7, 6, 8, 6],
+            ],
+        ),
+        (
+            "Fisher r x c 5x6 N=200 associated",
+            vec![
+                vec![16, 9, 6, 4, 3, 2],
+                vec![9, 14, 8, 5, 3, 1],
+                vec![5, 8, 14, 7, 4, 2],
+                vec![3, 4, 7, 13, 9, 4],
+                vec![2, 3, 4, 7, 12, 12],
+            ],
+        ),
+        (
+            "Fisher r x c 2x15 N=200",
+            vec![
+                vec![7, 6, 8, 5, 7, 6, 8, 7, 6, 7, 5, 8, 6, 7, 7],
+                vec![6, 7, 5, 8, 6, 7, 6, 7, 7, 6, 8, 6, 7, 7, 7],
+            ],
+        ),
+    ];
+    for (label, t) in &tables {
+        let t0 = Instant::now();
+        let r = fisher_exact_rxc(t);
+        let el = t0.elapsed().as_secs_f64();
+        match r {
+            Ok(r) => println!(
+                "{label:48} {:>12.3} ms  p = {:.6e}",
+                el * 1e3,
+                r.p_two_sided
+            ),
+            Err(e) => println!("{label:48} {:>12.3} ms  {e}", el * 1e3),
+        }
+    }
+    let groups: Vec<Vec<f64>> = (0..10).map(|k| data(12 + k, 100 + k as u64)).collect();
+    let refs: Vec<&[f64]> = groups.iter().map(|g| g.as_slice()).collect();
+    time("Tukey-Kramer k=10 (45 pairs + q_crit)", 3, || {
+        tukey_kramer(&refs, 0.05).unwrap().comparisons[0].p_adj
+    });
+}

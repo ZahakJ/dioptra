@@ -1041,5 +1041,1385 @@ pub fn all_families() -> Vec<Checker> {
         wilcoxon_family(),
         normality_family(),
         outliers_family(),
+        anova_oneway_family(),
+        anova_twoway_family(),
+        anova_rm_family(),
+        kruskal_friedman_dunn_family(),
+        multiple_comparisons_family(),
+        multiple_comparisons_sanity(),
+        contingency_family(),
+        correlation_family(),
+        linear_regression_family(),
     ]
 }
+
+// ------------------------------------------------------------------ ANOVA and post hoc
+
+use dioptra_stats::anova::{self, SsType, TwoWayOptions};
+use dioptra_stats::posthoc::{self, Adjust};
+use dioptra_stats::ttest::Alternative;
+
+fn groups_of(v: &Value) -> Vec<Vec<f64>> {
+    v.as_array().unwrap().iter().map(nums).collect()
+}
+
+fn refs(g: &[Vec<f64>]) -> Vec<&[f64]> {
+    g.iter().map(|v| v.as_slice()).collect()
+}
+
+fn matrix_of(v: &Value) -> Vec<Vec<f64>> {
+    v.as_array().unwrap().iter().map(nums).collect()
+}
+
+/// Check `e[key]` (number) against `got` if the key exists.
+fn chk(ck: &mut Checker, c: &Value, e: &Value, key: &str, got: f64) {
+    if e.get(key).is_none() {
+        ck.fail(format!("{} :: missing expected key {key}", c["name"]));
+        return;
+    }
+    let t = tol(c, key);
+    ck.check_value(c["name"].as_str().unwrap(), key, &e[key], got, t);
+}
+
+fn chk_vec(ck: &mut Checker, c: &Value, e: &Value, key: &str, got: &[f64]) {
+    let t = tol(c, key);
+    ck.check_vec(c["name"].as_str().unwrap(), key, &nums(&e[key]), got, t);
+}
+
+pub fn anova_oneway_family() -> Checker {
+    let mut ck = Checker::new("one-way ANOVA (+ Welch, Brown-Forsythe, Bartlett, Levene)");
+    for c in cases("anova_oneway") {
+        ck.cases += 1;
+        let g = groups_of(&c["input"]["groups"]);
+        let r = anova::one_way_anova(&refs(&g)).unwrap();
+        let e = &c["expected"];
+        for (k, v) in [
+            ("ss_between", r.ss_between),
+            ("ss_within", r.ss_within),
+            ("ss_total", r.ss_total),
+            ("df_between", r.df_between),
+            ("df_within", r.df_within),
+            ("df_total", r.df_total),
+            ("ms_between", r.ms_between),
+            ("ms_within", r.ms_within),
+            ("F", r.f),
+            ("p", r.p),
+            ("r_squared_eta2", r.r_squared),
+            ("omega2", r.omega_squared),
+        ] {
+            chk(&mut ck, &c, e, k, v);
+        }
+        let means: Vec<f64> = r.groups.iter().map(|s| s.mean).collect();
+        let sds: Vec<f64> = r.groups.iter().map(|s| s.sd).collect();
+        let ns: Vec<f64> = r.groups.iter().map(|s| s.n as f64).collect();
+        chk_vec(&mut ck, &c, e, "group_means", &means);
+        chk_vec(&mut ck, &c, e, "group_sds", &sds);
+        chk_vec(&mut ck, &c, e, "group_n", &ns);
+        let name = c["name"].as_str().unwrap().to_string();
+        let w = r.welch.as_ref().unwrap();
+        let ew = &e["welch"];
+        let t = tol(&c, "welch");
+        ck.check_value(&name, "welch.F", &ew["F"], w.f, t);
+        ck.check_value(&name, "welch.df1", &ew["df1"], w.df1, t);
+        ck.check_value(&name, "welch.df2", &ew["df2"], w.df2, t);
+        ck.check_value(&name, "welch.p", &ew["p"], w.p, t);
+        let b = r.brown_forsythe.as_ref().unwrap();
+        let eb = &e["brown_forsythe_means_Fstar"];
+        let t = tol(&c, "brown_forsythe_means_Fstar");
+        ck.check_value(&name, "bf.F", &eb["F"], b.f, t);
+        ck.check_value(&name, "bf.df1", &eb["df1"], b.df1, t);
+        ck.check_value(&name, "bf.df2", &eb["df2"], b.df2, t);
+        ck.check_value(&name, "bf.p", &eb["p"], b.p, t);
+        ck.check_value(
+            &name,
+            "bf.mehrotra_df1",
+            &eb["mehrotra_1997_df1"],
+            b.mehrotra_df1,
+            t,
+        );
+        ck.check_value(
+            &name,
+            "bf.mehrotra_p",
+            &eb["mehrotra_1997_p"],
+            b.mehrotra_p,
+            t,
+        );
+        for (key, got) in [
+            (
+                "brown_forsythe_levene_median",
+                r.brown_forsythe_variance.as_ref().unwrap(),
+            ),
+            ("levene_mean", r.levene_mean.as_ref().unwrap()),
+        ] {
+            let t = tol(&c, key);
+            ck.check_value(&name, &format!("{key}.W"), &e[key]["W"], got.statistic, t);
+            ck.check_value(&name, &format!("{key}.p"), &e[key]["p"], got.p, t);
+        }
+        let bt = r.bartlett.as_ref().unwrap();
+        let t = tol(&c, "bartlett");
+        ck.check_value(
+            &name,
+            "bartlett.statistic",
+            &e["bartlett"]["statistic"],
+            bt.statistic,
+            t,
+        );
+        ck.check_value(&name, "bartlett.p", &e["bartlett"]["p"], bt.p, t);
+    }
+    ck
+}
+
+/// Long-format factor labels -> level indices in lexicographic order.
+fn levels(v: &Value) -> (Vec<usize>, Vec<String>) {
+    let labels: Vec<String> = v
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_string())
+        .collect();
+    let mut uniq = labels.clone();
+    uniq.sort();
+    uniq.dedup();
+    (
+        labels
+            .iter()
+            .map(|l| uniq.iter().position(|u| u == l).unwrap())
+            .collect(),
+        uniq,
+    )
+}
+
+pub fn anova_twoway_family() -> Checker {
+    let mut ck = Checker::new("two-way ANOVA (types I, II, III)");
+    for c in cases("anova_twoway") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap().to_string();
+        let (a, la) = levels(&c["input"]["A"]);
+        let (b, lb) = levels(&c["input"]["B"]);
+        let y = nums(&c["input"]["y"]);
+        let cells = anova::cells_from_long(&a, &b, &y).unwrap();
+        let e = &c["expected"];
+        for (key, ty) in [
+            ("type1", SsType::I),
+            ("type2", SsType::II),
+            ("type3", SsType::III),
+        ] {
+            let r = anova::two_way_anova(
+                &cells,
+                TwoWayOptions {
+                    ss_type: ty,
+                    interaction: true,
+                },
+            )
+            .unwrap();
+            let t = tol(&c, key);
+            let mut rows: Vec<&anova::AnovaTerm> = r.terms.iter().collect();
+            rows.push(&r.residual);
+            if let Some(i) = &r.intercept {
+                rows.push(i);
+            }
+            let exp = e[key].as_object().unwrap();
+            if exp.len() != rows.len() {
+                ck.fail(format!(
+                    "{name} :: {key}: {} rows vs {}",
+                    exp.len(),
+                    rows.len()
+                ));
+            }
+            for row in rows {
+                let er = &e[key][&row.name];
+                let ctx = format!("{name} {key} {}", row.name);
+                ck.check_value(&ctx, "ss", &er["ss"], row.ss, t);
+                ck.check_value(&ctx, "df", &er["df"], row.df, t);
+                ck.check_value(&ctx, "F", &er["F"], row.f, t);
+                ck.check_value(&ctx, "p", &er["p"], row.p, t);
+            }
+            chk(&mut ck, &c, e, "residual_df", r.residual.df);
+            chk(&mut ck, &c, e, "mse", r.residual.ms);
+            for (i, ai) in la.iter().enumerate() {
+                for (j, bj) in lb.iter().enumerate() {
+                    let k = format!("{ai},{bj}");
+                    ck.check_value(
+                        &name,
+                        &format!("cell_means[{k}]"),
+                        &e["cell_means"][&k],
+                        r.cell_means[i][j],
+                        tol(&c, "cell_means"),
+                    );
+                }
+            }
+            // The treatment-coded "type III" is a trap: our sum-to-zero type III must differ
+            // from it whenever the design is unbalanced.
+            if ty == SsType::III && name.contains("unbalanced") {
+                let wrong = num(&e["type3_treatment_coding_WRONG_for_reference"]["A"]).unwrap();
+                if (r.terms[0].ss - wrong).abs() < 1e-6 * wrong {
+                    ck.fail(format!(
+                        "{name}: type III A matches the treatment-coded trap"
+                    ));
+                }
+            }
+        }
+    }
+    ck
+}
+
+pub fn anova_rm_family() -> Checker {
+    let mut ck = Checker::new("repeated-measures ANOVA, sphericity, Friedman");
+    for c in cases("anova_rm") {
+        ck.cases += 1;
+        let m = matrix_of(&c["input"]["Y_subjects_by_conditions"]);
+        let r = anova::rm_anova(&m).unwrap();
+        let fr = anova::friedman(&m).unwrap();
+        let e = &c["expected"];
+        for (k, v) in [
+            ("F", r.f),
+            ("df1", r.df_treatment),
+            ("df2", r.df_error),
+            ("p", r.p),
+            ("ss_treatment", r.ss_treatment),
+            ("ss_subjects", r.ss_subjects),
+            ("ss_error", r.ss_error),
+            ("ss_total", r.ss_total),
+            ("ms_treatment", r.ms_treatment),
+            ("ms_error", r.ms_error),
+            ("gg_epsilon", r.gg_epsilon),
+            ("gg_epsilon_box_formula", r.gg_epsilon_box_formula),
+            ("hf_epsilon_uncapped", r.hf_epsilon_uncapped),
+            ("hf_epsilon", r.hf_epsilon),
+            ("lower_bound_epsilon", r.lower_bound_epsilon),
+            ("mauchly_W", r.mauchly_w),
+            ("mauchly_chi2", r.mauchly_chi2),
+            ("mauchly_df", r.mauchly_df),
+            ("mauchly_p", r.mauchly_p),
+            ("p_gg", r.p_gg),
+            ("df1_gg", r.df1_gg),
+            ("df2_gg", r.df2_gg),
+            ("p_hf", r.p_hf),
+            ("df1_hf", r.df1_hf),
+            ("df2_hf", r.df2_hf),
+            ("friedman_chi2", fr.chi2),
+            ("friedman_p", fr.p),
+        ] {
+            chk(&mut ck, &c, e, k, v);
+        }
+    }
+    ck
+}
+
+fn check_dunn(ck: &mut Checker, c: &Value, d: &Value, res: &[(&str, posthoc::PostHoc)]) {
+    let name = c["name"].as_str().unwrap();
+    let t = tol(c, "dunn");
+    let first = &res[0].1;
+    ck.check_vec(
+        name,
+        "dunn.mean_ranks",
+        &nums(&d["mean_ranks"]),
+        &first.centers,
+        t,
+    );
+    let pairs: Vec<(usize, usize)> = d["pairs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| {
+            (
+                p[0].as_u64().unwrap() as usize,
+                p[1].as_u64().unwrap() as usize,
+            )
+        })
+        .collect();
+    let got_pairs: Vec<(usize, usize)> = first.comparisons.iter().map(|c| (c.i, c.j)).collect();
+    if pairs != got_pairs {
+        ck.fail(format!("{name}: pairs {pairs:?} vs {got_pairs:?}"));
+    }
+    let z: Vec<f64> = first.comparisons.iter().map(|c| c.statistic).collect();
+    ck.check_vec(name, "dunn.z", &nums(&d["z"]), &z, t);
+    let raw: Vec<f64> = first.comparisons.iter().map(|c| c.p_raw).collect();
+    ck.check_vec(name, "dunn.p_raw", &nums(&d["p_raw"]), &raw, t);
+    for (key, r) in res {
+        let adj: Vec<f64> = r.comparisons.iter().map(|c| c.p_adj).collect();
+        ck.check_vec(name, &format!("dunn.{key}"), &nums(&d[*key]), &adj, t);
+    }
+}
+
+pub fn kruskal_friedman_dunn_family() -> Checker {
+    let mut ck = Checker::new("Kruskal-Wallis, Friedman, Dunn");
+    for c in cases("kruskal_friedman_dunn") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap().to_string();
+        let e = &c["expected"];
+        if name.starts_with("kruskal_wallis/") {
+            let g = groups_of(&c["input"]["groups"]);
+            let r = anova::kruskal_wallis(&refs(&g)).unwrap();
+            chk(&mut ck, &c, e, "H", r.h);
+            chk(&mut ck, &c, e, "H_uncorrected", r.h_uncorrected);
+            chk(&mut ck, &c, e, "tie_correction_factor", r.tie_correction);
+            chk(&mut ck, &c, e, "df", r.df);
+            chk(&mut ck, &c, e, "p", r.p);
+            let run = |a| posthoc::dunn_kruskal(&refs(&g), None, a, 0.05).unwrap();
+            check_dunn(
+                &mut ck,
+                &c,
+                &e["dunn"],
+                &[
+                    ("p_bonferroni", run(Adjust::Bonferroni)),
+                    ("p_holm", run(Adjust::Holm)),
+                    ("p_sidak", run(Adjust::Sidak)),
+                ],
+            );
+            let mr = &r.mean_ranks;
+            ck.check_vec(
+                &name,
+                "kw.mean_ranks",
+                &nums(&e["dunn"]["mean_ranks"]),
+                mr,
+                tol(&c, "dunn"),
+            );
+        } else {
+            let m = matrix_of(&c["input"]["Y_subjects_by_conditions"]);
+            let r = anova::friedman(&m).unwrap();
+            chk(&mut ck, &c, e, "chi2", r.chi2);
+            chk(&mut ck, &c, e, "df", r.df);
+            chk(&mut ck, &c, e, "p", r.p);
+            ck.check_vec(
+                &name,
+                "dunn.rank_sums",
+                &nums(&e["dunn"]["rank_sums"]),
+                &r.rank_sums,
+                tol(&c, "dunn"),
+            );
+            let run = |a| posthoc::dunn_friedman(&m, None, a, 0.05).unwrap();
+            check_dunn(
+                &mut ck,
+                &c,
+                &e["dunn"],
+                &[
+                    ("p_bonferroni", run(Adjust::Bonferroni)),
+                    ("p_holm", run(Adjust::Holm)),
+                ],
+            );
+        }
+    }
+    ck
+}
+
+pub fn multiple_comparisons_family() -> Checker {
+    multiple_comparisons_impl(false)
+}
+
+/// The loose library cross-checks stored next to the exact values: statsmodels' `qsturng`
+/// Tukey p and SciPy's randomized-QMC Dunnett p and CI (abs 2e-3 / rel 1e-3).
+pub fn multiple_comparisons_sanity() -> Checker {
+    multiple_comparisons_impl(true)
+}
+
+fn multiple_comparisons_impl(sanity: bool) -> Checker {
+    let mut ck = Checker::new(if sanity {
+        "sanity: statsmodels qsturng, SciPy QMC Dunnett"
+    } else {
+        "Tukey-Kramer, Dunnett, p-value adjustment"
+    });
+    for c in cases("multiple_comparisons") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap().to_string();
+        let e = &c["expected"];
+        if name.starts_with("tukey_kramer/") {
+            let g = groups_of(&c["input"]["groups"]);
+            let r = posthoc::tukey_kramer(&refs(&g), 0.05).unwrap();
+            chk(&mut ck, &c, e, "q_crit_0.95", r.critical_value.unwrap());
+            chk(&mut ck, &c, e, "ms_within", r.ms_within);
+            chk(&mut ck, &c, e, "df_within", r.df_within);
+            // fixture: mean_diff = mean_j - mean_i; ours: mean_i - mean_j
+            let md: Vec<f64> = r.comparisons.iter().map(|x| -x.estimate).collect();
+            chk_vec(&mut ck, &c, e, "mean_diff", &md);
+            let q: Vec<f64> = r.comparisons.iter().map(|x| x.statistic).collect();
+            chk_vec(&mut ck, &c, e, "q", &q);
+            let p: Vec<f64> = r.comparisons.iter().map(|x| x.p_adj).collect();
+            if sanity {
+                chk_vec(&mut ck, &c, e, "statsmodels_p_adj", &p);
+                continue;
+            }
+            chk_vec(&mut ck, &c, e, "p_adj", &p);
+            let t = tol(&c, "ci95");
+            for (k, (cmp, ev)) in r
+                .comparisons
+                .iter()
+                .zip(e["ci95"].as_array().unwrap())
+                .enumerate()
+            {
+                let (lo, hi) = cmp.ci.unwrap();
+                ck.check(
+                    &name,
+                    &format!("ci95[{k}].lo"),
+                    num(&ev[0]).unwrap(),
+                    -hi,
+                    t,
+                );
+                ck.check(
+                    &name,
+                    &format!("ci95[{k}].hi"),
+                    num(&ev[1]).unwrap(),
+                    -lo,
+                    t,
+                );
+            }
+        } else if name.starts_with("dunnett/") {
+            let mut g = vec![nums(&c["input"]["control"])];
+            g.extend(groups_of(&c["input"]["treatments"]));
+            let r2 = posthoc::dunnett(&refs(&g), 0, Alternative::TwoSided, 0.05).unwrap();
+            let rg = posthoc::dunnett(&refs(&g), 0, Alternative::Greater, 0.05).unwrap();
+            let p2: Vec<f64> = r2.comparisons.iter().map(|x| x.p_adj).collect();
+            if sanity {
+                chk_vec(&mut ck, &c, e, "scipy_dunnett_p", &p2);
+                // SciPy's CI is stored as [lows, highs].
+                let sc = &e["scipy_dunnett_ci95"];
+                let lows: Vec<f64> = r2.comparisons.iter().map(|x| x.ci.unwrap().0).collect();
+                let highs: Vec<f64> = r2.comparisons.iter().map(|x| x.ci.unwrap().1).collect();
+                let t = tol(&c, "scipy_dunnett_ci95");
+                ck.check_vec(&name, "scipy_dunnett_ci95.lows", &nums(&sc[0]), &lows, t);
+                ck.check_vec(&name, "scipy_dunnett_ci95.highs", &nums(&sc[1]), &highs, t);
+                continue;
+            }
+            let tv: Vec<f64> = r2.comparisons.iter().map(|x| x.statistic).collect();
+            chk_vec(&mut ck, &c, e, "t", &tv);
+            chk(&mut ck, &c, e, "df", r2.df_within);
+            let lam: Vec<f64> = (1..g.len())
+                .map(|i| {
+                    let (ni, n0) = (g[i].len() as f64, g[0].len() as f64);
+                    (ni / (ni + n0)).sqrt()
+                })
+                .collect();
+            chk_vec(&mut ck, &c, e, "lambda", &lam);
+            chk_vec(&mut ck, &c, e, "p_two_sided", &p2);
+            let pg: Vec<f64> = rg.comparisons.iter().map(|x| x.p_adj).collect();
+            chk_vec(&mut ck, &c, e, "p_greater", &pg);
+            chk(
+                &mut ck,
+                &c,
+                e,
+                "critical_value_two_sided_0.95",
+                r2.critical_value.unwrap(),
+            );
+            let md: Vec<f64> = r2.comparisons.iter().map(|x| x.estimate).collect();
+            chk_vec(&mut ck, &c, e, "mean_diff", &md);
+            let t = tol(&c, "ci95");
+            for (k, (cmp, ev)) in r2
+                .comparisons
+                .iter()
+                .zip(e["ci95"].as_array().unwrap())
+                .enumerate()
+            {
+                let (lo, hi) = cmp.ci.unwrap();
+                ck.check(&name, &format!("ci95[{k}].lo"), num(&ev[0]).unwrap(), lo, t);
+                ck.check(&name, &format!("ci95[{k}].hi"), num(&ev[1]).unwrap(), hi, t);
+            }
+        } else {
+            if sanity {
+                continue;
+            }
+            let p = nums(&c["input"]["p"]);
+            for (key, m) in [
+                ("bonferroni", Adjust::Bonferroni),
+                ("sidak", Adjust::Sidak),
+                ("holm", Adjust::Holm),
+                ("holm_sidak", Adjust::HolmSidak),
+                ("fdr_bh", Adjust::BenjaminiHochberg),
+                ("fdr_by", Adjust::BenjaminiYekutieli),
+                ("hommel", Adjust::Hommel),
+            ] {
+                chk_vec(&mut ck, &c, e, key, &posthoc::p_adjust(&p, m));
+            }
+        }
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ contingency
+
+use dioptra_stats::contingency as ct;
+
+fn table_of(v: &Value) -> Vec<Vec<u64>> {
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            r.as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_u64().unwrap())
+                .collect()
+        })
+        .collect()
+}
+
+fn t2(t: &[Vec<u64>]) -> [[u64; 2]; 2] {
+    [[t[0][0], t[0][1]], [t[1][0], t[1][1]]]
+}
+
+fn chk_pair(ck: &mut Checker, c: &Value, key: &str, got: Option<(f64, f64)>) {
+    let e = &c["expected"];
+    if e.get(key).is_none() {
+        return;
+    }
+    let name = c["name"].as_str().unwrap();
+    match got {
+        Some((lo, hi)) => {
+            ck.check_vec(name, key, &nums(&e[key]), &[lo, hi], tol(c, key));
+        }
+        None => ck.fail(format!("{name} :: {key}: not computed")),
+    }
+}
+
+pub fn contingency_family() -> Checker {
+    let mut ck = Checker::new("contingency (chi-square, Fisher, McNemar, trend)");
+    for c in cases("contingency") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap().to_string();
+        let e = &c["expected"];
+        let inp = &c["input"];
+        let kind = name.split('/').next().unwrap();
+        match kind {
+            "chi2_independence" => {
+                let t = table_of(&inp["table"]);
+                let r = ct::chi_square_independence(&t).unwrap();
+                let tl = tol(&c, "pearson");
+                ck.check_value(
+                    &name,
+                    "pearson.chi2",
+                    &e["pearson"]["chi2"],
+                    r.pearson.statistic,
+                    tl,
+                );
+                ck.check_value(&name, "pearson.df", &e["pearson"]["df"], r.pearson.df, tl);
+                ck.check_value(&name, "pearson.p", &e["pearson"]["p"], r.pearson.p, tl);
+                let y = r.yates.clone().unwrap_or(r.pearson.clone());
+                let tl = tol(&c, "yates");
+                ck.check_value(&name, "yates.chi2", &e["yates"]["chi2"], y.statistic, tl);
+                ck.check_value(&name, "yates.df", &e["yates"]["df"], y.df, tl);
+                ck.check_value(&name, "yates.p", &e["yates"]["p"], y.p, tl);
+                let tl = tol(&c, "g_test");
+                ck.check_value(&name, "g_test.G", &e["g_test"]["G"], r.g_test.statistic, tl);
+                ck.check_value(&name, "g_test.p", &e["g_test"]["p"], r.g_test.p, tl);
+                let ex: Vec<f64> = r.expected.iter().flatten().copied().collect();
+                let ee: Vec<f64> = e["expected"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .flat_map(nums)
+                    .collect();
+                ck.check_vec(&name, "expected", &ee, &ex, tol(&c, "expected"));
+            }
+            "chi2_gof" => {
+                let o: Vec<u64> = inp["observed"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.as_u64().unwrap())
+                    .collect();
+                let pr = if inp["expected_proportions"].is_null() {
+                    None
+                } else {
+                    Some(nums(&inp["expected_proportions"]))
+                };
+                let r = ct::chi_square_gof(&o, pr.as_deref(), 0).unwrap();
+                chk(&mut ck, &c, e, "chi2", r.chi2);
+                chk(&mut ck, &c, e, "df", r.df);
+                chk(&mut ck, &c, e, "p", r.p);
+            }
+            "fisher_2x2" => {
+                let t = t2(&table_of(&inp["table"]));
+                let r = ct::fisher_exact_2x2(t, 0.95).unwrap();
+                let m = ct::risk_measures(t, 0.95).unwrap();
+                chk(&mut ck, &c, e, "p_two_sided", r.p_two_sided);
+                chk(&mut ck, &c, e, "p_less", r.p_less);
+                chk(&mut ck, &c, e, "p_greater", r.p_greater);
+                chk(
+                    &mut ck,
+                    &c,
+                    e,
+                    "odds_ratio_conditional_mle",
+                    r.odds_ratio_conditional_mle,
+                );
+                chk_pair(
+                    &mut ck,
+                    &c,
+                    "odds_ratio_conditional_ci95",
+                    Some(r.odds_ratio_conditional_ci),
+                );
+                chk(&mut ck, &c, e, "odds_ratio_sample", r.odds_ratio_sample);
+                chk(&mut ck, &c, e, "risk_difference", m.risk_difference);
+                chk_pair(&mut ck, &c, "odds_ratio_woolf_ci95", m.odds_ratio_woolf_ci);
+                chk_pair(&mut ck, &c, "scipy_sample_or_ci95", m.odds_ratio_woolf_ci);
+                if e.get("relative_risk").is_some() {
+                    chk(&mut ck, &c, e, "relative_risk", m.relative_risk);
+                }
+                chk_pair(
+                    &mut ck,
+                    &c,
+                    "relative_risk_katz_ci95",
+                    m.relative_risk_katz_ci,
+                );
+            }
+            "fisher_rxc" => {
+                let t = table_of(&inp["table"]);
+                let r = ct::fisher_exact_rxc(&t).unwrap();
+                chk(&mut ck, &c, e, "p_two_sided", r.p_two_sided);
+                chk(&mut ck, &c, e, "p_observed_table", r.p_observed_table);
+                chk(&mut ck, &c, e, "n_tables", r.n_tables.unwrap_or(f64::NAN));
+                chk(&mut ck, &c, e, "sum_prob_check", r.total_probability);
+            }
+            "mcnemar" => {
+                let t = t2(&table_of(&inp["table"]));
+                let r = ct::mcnemar(t).unwrap();
+                let tl = tol(&c, "nocc");
+                ck.check_value(&name, "nocc.chi2", &e["nocc"]["chi2"], r.chi2, tl);
+                ck.check_value(&name, "nocc.p", &e["nocc"]["p"], r.p, tl);
+                ck.check_value(&name, "cc.chi2", &e["cc"]["chi2"], r.chi2_corrected, tl);
+                ck.check_value(&name, "cc.p", &e["cc"]["p"], r.p_corrected, tl);
+                let ex = &e["exact_binomial"];
+                ck.check_value(
+                    &name,
+                    "exact.min",
+                    &ex["statistic_min_discordant"],
+                    r.b.min(r.c) as f64,
+                    tl,
+                );
+                ck.check_value(&name, "exact.p", &ex["p"], r.p_exact, tl);
+            }
+            "cochran_armitage" => {
+                let s: Vec<u64> = inp["successes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.as_u64().unwrap())
+                    .collect();
+                let n: Vec<u64> = inp["totals"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.as_u64().unwrap())
+                    .collect();
+                let sc = nums(&inp["scores"]);
+                let r = ct::cochran_armitage(&s, &n, Some(&sc)).unwrap();
+                chk(&mut ck, &c, e, "z", r.z);
+                chk(&mut ck, &c, e, "chi2", r.chi2);
+                chk(&mut ck, &c, e, "p_two_sided", r.p_two_sided);
+                chk(
+                    &mut ck,
+                    &c,
+                    e,
+                    "z_with_N_over_N_minus_1",
+                    r.z_n_over_n_minus_1,
+                );
+            }
+            other => ck.fail(format!("{name}: unknown kind {other}")),
+        }
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ correlation
+
+use dioptra_stats::correlation as cor;
+
+pub fn correlation_family() -> Checker {
+    let mut ck = Checker::new("correlation (Pearson, Spearman, Kendall)");
+    for c in cases("correlation") {
+        ck.cases += 1;
+        let e = &c["expected"];
+        let (x, y) = (nums(&c["input"]["x"]), nums(&c["input"]["y"]));
+        let p = cor::pearson(&x, &y, 0.95).unwrap();
+        chk(&mut ck, &c, e, "pearson_r", p.estimate);
+        chk(&mut ck, &c, e, "pearson_p_two_sided", p.p_two_sided);
+        chk(&mut ck, &c, e, "pearson_p_greater", p.p_greater);
+        chk(&mut ck, &c, e, "r_squared", p.r_squared);
+        chk_pair(&mut ck, &c, "pearson_ci95_fisher_z", p.ci);
+        let s = cor::spearman(&x, &y, 0.95).unwrap();
+        chk(&mut ck, &c, e, "spearman_rho", s.rho);
+        chk(
+            &mut ck,
+            &c,
+            e,
+            "spearman_p_t_approx_two_sided",
+            s.p_t_two_sided,
+        );
+        for (key, got) in [
+            ("spearman_p_exact_two_sided", s.p_exact_two_sided),
+            ("spearman_p_exact_greater", s.p_exact_greater),
+            ("spearman_p_exact_less", s.p_exact_less),
+            ("spearman_n_permutations", s.n_permutations),
+        ] {
+            if e.get(key).is_some() {
+                chk(&mut ck, &c, e, key, got.unwrap_or(f64::NAN));
+            }
+        }
+        let k = cor::kendall(&x, &y).unwrap();
+        chk(&mut ck, &c, e, "kendall_tau_b", k.tau_b);
+        chk(&mut ck, &c, e, "kendall_tau_c", k.tau_c);
+        chk(&mut ck, &c, e, "kendall_p_asymptotic", k.p_asymptotic);
+        chk(&mut ck, &c, e, "kendall_p_two_sided_scipy_auto", k.p_auto);
+        if e.get("kendall_p_exact").is_some() {
+            chk(
+                &mut ck,
+                &c,
+                e,
+                "kendall_p_exact",
+                k.p_exact.unwrap_or(f64::NAN),
+            );
+        } else if k.p_exact.is_some() {
+            ck.fail(format!(
+                "{}: exact Kendall p computed despite ties",
+                c["name"]
+            ));
+        }
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ linear regression
+
+use dioptra_stats::regression as reg;
+
+pub fn linear_regression_family() -> Checker {
+    let mut ck = Checker::new("linear regression (simple, bands, runs, Deming, multiple)");
+    for c in cases("linear_regression") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap().to_string();
+        let e = &c["expected"];
+        if name.starts_with("simple/") {
+            let (x, y) = (nums(&c["input"]["x"]), nums(&c["input"]["y"]));
+            let r = reg::simple_linear_regression(&x, &y, reg::SimpleRegressionOptions::default())
+                .unwrap();
+            for (k, v) in [
+                ("slope", r.slope),
+                ("intercept", r.intercept),
+                ("se_slope", r.se_slope),
+                ("se_intercept", r.se_intercept),
+                ("t_slope", r.t_slope),
+                ("p_slope", r.p_slope),
+                ("t_intercept", r.t_intercept),
+                ("p_intercept", r.p_intercept),
+                ("r", r.r),
+                ("r_squared", r.r_squared),
+                ("adj_r_squared", r.adj_r_squared),
+                ("sy_x", r.sy_x),
+                ("ss_residual", r.ss_residual),
+                ("df_residual", r.df_residual),
+                ("F", r.f),
+                ("p_F", r.p_f),
+                ("x_intercept", r.x_intercept),
+            ] {
+                chk(&mut ck, &c, e, k, v);
+            }
+            chk_pair(&mut ck, &c, "ci95_slope", Some(r.ci_slope));
+            chk_pair(&mut ck, &c, "ci95_intercept", Some(r.ci_intercept));
+            let eb = &e["bands"];
+            let b = r.bands(&nums(&eb["x"]));
+            let t = tol(&c, "bands");
+            for (k, v) in [
+                ("fit", &b.fit),
+                ("ci95_mean_lower", &b.ci_lower),
+                ("ci95_mean_upper", &b.ci_upper),
+                ("pi95_lower", &b.pi_lower),
+                ("pi95_upper", &b.pi_upper),
+            ] {
+                ck.check_vec(&name, &format!("bands.{k}"), &nums(&eb[k]), v, t);
+            }
+            let er = &e["runs_test"];
+            let rt = &r.runs_test;
+            let t = tol(&c, "runs_test");
+            // exact discrete p: tightened to 1e-12 relative (research/05 §3)
+            let texact = Tol::new(1e-12, 1e-14);
+            ck.check_value(&name, "runs.runs", &er["runs"], rt.runs as f64, t);
+            ck.check_value(
+                &name,
+                "runs.n_positive",
+                &er["n_positive"],
+                rt.n_positive as f64,
+                t,
+            );
+            ck.check_value(
+                &name,
+                "runs.n_negative",
+                &er["n_negative"],
+                rt.n_negative as f64,
+                t,
+            );
+            ck.check_value(
+                &name,
+                "runs.p_exact",
+                &er["p_exact_too_few_runs"],
+                rt.p_exact_too_few_runs,
+                texact,
+            );
+            ck.check_value(
+                &name,
+                "runs.expected_runs",
+                &er["expected_runs"],
+                rt.expected_runs,
+                t,
+            );
+            ck.check_value(&name, "runs.z", &er["z"], rt.z, t);
+            let t = tol(&c, "deming");
+            for (key, lam) in [("lambda_1", 1.0), ("lambda_2", 2.0)] {
+                let d = reg::deming_regression(&x, &y, lam, 0.95).unwrap();
+                let ed = &e["deming"][key];
+                ck.check_value(
+                    &name,
+                    &format!("deming.{key}.slope"),
+                    &ed["slope"],
+                    d.slope,
+                    t,
+                );
+                ck.check_value(
+                    &name,
+                    &format!("deming.{key}.intercept"),
+                    &ed["intercept"],
+                    d.intercept,
+                    t,
+                );
+                ck.check_value(
+                    &name,
+                    &format!("deming.{key}.se_slope"),
+                    &ed["se_slope_jackknife"],
+                    d.se_slope,
+                    t,
+                );
+                ck.check_value(
+                    &name,
+                    &format!("deming.{key}.se_intercept"),
+                    &ed["se_intercept_jackknife"],
+                    d.se_intercept,
+                    t,
+                );
+            }
+        } else {
+            let rows = matrix_of(&c["input"]["X"]);
+            let y = nums(&c["input"]["y"]);
+            let r = reg::multiple_regression(&rows, &y, reg::MultipleRegressionOptions::default())
+                .unwrap();
+            chk_vec(&mut ck, &c, e, "params", &r.coefficients);
+            chk_vec(&mut ck, &c, e, "se", &r.se);
+            chk_vec(&mut ck, &c, e, "t", &r.t);
+            chk_vec(&mut ck, &c, e, "p", &r.p);
+            let t = tol(&c, "ci95");
+            for (k, (ci, ev)) in r.ci.iter().zip(e["ci95"].as_array().unwrap()).enumerate() {
+                ck.check_vec(&name, &format!("ci95[{k}]"), &nums(ev), &[ci.0, ci.1], t);
+            }
+            for (k, v) in [
+                ("r_squared", r.r_squared),
+                ("adj_r_squared", r.adj_r_squared),
+                ("F", r.f),
+                ("p_F", r.p_f),
+                ("sy_x", r.sy_x),
+                ("ss_residual", r.ss_residual),
+                ("df_residual", r.df_residual),
+            ] {
+                chk(&mut ck, &c, e, k, v);
+            }
+            chk_vec(&mut ck, &c, e, "vif", &r.vif[1..]);
+        }
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ NIST linear and ANOVA
+
+/// One NIST linear-regression dataset scored (LRE, capped at 15).
+pub struct NistLinRow {
+    pub name: String,
+    pub difficulty: String,
+    /// min LRE over the parameters
+    pub params: f64,
+    /// min LRE over the parameter SDs
+    pub sds: f64,
+    pub r_squared: f64,
+    pub residual_sd: f64,
+    /// min LRE over the ANOVA table entries (SS, MS, F)
+    pub anova: f64,
+    /// min of all the above
+    pub min: f64,
+    /// the same minimum against the exact solution for the inputs as parsed into doubles
+    pub min_exact_on_doubles: f64,
+}
+
+pub const NIST_LINEAR: [&str; 11] = [
+    "Norris", "Pontius", "NoInt1", "NoInt2", "Filip", "Longley", "Wampler1", "Wampler2",
+    "Wampler3", "Wampler4", "Wampler5",
+];
+
+pub const NIST_ANOVA: [&str; 11] = [
+    "SiRstv", "SmLs01", "SmLs02", "SmLs03", "AtmWtAg", "SmLs04", "SmLs05", "SmLs06", "SmLs07",
+    "SmLs08", "SmLs09",
+];
+
+/// Fit a NIST linear dataset with the model it names.
+pub fn nist_linear_fit(j: &Value) -> reg::MultipleRegression {
+    let data = &j["data"];
+    let y = nums(&data["y"]);
+    let model = &j["model"];
+    let intercept = model["intercept"].as_bool().unwrap();
+    let opts = reg::MultipleRegressionOptions {
+        intercept,
+        ci_level: 0.95,
+    };
+    if model["kind"] == "polynomial" {
+        let x = nums(&data["x"]);
+        let deg = model["degree"].as_u64().unwrap() as usize;
+        reg::polynomial_regression(&x, &y, deg, opts).unwrap()
+    } else {
+        let p = model["predictors"].as_u64().unwrap() as usize;
+        let cols: Vec<Vec<f64>> = (1..=p).map(|k| nums(&data[&format!("x{k}")])).collect();
+        let rows: Vec<Vec<f64>> = (0..y.len())
+            .map(|i| cols.iter().map(|c| c[i]).collect())
+            .collect();
+        reg::multiple_regression(&rows, &y, opts).unwrap()
+    }
+}
+
+fn cert(v: &Value) -> Option<f64> {
+    if v.is_object() {
+        num(&v["value"])
+    } else {
+        num(v)
+    }
+}
+
+pub fn nist_linear() -> Vec<NistLinRow> {
+    NIST_LINEAR
+        .iter()
+        .map(|&name| {
+            let j = load(&format!("nist/{name}.json"));
+            let r = nist_linear_fit(&j);
+            let ps = j["parameters"].as_array().unwrap();
+            let params = ps
+                .iter()
+                .enumerate()
+                .map(|(k, p)| lre(r.coefficients[k], num(&p["certified"]).unwrap()))
+                .fold(f64::INFINITY, f64::min);
+            let sds = ps
+                .iter()
+                .enumerate()
+                .map(|(k, p)| lre(r.se[k], num(&p["std_dev"]).unwrap()))
+                .fold(f64::INFINITY, f64::min);
+            let r2 = lre(r.r_squared, cert(&j["r_squared"]).unwrap());
+            let rsd = lre(r.sy_x, cert(&j["residual_std_dev"]).unwrap());
+            let a = &j["anova"];
+            let mut an = f64::INFINITY;
+            for (got, v) in [
+                (r.ss_regression, &a["regression"]["ss"]),
+                (r.ms_regression, &a["regression"]["ms"]),
+                (r.f, &a["regression"]["f"]),
+                (r.ss_residual, &a["residual"]["ss"]),
+                (r.ms_residual, &a["residual"]["ms"]),
+            ] {
+                if let Some(cv) = cert(v) {
+                    an = an.min(lre(got, cv));
+                }
+            }
+            let min = params.min(sds).min(r2).min(rsd).min(an);
+            let exact = NIST_LINEAR_EXACT_ON_DOUBLES
+                .iter()
+                .find(|e| e.0 == name)
+                .map(|e| {
+                    // Exact values below 1e-12 (the SDs and residual SD of the
+                    // near-perfect Wampler1/2 fits) are scored by absolute error.
+                    let l = |got: f64, ex: f64| {
+                        if ex.abs() < 1e-12 {
+                            lre(got - ex, 0.0)
+                        } else {
+                            lre(got, ex)
+                        }
+                    };
+                    let mut m = f64::INFINITY;
+                    for (k, &b) in e.1.iter().enumerate() {
+                        m = m.min(l(r.coefficients[k], b));
+                    }
+                    for (k, &s) in e.2.iter().enumerate() {
+                        m = m.min(l(r.se[k], s));
+                    }
+                    m.min(l(r.sy_x, e.3)).min(l(r.r_squared, e.4))
+                })
+                .unwrap_or(f64::NAN);
+            NistLinRow {
+                name: name.to_string(),
+                difficulty: j["difficulty"].as_str().unwrap().to_string(),
+                params,
+                sds,
+                r_squared: r2,
+                residual_sd: rsd,
+                anova: an,
+                min,
+                min_exact_on_doubles: exact,
+            }
+        })
+        .collect()
+}
+
+/// One NIST one-way ANOVA dataset scored.
+pub struct NistAnovaRow {
+    pub name: String,
+    pub difficulty: String,
+    pub ss_between: f64,
+    pub ss_within: f64,
+    pub ms_between: f64,
+    pub ms_within: f64,
+    pub f: f64,
+    pub r_squared: f64,
+    pub residual_sd: f64,
+    pub min: f64,
+    pub min_exact_on_doubles: f64,
+}
+
+pub fn nist_anova_fit(j: &Value) -> anova::OneWayAnova {
+    let g = nums(&j["data"]["group"]);
+    let y = nums(&j["data"]["y"]);
+    let mut labels: Vec<i64> = g.iter().map(|v| *v as i64).collect();
+    labels.sort_unstable();
+    labels.dedup();
+    let groups: Vec<Vec<f64>> = labels
+        .iter()
+        .map(|&l| {
+            g.iter()
+                .zip(&y)
+                .filter(|(a, _)| **a as i64 == l)
+                .map(|(_, b)| *b)
+                .collect()
+        })
+        .collect();
+    anova::one_way_anova(&refs(&groups)).unwrap()
+}
+
+pub fn nist_anova() -> Vec<NistAnovaRow> {
+    NIST_ANOVA
+        .iter()
+        .map(|&name| {
+            let j = load(&format!("nist/{name}.json"));
+            let r = nist_anova_fit(&j);
+            let b = &j["between"];
+            let w = &j["within"];
+            let row = [
+                lre(r.ss_between, cert(&b["ss"]).unwrap()),
+                lre(r.ss_within, cert(&w["ss"]).unwrap()),
+                lre(r.ms_between, cert(&b["ms"]).unwrap()),
+                lre(r.ms_within, cert(&w["ms"]).unwrap()),
+                lre(r.f, cert(&b["f"]).unwrap()),
+                lre(r.r_squared, cert(&j["r_squared"]).unwrap()),
+                lre(r.residual_sd, cert(&j["residual_std_dev"]).unwrap()),
+            ];
+            let exact = NIST_ANOVA_EXACT_ON_DOUBLES
+                .iter()
+                .find(|e| e.0 == name)
+                .map(|e| {
+                    [
+                        lre(r.ss_between, e.1[0]),
+                        lre(r.ss_within, e.1[1]),
+                        lre(r.f, e.1[2]),
+                        lre(r.r_squared, e.1[3]),
+                        lre(r.residual_sd, e.1[4]),
+                    ]
+                    .into_iter()
+                    .fold(f64::INFINITY, f64::min)
+                })
+                .unwrap_or(f64::NAN);
+            NistAnovaRow {
+                name: name.to_string(),
+                difficulty: j["difficulty"].as_str().unwrap().to_string(),
+                ss_between: row[0],
+                ss_within: row[1],
+                ms_between: row[2],
+                ms_within: row[3],
+                f: row[4],
+                r_squared: row[5],
+                residual_sd: row[6],
+                min: row.into_iter().fold(f64::INFINITY, f64::min),
+                min_exact_on_doubles: exact,
+            }
+        })
+        .collect()
+}
+
+/// (name, coefficients, SDs, residual SD, R^2): the exact least-squares solution for the
+/// NIST inputs as parsed into doubles (polynomial powers formed exactly), computed in
+/// rational arithmetic (Python `fractions`: normal equations solved exactly, square roots
+/// in 60-digit decimals) and rounded to double. Separates the algorithm from input
+/// rounding, as the univariate table above does.
+/// (name, coefficients, SDs, residual SD, R^2).
+pub type ExactLinear = (&'static str, &'static [f64], &'static [f64], f64, f64);
+
+pub const NIST_LINEAR_EXACT_ON_DOUBLES: &[ExactLinear] = &[
+    (
+        "Norris",
+        &[-0.26232307377402675, 1.0021168180204545],
+        &[0.2328182343011548, 0.0004297968481999412],
+        0.8847963961443813,
+        0.9999937458837117,
+    ),
+    (
+        "Pontius",
+        &[
+            0.0006735657894736632,
+            7.320591604010026e-07,
+            -3.1608187134503054e-15,
+        ],
+        &[
+            0.00010793861203307534,
+            1.5781739998165632e-10,
+            4.866528499920286e-17,
+        ],
+        0.00020517742407618158,
+        0.9999999001785371,
+    ),
+    (
+        "NoInt1",
+        &[2.074380165289256],
+        &[0.01652892561983471],
+        3.567530340063379,
+        0.9993654922986628,
+    ),
+    (
+        "NoInt2",
+        &[0.7272727272727273],
+        &[0.04208273180784325],
+        0.3692744729379982,
+        0.9933481152993349,
+    ),
+    (
+        "Filip",
+        &[
+            -1467.4896142297885,
+            -2772.17959193341,
+            -2316.3710816089188,
+            -1127.97394098371,
+            -354.4782337033469,
+            -75.12420173937532,
+            -10.875318035534194,
+            -1.062214985889462,
+            -0.06701911545934047,
+            -0.002467810782754773,
+            -4.029625250804014e-05,
+        ],
+        &[
+            298.08453099553685,
+            559.7798654749496,
+            466.47757212779624,
+            227.20427447775123,
+            71.6478660875927,
+            15.28971787474,
+            2.236911598160332,
+            0.22162432193422732,
+            0.014236376315472392,
+            0.0005356174088898208,
+            8.966328373738679e-06,
+        ],
+        0.0033480105132454342,
+        0.9967274161856201,
+    ),
+    (
+        "Longley",
+        &[
+            -3482258.6345958184,
+            15.061872271373323,
+            -0.03581917929259102,
+            -2.020229803816825,
+            -1.033226867173592,
+            -0.05110410565358071,
+            1829.151464613552,
+        ],
+        &[
+            890420.3836073726,
+            84.91492577476696,
+            0.03349100777224318,
+            0.4883996816516994,
+            0.21427416316167527,
+            0.2260732000693702,
+            455.478499142212,
+        ],
+        304.8540735619648,
+        0.9954790045772957,
+    ),
+    (
+        "Wampler1",
+        &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        0.0,
+        1.0,
+    ),
+    (
+        "Wampler2",
+        &[
+            0.9999999999999998,
+            0.10000000000000081,
+            0.009999999999999617,
+            0.001000000000000063,
+            9.999999999999588e-05,
+            1.000000000000009e-05,
+        ],
+        &[
+            6.385093232145039e-16,
+            7.011714979363868e-16,
+            2.3120012917030466e-16,
+            3.010373438771421e-17,
+            1.674843589045736e-18,
+            3.332230281013217e-20,
+        ],
+        7.001608627331804e-16,
+        1.0,
+    ),
+    (
+        "Wampler3",
+        &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        &[
+            2152.3262467816967,
+            2363.5517346968054,
+            779.3435243315831,
+            101.47550755034965,
+            5.645665121707515,
+            0.11232485467931194,
+        ],
+        2360.1450237926765,
+        0.9999955590258199,
+    ),
+    (
+        "Wampler4",
+        &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        &[
+            215232.62467816967,
+            236355.1734696805,
+            77934.3524331583,
+            10147.550755034965,
+            564.5665121707516,
+            11.232485467931193,
+        ],
+        236014.50237926765,
+        0.9574784408256621,
+    ),
+    (
+        "Wampler5",
+        &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        &[
+            21523262.467816968,
+            23635517.34696805,
+            7793435.243315831,
+            1014755.0755034965,
+            56456.65121707516,
+            1123.2485467931194,
+        ],
+        23601450.237926766,
+        0.002246689215749398,
+    ),
+];
+
+/// (name, [SS between, SS within, F, R^2, residual SD]) exact for the double inputs.
+pub const NIST_ANOVA_EXACT_ON_DOUBLES: &[(&str, [f64; 5])] = &[
+    (
+        "SiRstv",
+        [
+            0.05114626159999952,
+            0.2166365600000165,
+            1.1804623744024467,
+            0.19099903905111612,
+            0.10407606833466003,
+        ],
+    ),
+    (
+        "SmLs01",
+        [
+            1.680000000000001,
+            1.800000000000001,
+            21.0,
+            0.4827586206896552,
+            0.10000000000000003,
+        ],
+    ),
+    (
+        "SmLs02",
+        [
+            16.08000000000001,
+            18.00000000000001,
+            201.00000000000003,
+            0.471830985915493,
+            0.10000000000000003,
+        ],
+    ),
+    (
+        "SmLs03",
+        [
+            160.0800000000001,
+            180.00000000000009,
+            2001.0000000000002,
+            0.47071277346506707,
+            0.10000000000000003,
+        ],
+    ),
+    (
+        "AtmWtAg",
+        [
+            3.6383418747907132e-09,
+            1.049517291679747e-08,
+            15.946733566676926,
+            0.2574265445249428,
+            1.5104831444735094e-05,
+        ],
+    ),
+    (
+        "SmLs04",
+        [
+            1.6800000001490116,
+            1.8000000000931322,
+            21.0000000007761,
+            0.4827586206988835,
+            0.100000000002587,
+        ],
+    ),
+    (
+        "SmLs05",
+        [
+            16.080000001825393,
+            18.000000000931323,
+            201.00000001241764,
+            0.47183098593088874,
+            0.100000000002587,
+        ],
+    ),
+    (
+        "SmLs06",
+        [
+            160.0800000185892,
+            180.00000000931323,
+            2001.0000001288329,
+            0.4707127734811079,
+            0.100000000002587,
+        ],
+    ),
+    (
+        "SmLs07",
+        [
+            1.6801562694014696,
+            1.8000978373345875,
+            21.00081188781877,
+            0.4827682743479894,
+            0.10000271766680997,
+        ],
+    ),
+    (
+        "SmLs08",
+        [
+            16.081914284204238,
+            18.00097824625708,
+            201.01300409594845,
+            0.4718471083353959,
+            0.10000271731379513,
+        ],
+    ),
+    (
+        "SmLs09",
+        [
+            160.09949443572512,
+            180.00978232919425,
+            2001.1349262209505,
+            0.47072957244381347,
+            0.1000027172767471,
+        ],
+    ),
+];
