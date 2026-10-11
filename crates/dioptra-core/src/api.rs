@@ -77,9 +77,9 @@ pub enum VariableType {
     Date,
 }
 
-/// Decimal and separator hints for pasting.
+/// Decimal and separator hints for pasting. Every field is optional in JSON (`{}` = auto).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", default)]
 pub struct PasteOptions {
     /// Decimal mark: auto-detect, point or comma.
     pub decimal: DecimalMark,
@@ -186,6 +186,7 @@ pub enum PValueStyle {
 /// A request from the UI.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     /// Engine identity and version.
     Ping,
@@ -672,8 +673,11 @@ pub enum Response {
     PasteReport(crate::import::PasteReport),
     /// Provenance of a cell.
     CellInfo(crate::table::CellInfo),
-    /// Analysis options for a table.
-    Analyses(Vec<crate::analysis::AnalysisOption>),
+    /// Analysis options for a table. (A struct variant: serde cannot tag a bare list.)
+    Analyses {
+        /// Options in menu order.
+        analyses: Vec<crate::analysis::AnalysisOption>,
+    },
     /// A spec.
     AnalysisSpec(crate::analysis::AnalysisSpec),
     /// A results sheet.
@@ -703,15 +707,20 @@ pub enum Response {
         /// Content.
         text: String,
     },
-    /// History entries, newest first.
-    History(Vec<crate::history::HistoryEntry>),
+    /// History entries, newest first. (A struct variant: serde cannot tag a bare list.)
+    History {
+        /// Entries.
+        entries: Vec<crate::history::HistoryEntry>,
+    },
 }
 
-/// One open project plus its history.
-#[derive(Debug, Default)]
+/// One open project plus its history, the analysis computations and the graph renderer.
+/// `Default`, `Debug` and `dispatch` live in `session.rs`.
 pub struct Session {
     pub(crate) project: crate::project::Project,
     pub(crate) history: crate::history::History,
+    pub(crate) renderer: Box<dyn crate::graph::Renderer>,
+    pub(crate) engine: crate::analysis::AnalysisEngine,
 }
 
 impl Session {
@@ -724,7 +733,9 @@ impl Session {
     pub fn dispatch_json(&mut self, json: &str) -> String {
         let response = match serde_json::from_str::<Command>(json) {
             Ok(cmd) => self.dispatch(cmd),
-            Err(e) => Response::Error { message: format!("bad command: {e}") },
+            Err(e) => Response::Error {
+                message: format!("bad command: {e}"),
+            },
         };
         serde_json::to_string(&response).expect("response serialises")
     }
