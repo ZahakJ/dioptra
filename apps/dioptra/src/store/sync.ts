@@ -7,6 +7,18 @@ import { notifyError } from './notices';
 import { useProject } from './project';
 import { useTables } from './table';
 
+type ChangedListener = (changed: Changed) => void;
+const changedListeners = new Set<ChangedListener>();
+
+/**
+ * Called after every applied `Changed` (mutations, undo/redo, recompute). Views of analyses,
+ * graphs and layouts use it to refetch when their id is among `changed.ids`.
+ */
+export function onChanged(fn: ChangedListener): () => void {
+  changedListeners.add(fn);
+  return () => changedListeners.delete(fn);
+}
+
 /** Refresh the project tree, the changed tables and (if shown) the history. */
 export async function applyChanged(changed: Changed, opts: { open?: boolean } = {}): Promise<void> {
   await useProject.getState().refresh();
@@ -19,6 +31,13 @@ export async function applyChanged(changed: Changed, opts: { open?: boolean } = 
     useProject.getState().open(changed.created);
   }
   if (useHistory.getState().watched > 0) void useHistory.getState().refresh();
+  for (const l of [...changedListeners]) {
+    try {
+      l(changed);
+    } catch {
+      // A listener's failure must not break the mutation that triggered it.
+    }
+  }
 }
 
 /**

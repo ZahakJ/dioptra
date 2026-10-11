@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { TableView } from '../grid/TableView';
+import { registerFeatures } from '../features';
 import { bootEngine } from '../store/engine';
 import { useProject } from '../store/project';
 import { useEngineStatus } from '../store/status';
@@ -28,6 +29,7 @@ export function registerCore(): void {
   registered = true;
   registerWorkArea('table', TableView);
   registerCoreInspectorSections();
+  registerFeatures();
 }
 
 function useTheme(): void {

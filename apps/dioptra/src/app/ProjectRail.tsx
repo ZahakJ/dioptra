@@ -6,9 +6,26 @@ import type { ProjectItem } from '../engine/types';
 import { KIND_GROUPS, useProject } from '../store/project';
 import { mutate } from '../store/sync';
 import { deleteObject, newTable } from './actions';
-import { showContextMenu } from './ContextMenu';
+import { showContextMenu, type MenuEntry } from './ContextMenu';
 import { ChevronIcon, ITEM_ICONS, PlusIcon } from './icons';
 import { kindInfo } from './kinds';
+
+type RailAction = (item: ProjectItem) => MenuEntry[];
+const railActions: RailAction[] = [];
+
+/** Phase 5B adds per-object context-menu entries (Analyze..., New graph...) here. */
+export function registerRailActions(fn: RailAction): () => void {
+  railActions.push(fn);
+  return () => {
+    const i = railActions.indexOf(fn);
+    if (i >= 0) railActions.splice(i, 1);
+  };
+}
+
+function railItemActions(item: ProjectItem): MenuEntry[] {
+  const extra = railActions.flatMap((fn) => fn(item));
+  return extra.length ? ['separator', ...extra] : [];
+}
 
 export function ProjectRail() {
   const view = useProject((s) => s.view);
@@ -123,6 +140,7 @@ function RailItem({
         showContextMenu(e.clientX, e.clientY, [
           { label: 'Open', run: onOpen },
           { label: 'Rename', shortcut: 'F2', run: onRename },
+          ...railItemActions(item),
           'separator',
           { label: 'Delete...', shortcut: 'Delete', run: () => deleteObject(item.id) },
         ]);

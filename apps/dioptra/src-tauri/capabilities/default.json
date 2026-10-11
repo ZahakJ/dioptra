@@ -12,6 +12,7 @@
     "opener:default",
     "core:window:allow-set-title",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "fs:allow-write-file"
   ]
 }
