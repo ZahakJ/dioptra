@@ -54,8 +54,9 @@ written as SVG by the crate's own writer, as PNG through resvg and as PDF throug
 **`dioptra-wasm`** is a thin `wasm-bindgen` facade: an `Engine` with one method,
 `dispatch(json) -> json`.
 
-**`dioptra-cli`** will run analyses and render graphs from a project file for scripting.
-In 0.1.0 it prints its version; see the [roadmap](roadmap.md).
+**`dioptra-cli`** runs the same engine from the shell: `dioptra analyze data.csv --kind
+column --test one_way_anova`, and `info`, `run`, `import`, `render`, `export`, `bench` and
+`equations` on a project file, for scripted pipelines and continuous integration.
 
 **`apps/dioptra`** is the Tauri 2 desktop app with the React UI. `src-tauri/src/lib.rs`
 exposes one Tauri command, `dispatch`. `src/engine/` holds the bridge with two backends,

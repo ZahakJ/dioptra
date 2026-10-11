@@ -125,7 +125,10 @@ fn status(r: &Value, name: &str) -> String {
 
 fn common_parts(r: &Value) {
     assert!(
-        r["methods"].as_str().unwrap().contains("Dioptra 0.1.0."),
+        r["methods"]
+            .as_str()
+            .unwrap()
+            .contains(&format!("Dioptra {}.", env!("CARGO_PKG_VERSION"))),
         "{}",
         r["methods"]
     );
