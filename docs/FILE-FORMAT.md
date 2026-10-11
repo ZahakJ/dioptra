@@ -26,7 +26,7 @@ history.jsonl            command log: one JSON object per line, newest last
 Readers must accept any `dioptra/1.x`; unknown keys are preserved on round trip where
 possible and ignored otherwise.
 
-## tables/<id>.json
+## `tables/<id>.json`
 
 ```json
 {

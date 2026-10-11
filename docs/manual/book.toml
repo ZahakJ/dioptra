@@ -1,0 +1,21 @@
+[book]
+title = "Dioptra manual"
+description = "How to use Dioptra: data tables, formulas, analyses, graphs, the file format and the correctness record."
+authors = ["The Dioptra contributors"]
+language = "en"
+src = "src"
+
+[build]
+create-missing = false
+
+[output.html]
+site-url = "/dioptra/manual/"
+git-repository-url = "https://github.com/ZahakJ/dioptra"
+edit-url-template = "https://github.com/ZahakJ/dioptra/edit/main/docs/manual/{path}"
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = false
+additional-css = ["css/dioptra.css"]
+
+[output.html.search]
+enable = true

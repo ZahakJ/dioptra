@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dioptra</title>
+  <meta name="description" content="Dioptra is a free, open-source desktop program for scientific data on Linux, Windows and macOS: paste raw numbers, test them with every assumption checked, and export a journal-ready figure.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F4F2ED" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141716" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <script>
+    // Apply a saved theme before first paint, so the page does not flash.
+    try {
+      var t = localStorage.getItem('dioptra-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* storage unavailable: follow the system */ }
+  </script>
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <nav class="wrap nav" aria-label="Main">
+      <a class="brand" href="./" aria-label="Dioptra home">
+        <img src="assets/icon.svg" alt="" width="28" height="28">
+        <span>Dioptra</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="manual/">Manual</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra">GitHub</a></li>
+        <li><a href="#download" class="nav-cta">Download</a></li>
+        <li>
+          <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" title="Switch theme">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M10 2.75a7.25 7.25 0 0 1 0 14.5z" fill="currentColor"/>
+            </svg>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <p class="eyebrow">Free and open source · Linux, Windows, macOS</p>
+      <h1 id="hero-title">From the instrument to the figure, without the spreadsheet.</h1>
+      <p class="lede">
+        Dioptra is a desktop program for scientific data. Paste raw numbers, shape them with
+        formulas, run the test with its assumptions checked in plain view, and export the
+        figure at the size the journal asks for. It does the work of GraphPad Prism and of
+        the spreadsheet you opened before it, and keeps every step in one open file.
+      </p>
+      <p class="hero-actions">
+        <a class="button primary" href="#download">Download Dioptra</a>
+        <a class="button" href="manual/getting-started.html">Read the ten-minute start</a>
+      </p>
+      <svg class="scale" viewBox="0 0 1000 24" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <line x1="0" y1="23.5" x2="1000" y2="23.5"/>
+        <g id="ticks"></g>
+      </svg>
+    </section>
+
+    <section id="download" class="band" aria-labelledby="download-title">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="label"><span class="num">01</span> Download</p>
+          <h2 id="download-title">Pick your system</h2>
+          <p class="section-note" id="release-status" aria-live="polite">
+            Every file is on the
+            <a href="https://github.com/ZahakJ/dioptra/releases/latest">releases page</a>.
+          </p>
+        </header>
+        <div class="platforms">
+          <article class="platform" data-os="linux">
+            <h3>Linux</h3>
+            <p class="platform-note">One file for any distribution, or a package for yours.</p>
+            <a class="button primary dl" data-asset="appimage" href="https://github.com/ZahakJ/dioptra/releases/latest">
+              <span class="dl-name">AppImage</span><span class="dl-meta"></span>
+            </a>
+            <ul class="alt">
+              <li><a class="dl" data-asset="deb" href="https://github.com/ZahakJ/dioptra/releases/latest"><span class="dl-name">.deb</span><span class="dl-meta"></span></a> Debian, Ubuntu</li>
+              <li><a class="dl" data-asset="rpm" href="https://github.com/ZahakJ/dioptra/releases/latest"><span class="dl-name">.rpm</span><span class="dl-meta"></span></a> Fedora, openSUSE</li>
+            </ul>
+          </article>
+          <article class="platform" data-os="windows">
+            <h3>Windows</h3>
+            <p class="platform-note">Windows 10 and 11, 64-bit.</p>
+            <a class="button primary dl" data-asset="msi" href="https://github.com/ZahakJ/dioptra/releases/latest">
+              <span class="dl-name">Installer (.msi)</span><span class="dl-meta"></span>
+            </a>
+            <ul class="alt">
+              <li><a class="dl" data-asset="exe" href="https://github.com/ZahakJ/dioptra/releases/latest"><span class="dl-name">setup .exe</span><span class="dl-meta"></span></a> no administrator rights</li>
+            </ul>
+          </article>
+          <article class="platform" data-os="mac">
+            <h3>macOS</h3>
+            <p class="platform-note">Choose the build for your processor.</p>
+            <a class="button primary dl" data-asset="dmg-arm" href="https://github.com/ZahakJ/dioptra/releases/latest">
+              <span class="dl-name">Apple silicon (.dmg)</span><span class="dl-meta"></span>
+            </a>
+            <ul class="alt">
+              <li><a class="dl" data-asset="dmg-x64" href="https://github.com/ZahakJ/dioptra/releases/latest"><span class="dl-name">Intel .dmg</span><span class="dl-meta"></span></a> Macs before 2020</li>
+            </ul>
+          </article>
+        </div>
+        <p class="fineprint">
+          The builds are not signed with a paid certificate, so Windows and macOS ask once
+          before the first launch. The <a href="manual/getting-started.html#install">install notes</a>
+          say what to click.
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap captures" aria-labelledby="captures-title">
+      <header class="section-head">
+        <p class="label"><span class="num">02</span> The instrument</p>
+        <h2 id="captures-title">Grid, results sheet, graph editor</h2>
+      </header>
+      <figure class="capture wide">
+        <img src="assets/grid-light.png" width="1440" height="900" loading="lazy"
+             alt="The Dioptra window: a table of one million pasted plate-reader values, with the inspector showing that the selected cell was pasted from the clipboard and when.">
+        <figcaption><strong>The grid.</strong> A million cells pasted in a fraction of a second. Select any cell and the inspector says where it came from: typed, pasted, imported, or computed.</figcaption>
+      </figure>
+      <div class="capture-pair">
+        <figure class="capture">
+          <img src="assets/results-light.png" width="1440" height="900" loading="lazy"
+               alt="A results sheet beside its table: an assumptions line, one APA-style sentence per group, a table of descriptive statistics and a checklist headed Before you report this.">
+          <figcaption><strong>The results sheet.</strong> Assumption checks first, then sentences you can paste, then the numbers at full precision, then what the test cannot check for you.</figcaption>
+        </figure>
+        <figure class="capture">
+          <img src="assets/graph-editor-light.png" width="1440" height="900" loading="lazy"
+               alt="The graph editor: a column graph with every data point shown, the Y axis title selected, and its properties in the inspector on the right.">
+          <figcaption><strong>The graph editor.</strong> Click an axis, a label or a series and edit it in the inspector. Sizes in millimetres, type in points.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="excel-title">
+      <div class="wrap two-col">
+        <header class="section-head">
+          <p class="label"><span class="num">03</span> No spreadsheet in the loop</p>
+          <h2 id="excel-title">The errors happen before the statistics</h2>
+        </header>
+        <div class="prose">
+          <p>
+            The usual route goes through a spreadsheet. The plate reader exports a file, the file
+            opens in Excel, someone tidies it, and the tidy version is pasted into the statistics
+            program. Each step is a chance to change the data without noticing.
+          </p>
+          <p>
+            The spreadsheet reads the gene <code>SEPT2</code> as the second of September and
+            <code>MARCH1</code> as a date in March. In 2016 about a fifth of papers that published
+            gene lists from Excel had such errors; in 2021 the share was higher. Copy a block from
+            the spreadsheet and the clipboard carries the rounded numbers it was displaying, not
+            the ones it stored. Then the data are reshaped by hand to fit the next program's
+            layout, and the baseline is subtracted in one column and forgotten in the next.
+          </p>
+          <p>Dioptra takes the spreadsheet's jobs so there is nothing to round-trip:</p>
+          <ul class="checks">
+            <li><strong>Paste raw text.</strong> Tabs, commas or semicolons; decimal commas detected and reported. A value that could be read two ways, like <code>1,234</code>, is kept as text and shown, not guessed.</li>
+            <li><strong>Text stays text.</strong> A gene name is never a date, and <code>&lt;LOD</code> is never a zero.</li>
+            <li><strong>Read the file itself.</strong> XLSX, XLS and ODS are read directly, at the precision they were stored.</li>
+            <li><strong>Shape it in place.</strong> Column formulas, baseline removal, normalisation, unit conversion, pivots and transposes, each stored as a recipe beside the data it came from.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap two-col" aria-labelledby="honest-title">
+      <header class="section-head">
+        <p class="label"><span class="num">04</span> Honest by default</p>
+        <h2 id="honest-title">Every assumption on the page</h2>
+      </header>
+      <div class="prose">
+        <blockquote class="sheet">
+          <p class="sheet-check"><span class="dot" aria-hidden="true"></span>Equal variances: Brown–Forsythe, <span class="tnum">p = .03</span>. The groups' spreads differ; Welch's test, used here, does not assume they are equal.</p>
+          <p class="sheet-line">Welch's t test: the means differ by 3.2 units (95% CI 1.1 to 5.3), t(17.4) = 3.21, p = .005.</p>
+        </blockquote>
+        <ul class="checks">
+          <li><strong>Checks run with the test.</strong> Normality, equal variances, sample size and outliers are tested and shown above the result, with what each one means for this analysis and the alternative when one fails.</li>
+          <li><strong>Estimates before p values.</strong> Every sheet reports the effect with its confidence interval: mean differences, Hedges' g, odds ratios, hazard ratios, AUC.</li>
+          <li><strong>Sentences you can paste.</strong> APA-style results and a methods sentence naming the test, its variant, the correction and the version.</li>
+          <li><strong>Exact where affordable.</strong> Exact Mann–Whitney and Wilcoxon p values, Fisher's test beyond 2 × 2, and Welch, two-sided and Tukey–Kramer as the defaults.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="pub-title">
+      <div class="wrap two-col">
+        <header class="section-head">
+          <p class="label"><span class="num">05</span> Publication-ready</p>
+          <h2 id="pub-title">The figure on screen is the file you send</h2>
+        </header>
+        <div class="prose figure-row">
+          <figure class="plot">
+            <img src="assets/figure-estimation.png" width="669" height="551" loading="lazy"
+                 alt="An estimation plot exported from Dioptra: grip strength of control and treated groups as points, and the mean difference of about 11 newtons with its bootstrap 95% confidence interval on a second axis.">
+            <figcaption>An estimation plot as exported: both groups' points and the mean difference with its bootstrap 95% CI.</figcaption>
+          </figure>
+          <ul class="checks">
+            <li><strong>SVG and PDF that stay editable.</strong> Real text, named layers, no clipping masks; PDF embeds its fonts. PNG at any resolution.</li>
+            <li><strong>Millimetres and points.</strong> 85 mm for a single column, 174 mm for a double; type and lines in points.</li>
+            <li><strong>The same bytes everywhere.</strong> Fonts are bundled, so a figure made on Linux is identical on a Mac.</li>
+            <li><strong>Colour-blind-safe palettes.</strong> Okabe–Ito by default; Tol, viridis and cividis besides. Points shown on every column graph.</li>
+            <li><strong>Twenty-three families.</strong> Violin, raincloud, estimation, before–after, SuperPlot, Kaplan–Meier, volcano, forest and more, in three themes.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="correct-title">
+      <header class="section-head">
+        <p class="label"><span class="num">06</span> Correct, and shown to be</p>
+        <h2 id="correct-title">Tested against certified answers</h2>
+        <p class="section-note">
+          The engine is checked against the NIST Statistical Reference Datasets, whose answers
+          are certified to 15 digits, and against SciPy, statsmodels, lifelines and
+          scikit-learn. Each check counts correct digits, and the whole record is published.
+        </p>
+      </header>
+      <dl class="figures">
+        <div><dt>NIST StRD data sets passed</dt><dd><span class="big">58</span><span class="of">of 58</span></dd></div>
+        <div><dt>Comparisons with reference libraries</dt><dd><span class="big">8,327</span><span class="of">0 failures</span></dd></div>
+        <div><dt>Correct digits, NIST linear regression</dt><dd><span class="big">13–15</span><span class="of">of 15 certified</span></dd></div>
+        <div><dt>Correct digits, nonlinear fit parameters</dt><dd><span class="big">9.3–11</span><span class="of">of 11 certified, both starts</span></dd></div>
+      </dl>
+      <p class="fineprint wide-note">
+        Where a certified answer cannot be reached in double precision because the inputs
+        themselves cannot be stored exactly in binary (such as 1000000.1), the record says so and
+        shows the comparison against exact arithmetic on the stored values.
+        <a href="manual/correctness.html">Read the correctness record</a>.
+      </p>
+    </section>
+
+    <section class="band" aria-labelledby="open-title">
+      <div class="wrap two-col">
+        <header class="section-head">
+          <p class="label"><span class="num">07</span> Open</p>
+          <h2 id="open-title">Free, open source, and your data stay on your machine</h2>
+        </header>
+        <div class="prose">
+          <ul class="checks">
+            <li><strong>MIT licence.</strong> Free for any use, including commercial, with no account, no licence server and no expiry.</li>
+            <li><strong>No network.</strong> No telemetry, no analytics, no update check. Dioptra works with the cable unplugged.</li>
+            <li><strong>An open file.</strong> A <code>.dioptra</code> project is a zip of documented JSON: data, formulas, analysis and graph specifications, and the history of every command.</li>
+          </ul>
+<pre class="term" aria-label="Listing the contents of a project file"><code>$ unzip -l assay.dioptra
+  manifest.json
+  project.json
+  tables/t1.json
+  analyses/a1.json
+  graphs/g1.json
+  history.jsonl</code></pre>
+          <p><a href="manual/file-format.html">The file format, documented</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <img src="assets/icon.svg" alt="" width="24" height="24">
+        <p>Dioptra, named for Hero of Alexandria's sighting instrument.</p>
+      </div>
+      <ul class="foot-links">
+        <li><a href="manual/">Manual</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra">GitHub</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/releases">Releases</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/blob/main/LICENSE">Licence (MIT)</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/blob/main/CITATION.cff">Cite Dioptra</a></li>
+        <li><a href="manual/changelog.html">Changelog</a></li>
+      </ul>
+      <p class="foot-note">Set in Inter, under the <a href="assets/fonts/LICENSE-Inter.txt">SIL Open Font License</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>
