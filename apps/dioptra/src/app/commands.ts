@@ -71,12 +71,17 @@ export const CORE_COMMANDS: AppCommand[] = [
   { id: 'view.themeDark', title: 'Dark theme', menu: 'View', group: 'theme', checked: () => useUi.getState().theme === 'dark', run: () => useUi.getState().setTheme('dark') },
   { id: 'view.themeSystem', title: 'Theme follows the system', menu: 'View', group: 'theme', checked: () => useUi.getState().theme === 'system', run: () => useUi.getState().setTheme('system') },
   { id: 'view.cycleTheme', title: 'Next theme', hidden: true, run: () => useUi.getState().setTheme(nextTheme(useUi.getState().theme)) },
+  { id: 'view.densityComfortable', title: 'Comfortable rows', menu: 'View', group: 'density', keywords: ['density', 'row height', 'spacing'], checked: () => useUi.getState().density === 'comfortable', run: () => useUi.getState().setDensity('comfortable') },
+  { id: 'view.densityCompact', title: 'Compact rows', menu: 'View', group: 'density', keywords: ['density', 'row height', 'dense', 'spacing'], checked: () => useUi.getState().density === 'compact', run: () => useUi.getState().setDensity('compact') },
+  { id: 'view.toggleDensity', title: 'Toggle compact rows', keywords: ['density', 'row height'], run: () => useUi.getState().setDensity(useUi.getState().density === 'compact' ? 'comfortable' : 'compact') },
   { id: 'view.rail', title: 'Project rail', menu: 'View', group: 'panels', shortcut: 'Mod+B', inInputs: true, keywords: ['sidebar', 'tree', 'panel'], checked: () => useUi.getState().railVisible, run: () => useUi.getState().toggleRail() },
   { id: 'view.inspector', title: 'Inspector', menu: 'View', group: 'panels', shortcut: 'Mod+\\', inInputs: true, keywords: ['properties', 'panel', 'provenance'], checked: () => useUi.getState().inspectorVisible, run: () => useUi.getState().toggleInspector() },
   { id: 'view.focusGrid', title: 'Focus the grid', menu: 'View', group: 'focus', shortcut: 'Mod+Alt+G', inInputs: true, run: () => (document.querySelector('[data-grid]') as HTMLElement | null)?.focus() },
   { id: 'view.closeTab', title: 'Close tab', menu: 'View', group: 'focus', shortcut: 'Mod+Alt+W', enabled: () => !!useProject.getState().activeId, run: () => { const id = useProject.getState().activeId; if (id) useProject.getState().close(id); } },
 
   // ---- Help ----
+  { id: 'help.manual', title: 'Read the manual', menu: 'Help', group: 'help', keywords: ['docs', 'documentation', 'guide', 'help'], run: app.openManual },
+  { id: 'file.openSample', title: 'Open the sample project', menu: 'Help', group: 'sample', keywords: ['example', 'demo', 'cytokine', 'tutorial'], run: app.openSampleProject },
   { id: 'help.shortcuts', title: 'Keyboard shortcuts', menu: 'Help', group: 'help', shortcut: 'F1', inInputs: true, keywords: ['keys', 'help'], run: () => useUi.getState().setShortcutsOpen(true) },
 ];
 

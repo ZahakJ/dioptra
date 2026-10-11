@@ -1,5 +1,6 @@
 // The work area: tabs of open objects and, for the active one, the renderer registered for its
 // kind. Phase 5B registers `analysis`, `graph` and `layout` renderers with `registerWorkArea`.
+import { BookOpen, ClipboardPaste, ExternalLink, FlaskConical } from 'lucide-react';
 import { useSyncExternalStore, type ComponentType } from 'react';
 import type { ItemKind, ProjectItem } from '../engine/types';
 import { useProject } from '../store/project';
@@ -113,36 +114,73 @@ export function WorkArea() {
   );
 }
 
+/** The first-launch and nothing-open state (DESIGN.md §12.8): one line of purpose, three ways
+ *  in, and the keys that matter. */
 function EmptyWork() {
-  return (
-    <div className="placeholder">
-      <div className="placeholder-card">
-        <h2>No table open</h2>
-        <p>Create a table, paste data as a new table, or open a project. The palette lists every command.</p>
-        <EmptyActions />
-      </div>
-    </div>
-  );
-}
-
-function EmptyActions() {
-  const rows: [string, string][] = [
+  const base = import.meta.env.BASE_URL ?? '/';
+  const cards: { id: string; icon: React.ReactNode; title: string; text: string; testId: string; external?: boolean }[] = [
+    {
+      id: 'file.pasteNew',
+      icon: <ClipboardPaste size={20} strokeWidth={1.5} aria-hidden="true" />,
+      title: 'Paste data',
+      text: 'Copy columns from a plate reader, a spreadsheet or a notebook. Dioptra reads them into a new table and says what it decided.',
+      testId: 'welcome-paste',
+    },
+    {
+      id: 'file.openSample',
+      icon: <FlaskConical size={20} strokeWidth={1.5} aria-hidden="true" />,
+      title: 'Open a sample project',
+      text: 'A cytokine study: a dose comparison, a dose-response fit and a survival curve, each with its analysis and figure.',
+      testId: 'welcome-sample',
+    },
+    {
+      id: 'help.manual',
+      icon: <BookOpen size={20} strokeWidth={1.5} aria-hidden="true" />,
+      title: 'Read the manual',
+      text: 'How tables, analyses and figures fit together, and what every test assumes.',
+      testId: 'welcome-manual',
+      external: true,
+    },
+  ];
+  const keys: [string, string][] = [
     ['table.new', 'New table'],
-    ['file.pasteNew', 'Paste as new table'],
-    ['file.open', 'Open a project'],
-    ['view.palette', 'Command palette'],
+    ['file.open', 'Open'],
+    ['view.palette', 'All commands'],
+    ['help.shortcuts', 'Shortcuts'],
   ];
   return (
-    <div className="empty-actions">
-      {rows.map(([id, label]) => {
-        const c = commands.get(id);
-        return (
-          <button key={id} type="button" className="btn btn-secondary" data-testid={`empty-${id}`} onClick={() => void commands.run(id)}>
-            {label}
-            {c?.shortcut && <kbd className="kbd">{formatShortcut(c.shortcut)}</kbd>}
-          </button>
-        );
-      })}
+    <div className="welcome" data-testid="welcome">
+      <div className="welcome-inner">
+        <img className="welcome-mark" src={`${base}icon.svg`} width={44} height={44} alt="" />
+        <h1 className="welcome-title">A sheet for your data. Paste, test, export.</h1>
+        <div className="welcome-cards">
+          {cards.map((c) => {
+            const sc = commands.get(c.id)?.shortcut;
+            return (
+              <button key={c.id} type="button" className="welcome-card" data-testid={c.testId} onClick={() => void commands.run(c.id)}>
+                <span className="welcome-card-icon">{c.icon}</span>
+                <span className="welcome-card-title">
+                  {c.title}
+                  {c.external && <ExternalLink size={12} strokeWidth={1.5} aria-label="opens in the browser" />}
+                </span>
+                <span className="welcome-card-text">{c.text}</span>
+                {sc && <kbd className="kbd welcome-card-kbd">{formatShortcut(sc)}</kbd>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="welcome-keys" aria-label="Keyboard">
+          {keys.map(([id, label]) => {
+            const c = commands.get(id);
+            return (
+              <button key={id} type="button" className="welcome-key" data-testid={`empty-${id}`} onClick={() => void commands.run(id)}>
+                {c?.shortcut && <kbd className="kbd">{formatShortcut(c.shortcut)}</kbd>}
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

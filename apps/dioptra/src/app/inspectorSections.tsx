@@ -13,13 +13,14 @@ import { Button, NumberField, Select } from '../ui';
 import { CommitField, FieldRow, KV } from './fields';
 import { registerInspectorSection, type InspectorContext } from './inspector';
 import { kindInfo } from './kinds';
+import { formatWhen, humanizeTimestamps } from './time';
 
 export function describeSource(s: ColumnSource): string {
   switch (s.kind) {
     case 'entered':
       return 'Typed by hand';
     case 'pasted':
-      return `Pasted at ${s.at}`;
+      return `Pasted ${formatWhen(s.at)}`;
     case 'imported':
       return `Imported from ${s.file}${s.sheet ? `, sheet ${s.sheet}` : ''}, column ${s.column}`;
     case 'formula':
@@ -68,7 +69,7 @@ function CellSection({ ctx }: { ctx: InspectorContext }) {
           ={info.column_formula}
         </KV>
       )}
-      <p className="provenance">{info.provenance}</p>
+      <p className="provenance">{humanizeTimestamps(info.provenance)}</p>
       {info.edits.length > 0 && (
         <details className="edits">
           <summary>
@@ -81,7 +82,7 @@ function CellSection({ ctx }: { ctx: InspectorContext }) {
               .map((e, i) => (
                 <li key={i}>
                   <span className="mono">{String(e.from ?? 'empty')}</span> to <span className="mono">{String(e.to ?? 'empty')}</span>
-                  <span className="muted"> at {e.at}</span>
+                  <span className="muted"> {e.at ? formatWhen(e.at) : ''}</span>
                 </li>
               ))}
           </ol>
@@ -249,7 +250,7 @@ function HistorySection() {
       ) : (
         <ol className="history-list">
           {entries.slice(0, 50).map((e, i) => (
-            <li key={i} data-tip={e.at}>
+            <li key={i} data-tip={e.at ? formatWhen(e.at) : undefined}>
               {e.label}
             </li>
           ))}

@@ -231,7 +231,10 @@ fn undo_is_capped() {
 fn project_title_renames_and_undoes() {
     let mut s = Session::new();
     let before = ok(&mut s, json!({"type": "get_project"}))["title"].clone();
-    ok(&mut s, json!({"type": "set_project_title", "title": "  Cytokine study  "}));
+    ok(
+        &mut s,
+        json!({"type": "set_project_title", "title": "  Cytokine study  "}),
+    );
     let p = ok(&mut s, json!({"type": "get_project"}));
     assert_eq!(p["title"], "Cytokine study");
     assert_eq!(p["dirty"], true);
@@ -239,5 +242,8 @@ fn project_title_renames_and_undoes() {
     undo(&mut s);
     assert_eq!(ok(&mut s, json!({"type": "get_project"}))["title"], before);
     redo(&mut s);
-    assert_eq!(ok(&mut s, json!({"type": "get_project"}))["title"], "Cytokine study");
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_project"}))["title"],
+        "Cytokine study"
+    );
 }

@@ -1,7 +1,6 @@
 // The formula bar: the active cell's raw input (numbers at full precision, text, =formula) or,
 // in column mode, the column formula. Enter commits, Escape reverts.
 import { useEffect, useReducer, useRef } from 'react';
-import { FormulaIcon } from '../app/icons';
 import { TableTools } from '../app/tableTools';
 import { Segmented } from '../ui';
 import * as cmd from '../engine/commands';
@@ -33,7 +32,7 @@ export function FormulaBar({ meta }: { meta: TableMeta }) {
   const info = useGrid((s) => s.activeInfo);
   const storedMode = useGrid((s) => s.formulaMode[tableId]);
   const [state, dispatch] = useReducer(formulaBarReducer, INITIAL_BAR);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { row, col } = sel.anchor;
   const column = meta.columns[col];
   const hasColumnFormula = !!column?.formula;
@@ -106,32 +105,40 @@ export function FormulaBar({ meta }: { meta: TableMeta }) {
           if (m === 'column') requestAnimationFrame(() => inputRef.current?.focus());
         }}
       />
-      <span className="fb-well">
-        <FormulaIcon size={16} />
-        <input
-          ref={inputRef}
-          className="fb-input mono"
-          data-testid="formula-input"
-          aria-label={mode === 'column' ? `Formula for column ${column?.label ?? ''}` : `Content of ${address}`}
-          spellCheck={false}
-          autoComplete="off"
-          disabled={!column || ro}
-          placeholder={mode === 'column' ? `=formula for every row of ${column?.label ?? 'the column'}, e.g. =log10(A)` : ''}
-          value={state.text}
-          onChange={(e) => dispatch({ type: 'input', text: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void commit().then(() => (document.querySelector('[data-grid]') as HTMLElement | null)?.focus());
-            } else if (e.key === 'Escape') {
-              e.preventDefault();
-              dispatch({ type: 'cancel' });
-              (document.querySelector('[data-grid]') as HTMLElement | null)?.focus();
-            }
-            e.stopPropagation();
-          }}
-          onBlur={() => state.editing && dispatch({ type: 'cancel' })}
-        />
+      <span className="fb-slot">
+        <span className={'fb-well' + (state.editing ? ' is-editing' : '')}>
+          <span className="fb-fx" aria-hidden="true">
+            ƒ
+          </span>
+          <textarea
+            ref={inputRef}
+            className="fb-input mono"
+            data-testid="formula-input"
+            rows={1}
+            aria-label={mode === 'column' ? `Formula for column ${column?.label ?? ''}` : `Content of ${address}`}
+            spellCheck={false}
+            autoComplete="off"
+            disabled={!column || ro}
+            placeholder={mode === 'column' ? `=formula for every row of ${column?.label ?? 'the column'}, e.g. =log10(A)` : ''}
+            value={state.text}
+            onChange={(e) => dispatch({ type: 'input', text: e.target.value.replace(/\r?\n/g, ' ') })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void commit().then(() => (document.querySelector('[data-grid]') as HTMLElement | null)?.focus());
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                dispatch({ type: 'cancel' });
+                (document.querySelector('[data-grid]') as HTMLElement | null)?.focus();
+              }
+              e.stopPropagation();
+            }}
+            onBlur={(e) => {
+              e.currentTarget.scrollTop = 0;
+              if (state.editing) dispatch({ type: 'cancel' });
+            }}
+          />
+        </span>
       </span>
       {mode === 'column' && column?.formula && (
         <span className="fb-note">Computed for every row</span>

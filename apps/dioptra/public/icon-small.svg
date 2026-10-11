@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Dioptra: a sighting bar (alidade, with its two sight vanes) laid over a graduated disc.
+       Verdigris #5FB3AD on graphite #1C2024, 12% corner radius. Simplified for 16-32 px. -->
+  <rect width="512" height="512" rx="61.44" fill="#1C2024"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#5FB3AD" stroke-width="38"/>
+  <g stroke="#5FB3AD">
+    <line x1="386.0" y1="256.0" x2="352.0" y2="256.0" stroke-width="24"/>
+    <line x1="256.0" y1="386.0" x2="256.0" y2="352.0" stroke-width="24"/>
+    <line x1="126.0" y1="256.0" x2="160.0" y2="256.0" stroke-width="24"/>
+    <line x1="256.0" y1="126.0" x2="256.0" y2="160.0" stroke-width="24"/>
+  </g>
+  <g transform="rotate(-14 256 256)">
+    <g fill="#1C2024" stroke="#1C2024" stroke-width="30" stroke-linejoin="round"><rect x="58" y="234" width="396" height="44" rx="22"/><rect x="58" y="166" width="44" height="112" rx="22"/><rect x="410" y="166" width="44" height="112" rx="22"/></g>
+    <g fill="#5FB3AD"><rect x="58" y="234" width="396" height="44" rx="22"/><rect x="58" y="166" width="44" height="112" rx="22"/><rect x="410" y="166" width="44" height="112" rx="22"/></g>
+    
+  </g>
+</svg>

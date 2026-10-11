@@ -712,7 +712,11 @@ impl Session {
                     p_value_style: self.project.p_value_style,
                 }];
                 let old = std::mem::replace(&mut self.project.title, title.clone());
-                self.commit(format!("Rename the project \"{old}\" to \"{title}\""), log, snaps);
+                self.commit(
+                    format!("Rename the project \"{old}\" to \"{title}\""),
+                    log,
+                    snaps,
+                );
                 Ok(changed(Vec::new(), true, None))
             }
             Command::RenameObject { id, title } => {

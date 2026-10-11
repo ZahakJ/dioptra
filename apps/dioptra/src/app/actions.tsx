@@ -79,6 +79,40 @@ export async function openProject(): Promise<void> {
   }
 }
 
+export const MANUAL_URL = 'https://zahakj.github.io/dioptra/manual/';
+export const SAMPLE_PATH = 'samples/cytokine-study.dioptra';
+
+/** The bundled sample project (public/samples), opened from bytes on both backends. */
+export async function openSampleProject(): Promise<void> {
+  if (!(await guardUnsaved('Open the sample'))) return;
+  try {
+    const base = import.meta.env.BASE_URL ?? '/';
+    const res = await fetch(`${base}${SAMPLE_PATH}`);
+    if (!res.ok) throw new Error(`The sample project could not be read (${res.status}).`);
+    const b64 = await fileToBase64(await res.blob());
+    await withEngine((e) => cmd.openProjectBytes(e, b64, 'Cytokine study.dioptra'));
+    await afterLoad();
+    notify('Opened the sample project. Save it to keep your changes.');
+  } catch (err) {
+    notifyError(err);
+  }
+}
+
+/** The manual in the system browser (desktop) or a new tab. */
+export async function openManual(): Promise<void> {
+  if (isDesktop()) {
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl(MANUAL_URL);
+      return;
+    } catch (err) {
+      notifyError(err);
+      return;
+    }
+  }
+  window.open(MANUAL_URL, '_blank', 'noopener,noreferrer');
+}
+
 function fileStem(title: string): string {
   return (title.trim() || 'Untitled').replace(/[\\/:*?"<>|]+/g, '-');
 }

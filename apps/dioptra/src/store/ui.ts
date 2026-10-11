@@ -6,6 +6,12 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Id } from '../engine/types';
 
 export type ThemePref = 'light' | 'dark' | 'system';
+/** Grid row height: comfortable 28 px, compact 22 px (DESIGN.md §12.6). */
+export type Density = 'comfortable' | 'compact';
+/** What the graph editor shows behind the figure: white paper, the app's sheet colour, or a
+ *  transparency checkerboard. */
+export type Paper = 'white' | 'theme' | 'checker';
+export const PAPERS: Paper[] = ['white', 'theme', 'checker'];
 
 export interface UiState {
   theme: ThemePref;
@@ -17,6 +23,9 @@ export interface UiState {
   colWidths: Record<Id, Record<number, number>>;
   /** Collapsed state of named sections: `insp:<section id>`, `rail:<kind>`. */
   collapsed: Record<string, boolean>;
+  density: Density;
+  /** Paper per graph; white when unset. */
+  paper: Record<Id, Paper>;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
   setTheme(t: ThemePref): void;
@@ -26,6 +35,8 @@ export interface UiState {
   toggleInspector(): void;
   setColWidth(table: Id, col: number, width: number): void;
   setCollapsed(key: string, collapsed: boolean): void;
+  setDensity(d: Density): void;
+  setPaper(graph: Id, p: Paper): void;
   setPaletteOpen(open: boolean): void;
   setShortcutsOpen(open: boolean): void;
 }
@@ -62,6 +73,8 @@ export const useUi = create<UiState>()(
       inspectorVisible: true,
       colWidths: {},
       collapsed: {},
+      density: 'comfortable',
+      paper: {},
       paletteOpen: false,
       shortcutsOpen: false,
       setTheme: (theme) => set({ theme }),
@@ -74,13 +87,15 @@ export const useUi = create<UiState>()(
           colWidths: { ...s.colWidths, [table]: { ...s.colWidths[table], [col]: clamp(width, 36, 640) } },
         })),
       setCollapsed: (key, c) => set((s) => ({ collapsed: { ...s.collapsed, [key]: c } })),
+      setDensity: (density) => set({ density: density === 'compact' ? 'compact' : 'comfortable' }),
+      setPaper: (graph, p) => set((s) => ({ paper: { ...s.paper, [graph]: PAPERS.includes(p) ? p : 'white' } })),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
     }),
     {
       name: 'dioptra-ui',
-      version: 2,
-      migrate: (old) => ({ collapsed: {}, ...(old as object) }) as UiState,
+      version: 3,
+      migrate: (old) => ({ collapsed: {}, density: 'comfortable', paper: {}, ...(old as object) }) as UiState,
       storage: safeStorage,
       partialize: (s) => ({
         theme: s.theme,
@@ -90,6 +105,8 @@ export const useUi = create<UiState>()(
         inspectorVisible: s.inspectorVisible,
         colWidths: s.colWidths,
         collapsed: s.collapsed,
+        density: s.density,
+        paper: s.paper,
       }),
     },
   ),
@@ -103,4 +120,10 @@ export function resolveTheme(pref: ThemePref, systemDark: boolean): 'light' | 'd
 /** Light -> dark -> system -> light. */
 export function nextTheme(pref: ThemePref): ThemePref {
   return pref === 'light' ? 'dark' : pref === 'dark' ? 'system' : 'light';
+}
+
+/** The paper a graph is shown on: white unless the user chose otherwise. */
+export function paperOf(paper: Record<Id, Paper>, graph: Id): Paper {
+  const p = paper[graph];
+  return p && PAPERS.includes(p) ? p : 'white';
 }

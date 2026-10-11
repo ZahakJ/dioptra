@@ -2,8 +2,10 @@
 // at 96 dpi), with a transparent overlay of the engine's hit-test targets. Click selects (the
 // inspector follows), double-click rewrites text in place, drag moves the legend and text.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, Maximize, Minus, Plus } from 'lucide-react';
-import { Button, Checkbox, Menu, Segmented, Select } from '../ui';
+import { ChevronDown, Download, Ellipsis, Plus } from 'lucide-react';
+import { Button, Checkbox, Menu, Select, type MenuEntry } from '../ui';
+import { paperOf, PAPERS, useUi } from '../store/ui';
+import { PAPER_LABELS, PaperControl, Rulers, ZoomControl } from './chrome';
 import type { WorkAreaProps } from '../app/workArea';
 import type { Annotation, GraphSpecT } from '../engine/objects';
 import type { Id, JsonValue, Target } from '../engine/types';
@@ -14,7 +16,7 @@ import { getPath } from './patch';
 import { loadGraph, listenForGraphChanges, selectTarget, setGraphValue, setZoom, useGraph, type Zoom } from './store';
 import { axisMap, moveBy, tidy } from './svgAxes';
 import { byAreaDescending, describeTarget, isDraggable, textPathOf } from './targets';
-import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt, pxToPt, ZOOM_MAX, ZOOM_MIN } from './units';
+import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt, pxToPt, zoomStep } from './units';
 
 export function GraphEditor({ item }: WorkAreaProps) {
   const id = item.id;
@@ -40,6 +42,7 @@ export function GraphEditor({ item }: WorkAreaProps) {
 // ---- toolbar -----------------------------------------------------------------------------------
 
 function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
+  const paper = useUi((st) => paperOf(st.paper, id));
   const meta = useTableMeta(spec ? sourceTableId(spec.source) : null);
   useEffect(() => {
     const t = spec ? sourceTableId(spec.source) : null;
@@ -52,6 +55,7 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
   const preset = SIZE_PRESETS.find((p) => p.width === s.width && p.height === s.height);
   return (
     <div className="graph-toolbar" role="toolbar" aria-label="Graph">
+      <div className="tb-row">
       <Select
         className="tb-family"
         label="Graph family"
@@ -77,13 +81,13 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
           else void customSize(id);
         }}
       />
-      <span className="tb-sep" />
-      <Select label="Theme" tipText="Figure theme" value={spec.style.theme} testId="tb-theme" options={THEMES} onChange={(v) => void setGraphValue(id, '/style/theme', v)} />
+      <span className="tb-sep tb-opt" />
+      <Select className="tb-opt" label="Theme" tipText="Figure theme" value={spec.style.theme} testId="tb-theme" options={THEMES} onChange={(v) => void setGraphValue(id, '/style/theme', v)} />
       <Select
         label="Palette"
         tipText="Palette"
         value={spec.style.palette ?? ''}
-        className="tb-palette"
+        className="tb-palette tb-opt"
         display={<span className="sw-strip tb-strip">{paletteColours(spec.style.palette).slice(0, 8).map((c, i) => <i key={i} style={{ background: c }} />)}</span>}
         testId="tb-palette"
         options={[
@@ -92,8 +96,9 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
         ]}
         onChange={(v) => void setGraphValue(id, '/style/palette', v || null)}
       />
-      <span className="tb-sep" />
+      <span className="tb-sep tb-opt" />
       <Select
+        className="tb-opt"
         label="Error bars"
         tipText="Error bars"
         value={spec.mapping.error_bars}
@@ -106,15 +111,78 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
         options={ERROR_BARS}
         onChange={(v) => void setGraphValue(id, '/mapping/error_bars', v)}
       />
-      <Checkbox checked={spec.mapping.points} testId="tb-points" onChange={(on) => void setGraphValue(id, '/mapping/points', on)}>
-        Points
-      </Checkbox>
+      <span className="tb-opt tb-points">
+        <Checkbox checked={spec.mapping.points} testId="tb-points" onChange={(on) => void setGraphValue(id, '/mapping/points', on)}>
+          Points
+        </Checkbox>
+      </span>
+      <span className="tb-sep tb-opt" />
+      <span className="tb-opt">
+        <PaperControl value={paper} onChange={(p) => useUi.getState().setPaper(id, p)} />
+      </span>
       <span className="tb-gap" />
+      <MoreMenu id={id} spec={spec} />
       <AddMenu id={id} />
       <Button size="sm" icon={<Download size={16} strokeWidth={1.5} aria-hidden="true" />} onClick={() => void exportGraphDialog(id)} testId="tb-export" aria-label="Export" tipText="Export the figure" shortcut="Mod+Alt+E">
         Export…
       </Button>
+      </div>
     </div>
+  );
+}
+
+/** At narrow widths the least-used controls (theme, palette, error bars, points, paper) move
+ *  here; the toolbar never wraps. Shown by the container query in features.css. */
+function MoreMenu({ id, spec }: { id: Id; spec: GraphSpecT }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const paper = useUi((s) => paperOf(s.paper, id));
+  const items: MenuEntry[] = [
+    {
+      label: 'Figure theme',
+      testId: 'more-theme',
+      items: THEMES.map((t) => ({ label: t.label, checked: spec.style.theme === t.value, run: () => setGraphValue(id, '/style/theme', t.value) })),
+    },
+    {
+      label: 'Palette',
+      testId: 'more-palette',
+      items: [
+        { label: 'Okabe–Ito (default)', checked: !spec.style.palette || spec.style.palette === 'okabe_ito', run: () => setGraphValue(id, '/style/palette', null) },
+        ...PALETTES.filter((p) => p.value !== 'okabe_ito').map((p) => ({
+          label: p.label,
+          checked: spec.style.palette === p.value,
+          run: () => setGraphValue(id, '/style/palette', p.value),
+        })),
+      ],
+    },
+    {
+      label: 'Error bars',
+      testId: 'more-errorbars',
+      items: ERROR_BARS.map((b) => ({ label: b.label, checked: spec.mapping.error_bars === b.value, run: () => setGraphValue(id, '/mapping/error_bars', b.value) })),
+    },
+    { label: 'Points', checked: spec.mapping.points, testId: 'more-points', run: () => setGraphValue(id, '/mapping/points', !spec.mapping.points) },
+    'separator',
+    {
+      label: 'Paper',
+      testId: 'more-paper',
+      items: PAPERS.map((p) => ({ label: PAPER_LABELS[p], checked: paper === p, run: () => useUi.getState().setPaper(id, p) })),
+    },
+  ];
+  return (
+    <span className="tb-more">
+      <Button
+        ref={ref}
+        size="sm"
+        variant="quiet"
+        iconOnly="More graph settings"
+        icon={<Ellipsis size={16} strokeWidth={1.5} aria-hidden="true" />}
+        onClick={() => setOpen((o) => !o)}
+        testId="tb-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      />
+      <Menu anchor={ref.current} open={open} onClose={() => setOpen(false)} label="More graph settings" placement="bottom-end" items={items} />
+    </span>
   );
 }
 
@@ -182,12 +250,14 @@ function Canvas({ id }: { id: Id }) {
   const viewRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<HTMLDivElement>(null);
   const view = useSize(viewRef);
+  const paper = useUi((s) => paperOf(s.paper, id));
   const [drag, setDrag] = useState<Drag | null>(null);
   const [editing, setEditing] = useState<{ target: Target; path: string; value: string } | null>(null);
   const r = st.rendered;
   const spec = st.spec;
   const annotations = (spec?.annotations ?? []) as Annotation[];
-  const zoom = r ? (st.zoom === 'fit' ? fitZoom(r.width_mm, r.height_mm, view.w, view.h) : st.zoom) : 1;
+  // Fit leaves room for the rulers and a margin of desk around the paper.
+  const zoom = r ? (st.zoom === 'fit' ? fitZoom(r.width_mm, r.height_mm, view.w, view.h, 120) : st.zoom) : 1;
   const k = pxPerPt(zoom);
   const wPx = r ? mmToPt(r.width_mm) * k : 0;
   const hPx = r ? mmToPt(r.height_mm) * k : 0;
@@ -269,9 +339,8 @@ function Canvas({ id }: { id: Id }) {
   };
 
   const setZ = (z: Zoom) => setZoom(id, z === 'fit' ? 'fit' : clampZoom(z));
-  const steps = [0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4];
-  const zoomIn = () => setZ(steps.find((s) => s > zoom + 1e-3) ?? ZOOM_MAX);
-  const zoomOut = () => setZ([...steps].reverse().find((s) => s < zoom - 1e-3) ?? ZOOM_MIN);
+  const zoomIn = () => setZ(zoomStep(zoom, 1));
+  const zoomOut = () => setZ(zoomStep(zoom, -1));
 
   return (
     <div className="graph-stage">
@@ -303,7 +372,9 @@ function Canvas({ id }: { id: Id }) {
         }}
       >
         {r && (
-          <div className="graph-paper" style={{ width: wPx, height: hPx }} data-testid="graph-paper">
+          <div className="graph-sheet">
+          <Rulers wMm={r.width_mm} hMm={r.height_mm} zoom={zoom} />
+          <div className={`graph-paper paper-${paper}`} style={{ width: wPx, height: hPx }} data-testid="graph-paper" data-paper={paper}>
             <div className="graph-svg" ref={svgRef} data-testid="graph-svg" data-version={st.version} dangerouslySetInnerHTML={{ __html: r.svg }} />
             <div className="graph-overlay" onMouseDown={(e) => e.target === e.currentTarget && selectTarget(id, null)}>
               {ordered.map((t) => {
@@ -320,10 +391,10 @@ function Canvas({ id }: { id: Id }) {
                     aria-label={describeTarget(t)}
                     data-tip={describeTarget(t)}
                     style={{
-                      left: b.x - 2,
-                      top: b.y - 2,
-                      width: Math.max(6, b.width + 4),
-                      height: Math.max(6, b.height + 4),
+                      left: b.x - Math.max(0, (6 - b.width) / 2),
+                      top: b.y - Math.max(0, (6 - b.height) / 2),
+                      width: Math.max(6, b.width),
+                      height: Math.max(6, b.height),
                       transform: isDragged ? `translate(${drag.dx}px, ${drag.dy}px)` : undefined,
                     }}
                     onMouseDown={(e) => {
@@ -342,7 +413,16 @@ function Canvas({ id }: { id: Id }) {
                       e.stopPropagation();
                       startEdit(t);
                     }}
-                  />
+                  >
+                    {isSel && (
+                      <>
+                        <i className="tg-handle is-tl" />
+                        <i className="tg-handle is-tr" />
+                        <i className="tg-handle is-bl" />
+                        <i className="tg-handle is-br" />
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -361,6 +441,7 @@ function Canvas({ id }: { id: Id }) {
               />
             )}
           </div>
+          </div>
         )}
         {!r && <div className="loading-line">Drawing…</div>}
       </div>
@@ -370,26 +451,11 @@ function Canvas({ id }: { id: Id }) {
         </span>
         <span className="tb-gap" />
         {r && (
-          <span className="gf-size mono">
+          <span className="gf-size mono" data-testid="graph-size-mm" data-tip="Figure size">
             {r.width_mm} × {r.height_mm} mm
           </span>
         )}
-        <div className="zoom" role="group" aria-label="Zoom">
-          <Button variant="quiet" size="sm" iconOnly="Zoom out" shortcut="Mod+-" icon={<Minus size={16} strokeWidth={1.5} />} onClick={zoomOut} testId="zoom-out" />
-          <span className="zoom-val mono" data-testid="zoom-value">
-            {Math.round(zoom * 100)}%
-          </span>
-          <Button variant="quiet" size="sm" iconOnly="Zoom in" shortcut="Mod+=" icon={<Plus size={16} strokeWidth={1.5} />} onClick={zoomIn} testId="zoom-in" />
-          <Segmented
-            label="Zoom preset"
-            value={st.zoom === 'fit' ? 'fit' : st.zoom === 1 ? 'actual' : 'other'}
-            choices={[
-              { value: 'fit', label: <Maximize size={16} strokeWidth={1.5} aria-hidden="true" />, aria: 'Fit', hint: 'Fit the window (Ctrl 0)', testId: 'zoom-fit' },
-              { value: 'actual', label: '1:1', hint: 'Actual size at 96 dpi', testId: 'zoom-actual' },
-            ]}
-            onChange={(v) => setZ(v === 'fit' ? 'fit' : 1)}
-          />
-        </div>
+        <ZoomControl state={st.zoom} shown={zoom} onChange={setZ} />
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ export function TopBar() {
     <header className="topbar" data-testid="topbar">
       <div className="topbar-left">
         <span className="brand" aria-label="Dioptra">
-          <img className="brand-mark" src={`${base}icon.svg`} width={18} height={18} alt="" />
+          <img className="brand-mark" src={`${base}icon-small.svg`} width={18} height={18} alt="" />
           <span className="brand-name">Dioptra</span>
         </span>
         <span className="topbar-slash" aria-hidden="true">

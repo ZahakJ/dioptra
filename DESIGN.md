@@ -312,7 +312,10 @@ prints the table that goes into `docs/DESIGN-AUDIT.md`.
 
 Supporting tokens, derived from the table and also in `tokens.css`: `--bg-hover` /
 `--bg-active` (translucent fg washes, so hover works on any surface), `--line-grid` (cell
-rules), `--fg-disabled` (exempt from contrast), `--accent-hover`, `--accent-wash`
+rules), `--bg-sheet-alt` (alternate grid rows, 2% darker), `--bg-col-tint` (the X and
+row-title columns), `--bg-head` (grid headers), `--sel-fill` / `--sel-blend` (the grid's
+selection wash and its blend mode), `--swatch-edge`, `--paper-checker-a` / `-b` (the
+transparent paper), `--fg-disabled` (exempt from contrast), `--accent-hover`, `--accent-wash`
 (translucent selection over cells), `--accent-line`, `--ok-soft` / `--caution-soft` /
 `--fail-soft`, `--scrim`, `--scrollbar` / `--scrollbar-hover`, `--raised-edge` (the hairline
 of floating surfaces) and `--tooltip-bg` / `--tooltip-fg` (light `#2A2F33` / `#F4F2EE`, dark

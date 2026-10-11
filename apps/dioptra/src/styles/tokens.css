@@ -77,6 +77,15 @@
   --bg-sheet: #ffffff;
   --bg-raised: #ffffff;
   --bg-inset: #eeebe5;
+  --bg-sheet-alt: #faf9f6;
+  --bg-col-tint: #f6f4ef;
+  --bg-head: #fbfaf8;
+  --sel-fill: rgb(220 238 236 / 0.6);
+  --sel-blend: multiply;
+  --swatch-edge: rgb(30 34 37 / 0.18);
+  --scroll-shade: rgb(30 34 37 / 0.16);
+  --paper-checker-a: #ffffff;
+  --paper-checker-b: #e9e6e0;
   --bg-hover: rgb(30 34 37 / 0.045);
   --bg-active: rgb(30 34 37 / 0.085);
   --line: #e2ded6;
@@ -121,6 +130,15 @@
     --bg-sheet: #202529;
     --bg-raised: #262b30;
     --bg-inset: #111416;
+    --bg-sheet-alt: #23282c;
+    --bg-col-tint: #1d2226;
+    --bg-head: #1c2024;
+    --sel-fill: rgb(30 61 59 / 0.6);
+    --sel-blend: screen;
+    --swatch-edge: rgb(228 225 218 / 0.28);
+    --scroll-shade: rgb(0 0 0 / 0.5);
+    --paper-checker-a: #2a3035;
+    --paper-checker-b: #22272b;
     --bg-hover: rgb(228 225 218 / 0.05);
     --bg-active: rgb(228 225 218 / 0.09);
     --line: #2c3238;
@@ -150,8 +168,8 @@
     --elev-2: 0 1px 2px rgb(0 0 0 / 0.55), 0 6px 18px rgb(0 0 0 / 0.5);
     --elev-3: 0 2px 4px rgb(0 0 0 / 0.55), 0 14px 40px rgb(0 0 0 / 0.6);
     --raised-edge: #3a4148;
-  --tooltip-bg: #3a4148;
-  --tooltip-fg: #e4e1da;
+    --tooltip-bg: #3a4148;
+    --tooltip-fg: #e4e1da;
   }
 }
 
@@ -162,6 +180,15 @@
   --bg-sheet: #202529;
   --bg-raised: #262b30;
   --bg-inset: #111416;
+  --bg-sheet-alt: #23282c;
+  --bg-col-tint: #1d2226;
+  --bg-head: #1c2024;
+  --sel-fill: rgb(30 61 59 / 0.6);
+  --sel-blend: screen;
+  --swatch-edge: rgb(228 225 218 / 0.28);
+  --scroll-shade: rgb(0 0 0 / 0.5);
+  --paper-checker-a: #2a3035;
+  --paper-checker-b: #22272b;
   --bg-hover: rgb(228 225 218 / 0.05);
   --bg-active: rgb(228 225 218 / 0.09);
   --line: #2c3238;
