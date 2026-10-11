@@ -154,6 +154,50 @@ pub struct RoutResult {
     pub q: f64,
 }
 
+/// ROUT's false-discovery-rate test (Motulsky & Brown 2006, eqs. 17-18): rank |r|
+/// ascending; for i = floor(0.7 N)+1..N, alpha_i = Q (N - (i-1))/N and p_i the two-tailed
+/// t probability of |r_i|/RSDR on N-K df; the first i with p_i < alpha_i flags point i and
+/// every point farther out. Returns the flagged positions in `resid`, ascending.
+pub fn rout_fdr_flags(resid: &[f64], rsdr: f64, k: f64, q: f64) -> Result<Vec<usize>> {
+    let nn = resid.len();
+    let nf = nn as f64;
+    let mut order: Vec<usize> = (0..nn).collect();
+    order.sort_by(|&a, &b| resid[a].abs().total_cmp(&resid[b].abs()));
+    let mut flagged: Vec<usize> = Vec::new();
+    if rsdr > 0.0 && nf - k > 0.0 {
+        let td = StudentT::new(nf - k)?;
+        let start = (0.7 * nf).floor() as usize + 1;
+        for i in start..=nn {
+            let j = order[i - 1];
+            let t = resid[j].abs() / rsdr;
+            let p = td.two_sided_p(t);
+            let alpha_i = q * (nf - (i as f64 - 1.0)) / nf;
+            if p < alpha_i {
+                flagged = order[i - 1..].to_vec();
+                break;
+            }
+        }
+    }
+    flagged.sort_unstable();
+    Ok(flagged)
+}
+
+/// RSDR (Prism): the 68.27th percentile of |residuals| (linear interpolation, Hyndman-Fan
+/// type 7) times N/(N-K).
+pub fn rsdr(resid: &[f64], k: f64) -> f64 {
+    let mut a: Vec<f64> = resid
+        .iter()
+        .map(|x| x.abs())
+        .filter(|x| !x.is_nan())
+        .collect();
+    if a.is_empty() {
+        return f64::NAN;
+    }
+    a.sort_by(f64::total_cmp);
+    let nf = a.len() as f64;
+    quantile_sorted(&a, 68.27 / 100.0, QuantileMethod::Linear).unwrap_or(f64::NAN) * nf / (nf - k)
+}
+
 /// Lorentzian merit minimiser for fixed scale, by iteratively reweighted least squares
 /// (a majorise–minimise iteration that decreases sum ln(1 + (r/s)^2) monotonically).
 fn lorentzian_center(v: &[f64], start: f64, scale: f64) -> f64 {
@@ -244,24 +288,7 @@ pub fn rout_column(data: &[f64], q: f64) -> Result<RoutResult> {
         quantile_sorted(&a, 0.5, QuantileMethod::Linear)?
     };
     let resid: Vec<f64> = v.iter().map(|x| x - m).collect();
-    let mut order: Vec<usize> = (0..nn).collect();
-    order.sort_by(|&a, &b| resid[a].abs().total_cmp(&resid[b].abs()));
-    let mut flagged_local: Vec<usize> = Vec::new();
-    if rsdr > 0.0 {
-        let td = StudentT::new(nf - k)?;
-        let start = (0.7 * nf).floor() as usize + 1;
-        for i in start..=nn {
-            let j = order[i - 1];
-            let t = resid[j].abs() / rsdr;
-            let p = td.two_sided_p(t);
-            let alpha_i = q * (nf - (i as f64 - 1.0)) / nf;
-            if p < alpha_i {
-                flagged_local = order[i - 1..].to_vec();
-                break;
-            }
-        }
-    }
-    flagged_local.sort_unstable();
+    let flagged_local = rout_fdr_flags(&resid, rsdr, k, q)?;
     let kept: Vec<f64> = (0..nn)
         .filter(|i| !flagged_local.contains(i))
         .map(|i| v[i])
@@ -285,4 +312,16 @@ pub fn rout_column(data: &[f64], q: f64) -> Result<RoutResult> {
         sd_after_removal: ksd,
         q,
     })
+}
+
+/// ROUT for a fitted curve (Motulsky & Brown 2006): robust fit with the adaptive
+/// Lorentzian merit, RSDR, the FDR test of [`rout_fdr_flags`] on N - K df, least-squares
+/// refit without the outliers. See [`crate::nonlinear::rout_fit`].
+pub fn rout_curve(
+    eq: &crate::equations::Equation,
+    data: &crate::nonlinear::Dataset,
+    q: f64,
+    opts: &crate::nonlinear::FitOptions,
+) -> Result<crate::nonlinear::RoutFit> {
+    crate::nonlinear::rout_fit(eq, data, q, opts)
 }

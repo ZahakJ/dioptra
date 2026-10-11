@@ -129,6 +129,9 @@ has a `cdf_sf` or `quantile_pq` method taking both tails.
 |---|---|---|
 | `grubbs(data, alpha)` | Grubbs (1969); NIST/SEMATECH e-Handbook §1.3.5.17 | Two-sided, iterated while significant; G uses the SD of all remaining values; p is the Bonferroni bound 2n P(T > t_obs). |
 | `rout_column(data, q)` | Motulsky & Brown (2006), BMC Bioinformatics 7:123; GraphPad guide | Lorentzian fit of a constant with adaptive RSDR = P68 N/(N-K) (Prism's guide; some renderings of the paper show sqrt(N/(N-K))); FDR flagging of the farthest 30% at Q on N-K df. `rsdr_alt_mad` (1.4826 MAD) is reported for comparison only. |
+| `rout_fdr_flags(resid, rsdr, k, q)` | Motulsky & Brown (2006) eqs. 17-18 | The FDR step shared by the column and curve versions: ranks abs(r), tests the farthest 30% on N-K df, flags the first significant point and every point farther out. |
+| `rsdr(resid, k)` | GraphPad Curve Fitting Guide | P68 of abs(residuals) (Hyndman-Fan type 7) times N/(N-K). |
+| `rout_curve(eq, data, q, opts)` | Motulsky & Brown (2006) | ROUT for a fitted curve; delegates to `nonlinear::rout_fit`. |
 
 ## quad, roots (numerical infrastructure)
 
@@ -212,3 +215,89 @@ Comparison (i, j) estimates value_i - value_j; all-pairs lists i < j; many-to-on
 | `multiple_regression(x_rows, y, opts)` | Golub (1965); Björck (1967), BIT 7:257; Marquardt (1970) VIF | Equilibrated pivoted Householder QR with double-double augmented-system refinement; aliased columns reported (R `lm` convention, in column order); SEs from refined (X'X)^{-1}; ANOVA table; adj R^2; VIFs; covariance. statsmodels OLS. |
 | `polynomial_regression(x, y, degree, opts)` | as above | Powers x^k formed in double-double so the refinement sees the exact design of the double inputs (NIST Filip LRE 14.0). |
 | `deming_regression(x, y, lambda, ci_level)` | Deming (1943); Linnet (1993), doi:10.1093/clinchem/39.3.424 | lambda = sigma_y^2/sigma_x^2 (Prism input: (SD_y/SD_x)^2); jackknife SEs (NCSS, R `mcr`); t(n-2) CIs. Prism's SE method is undocumented. |
+
+## equations (curve-fit equation library)
+
+Prism's equation and parameter names (GraphPad Curve Fitting Guide, "Models built in to
+Prism"). Each `Equation` holds `ParamSpec`s (name, `InitialRule`, default bounds, data-set
+constant flag), `DerivedSpec`s and its `XTransform`. Gradients are hand-written for the
+simple models and exact forward-mode automatic differentiation for the rest (5PL,
+bell-shaped, two-site competition, fit Ki, [Agonist] variable slope, log-logistic,
+growth, power series); `equations::tests::gradients_match_finite_differences` checks every
+one against Richardson differences.
+
+| Function | Reference | Notes |
+|---|---|---|
+| `Equation::custom(expr)`, `Equation::custom_with(expr, vars, params)` | Pratt (1973) top-down operator precedence; Griewank & Walther (2008) forward AD | Parses `+ - * / ^ (**)`, unary minus below `^`, `exp ln log log10 log2 sqrt abs sin cos tan asin acos atan sinh cosh tanh pow`, `pi`, `e`; `log` is base 10 (Prism); identifiers case-insensitive; parameters are the free identifiers in order of appearance (or the given order). Exact derivatives. |
+| `Equation::from_closure(name, params, f)` | | Rust closure; central-difference gradient. |
+| `Equation::eval`, `eval_grad`, `eval_grad_fd(.., richardson)` | | Central differences with h = eps^(1/3) max(abs(p), 1), or Richardson from h and h/2 at h = eps^(1/5) max(abs(p), 1). |
+| `Equation::initial_values(x, y)`, `InitialRule::eval`, `DataSummary::new` | GraphPad "Rules for initial values" | YMIN, YMAX, YMID, XMIN, XMAX, XMID, X at YMID (linear interpolation of the replicate means), Y at XMIN/XMAX, SIGN(trend), rate ln 2/half-time, LS slope/intercept, ranges, or a function. |
+| `Equation::derived_values(p)` | | EC50 = 10^LogEC50, IC50, Ki, half-life ln 2/K, tau 1/K, doubling time, spans, Intercept2, Gaussian area. |
+| `straight_line`, `line_through_origin`, `polynomial(1..=6)`, `segmental_linear` | | Lines and polynomials are `linear`: fitted from the exact linear least-squares solution. |
+| `one_phase_decay`, `two_phase_decay`, `plateau_then_one_phase_decay`, `one_phase_association`, `two_phase_association`, `plateau_then_one_phase_association`, `exponential_growth` | Prism exponential family | Y0, Plateau, K (PercentFast, KFast, KSlow; X0). |
+| `log_agonist_vs_response`, `log_agonist_variable_slope` (4PL), `log_agonist_normalized_variable_slope`, `log_inhibitor_vs_response`, `log_inhibitor_variable_slope`, `asymmetric_5pl`, `agonist_vs_response`, `agonist_variable_slope`, `bell_shaped`, `log_logistic` | Prism dose-response; Gottschalk & Dunn (2005) 5PL | X = log10(concentration) where `x_transform` is `Log10`; logistic pieces evaluated without overflow. |
+| `michaelis_menten`, `substrate_inhibition`, `allosteric_sigmoidal`, `competitive_inhibition` | Prism enzyme kinetics | I (inhibitor) is a data-set constant. |
+| `one_site_specific`, `specific_binding_hill`, `one_site_total`, `one_site_fit_logic50`, `one_site_fit_ki`, `two_sites_fit_logic50` | Prism binding; Cheng & Prusoff (1973) | HotNM, HotKdNM are data-set constants in Fit Ki. |
+| `gaussian`, `lorentzian`, `sine_wave`, `sine_wave_baseline`, `power`, `power_series`, `boltzmann_sigmoid`, `logistic_growth`, `gompertz_growth` | Prism Gaussian, sine, classic and growth equations | |
+| `library()`, `by_name(name)` | | Every built-in equation; lookup by Prism name or alias (4PL, 3PL, 5PL, line, MM). |
+| `cheng_prusoff_ki(ic50, ligand, kd)` | Cheng & Prusoff (1973), Biochem Pharmacol 22:3099 | IC50/(1 + [L]/Kd). |
+
+## nonlinear (curve fitting)
+
+| Function | Reference | Notes |
+|---|---|---|
+| `fit(eq, data, opts)`, `fit_global(eq, datasets, opts)` | Moré (1978), doi:10.1007/BFb0067700; MINPACK `lmder` (Moré, Garbow & Hillstrom 1980) | Levenberg–Marquardt with scaled trust region (diag from Jacobian column norms, non-decreasing), pivoted QR, Moré lambda update; ftol = xtol = 1e-12, gtol 1e-15, 1000 iterations. Then Newton polishing (J'r compensated, Hessian J'J + sum r_i H_i with H_i from central differences of the exact Jacobian) accepted while the gradient norm falls. Box constraints: active-set projection (a parameter on a bound whose descent direction leaves the box is held for the iteration; the step is projected and its predicted reduction recomputed); at-bound parameters get no SE and flag "hit constraint". Fixed, per-data-set constant and shared parameters (global fit); per-data-set local parameters. SEs sqrt(s^2 (J'J)^{-1}) from the refined QR; t CIs; covariance and correlation; dependency 1 - 1/(C_jj (J'J)_jj); "ambiguous" when a column is aliased or a dependency > 0.9999. SS, df, Sy.x, R^2 = 1 - SS/SS_tot (weighted with the final weights), adjusted R^2 = 1 - (1-R^2)(N-1)/(N-k), AICc with K = k + 1 (Prism). Runs test (x order) and replicates (lack-of-fit) test per data set. Residuals Y - f. |
+| `FitOptions::weighting` | Prism Method tab | None, 1/Y, 1/Y^2, 1/Y^K, 1/X, 1/X^2, 1/SD^2, Poisson (deviance residuals, unscaled covariance). `WeightBase::Curve` (Prism) weights by the fitted Y with the full derivative of (y - f)/abs(f)^{K/2}; `Data` uses fixed 1/abs(y)^K (SciPy sigma). |
+| `FitMethod::Robust` | Motulsky & Brown (2006) | Adaptive Lorentzian: start from the LS fit; alternate RSDR = P68 N/(N-K) of the current residuals with an LM minimisation of sum ln(1 + (r/RSDR)^2) (residuals transformed to RSDR sign(r) sqrt(ln(1 + (r/RSDR)^2)) so the LM objective is the merit) until parameters and RSDR change < 1e-10 (max 200 rounds). No SEs (as Prism). |
+| `FitMethod::RobustFixedScale { loss, scale }` | SciPy `least_squares` | Cauchy c^2 ln(1 + (r/c)^2) or soft-L1 2c^2 (sqrt(1 + (r/c)^2) - 1); `robust_objective` = sum. |
+| `FitOptions::profile_ci` | Venzon & Moolgavkar (1988), doi:10.2307/2347496; Bates & Watts (1988) ch. 6 | Prism's "asymmetrical" CI: the two values of each parameter where the re-minimised SS = SS_min (1 + F(level; 1, df)/df); bracketed by steps of 1.6^k SE (at most 40 or the bound), then Brent. +/-inf if never reached; the bound if a constraint is reached first. Equals the t CI for linear models. |
+| `FitOptions::jacobian` | | `Exact` (analytic/AD; closures: central differences) or `FiniteDifference { richardson }` for any equation. |
+| `FitOptions::outlier_q`, `rout_fit(eq, data, q, opts)`, `rout_fit_global` | Motulsky & Brown (2006) | Robust fit, RSDR, FDR test on the weighted residuals pooled over data sets with N - K df, least-squares refit without the outliers (their residuals still reported). |
+| `bands(eq, fit, d, xs, opts)`, `FitOptions::curve_points` | Delta method; Seber & Wild (1989) §5.1 | Confidence band f +/- t sqrt(g' Cov g), prediction band f +/- t sqrt(g' Cov g + s^2/w(x)) (w from the curve for 1/Y^K; 1 for 1/SD^2). |
+| `compare_summaries(simple, complex, alpha)`, `compare_models(simple, complex)`, `FitSummary::aicc` | Motulsky & Christopoulos (2004) ch. 21-22; Burnham & Anderson (2002) | Extra-sum-of-squares F = ((SS1-SS2)/(df1-df2))/(SS2/df2); AICc with Prism's K; delta = AICc(simple) - AICc(complex); Akaike weights; preferred model by each. |
+| `fit_family(eq, datasets, opts)` | Prism "one curve for all data sets?" | Separate fits (sharing removed) versus the global fit; F test and AICc with summed SS, df and parameters. |
+| `CurveFit::values`, `params`, `se`, `summary` | | Accessors. |
+
+## survival
+
+| Function | Reference | Notes |
+|---|---|---|
+| `kaplan_meier(time, event, opts)` | Kaplan & Meier (1958); Greenwood (1926); Kalbfleisch & Prentice (1980) | Events before censorings at tied times; rows at distinct event times; Greenwood variance; CIs log-log (Prism "asymmetrical", lifelines; default), linear clipped (Prism "symmetrical"), log (R default); undefined once S = 0. Median = first t with S <= 0.5 (+inf if never); Brookmeyer & Crowley (1982) CI by inverting the chosen band. Step curve and censor marks. |
+| `KaplanMeier::survival_at`, `ci_at`, `at_risk_at` | | Right-continuous lookups; at risk = subjects with time >= t. |
+| `logrank(groups, weight, scores)` | Mantel (1966); Gehan (1965)/Breslow (1970); Tarone & Ware (1977); Fleming & Harrington (1991) ch. 7 | k groups, hypergeometric variance, chi2 = U'V^{-1}U on k-1 df; weights 1, n, sqrt(n); O/E per group; test for trend with scores (default 1..k). lifelines `logrank_test`. |
+| `hazard_ratio(g1, g2, ci_level)` | GraphPad "The hazard ratio"; Berry, Kitchin & Mock (1991) | Log-rank method (O1/E1)/(O2/E2) with SE sqrt(1/E1 + 1/E2); Mantel–Haenszel exp((O1-E1)/V) with SE 1/sqrt(V). Group 1 relative to group 2. |
+| `cox_ph(time, event, covariates, ties, ci_level)` | Cox (1972); Efron (1977); Breslow (1974) | Newton–Raphson with step halving on the partial likelihood (covariates centred); SEs from the inverse information; Wald z, p, HR CI; likelihood-ratio test. Matches the 50-digit maximum where lifelines stops early. |
+| `cox_log_likelihood(time, event, covariates, beta, ties)` | | Partial log-likelihood at a given beta. |
+
+## roc
+
+| Function | Reference | Notes |
+|---|---|---|
+| `roc(positives, negatives, opts)`, `roc_from_labels(scores, labels, opts)` | DeLong, DeLong & Clarke-Pearson (1988), doi:10.2307/2531595; Sun & Xu (2014), doi:10.1109/LSP.2014.2337313; Hanley & McNeil (1982); Youden (1950) | Positive if score >= threshold; thresholds +inf then every distinct score descending (sklearn `drop_intermediate=False`). Sensitivity, specificity with Wilson (default) or Clopper–Pearson CIs, LR+ and LR-, Youden J (first maximum), closest to (0,1). AUC by Mann–Whitney (ties 1/2); DeLong SE by midranks; Hanley–McNeil SE; CIs clipped to [0, 1]; z test of AUC = 0.5 with the DeLong SE. |
+| `proportion_ci(x, n, level, method)` | Wilson (1927); Clopper & Pearson (1934); Brown, Cai & DasGupta (2001) | Prism's "Wilson/Brown" hybrid is not reproduced; plain Wilson is the oracle's. |
+| `delong_paired(a, b, labels, ci_level)` | DeLong et al. (1988) | Two correlated AUCs; covariance of the structural components. No oracle fixture (identity tests only). |
+
+## agreement
+
+| Function | Reference | Notes |
+|---|---|---|
+| `bland_altman(a, b, kind, ci_level)` | Bland & Altman (1986), Lancet 327:307; (1999), Stat Methods Med Res 8:135 | Difference A - B, ratio A/B or 100 (A-B)/mean; bias, SD (n-1), limits bias +/- 1.96 SD (Prism's constant at 95%; z quantile otherwise; exact-z limits also reported); bias CI with t(n-1); SE of a limit SD sqrt(1/n + 1.96^2/(2(n-1))) with t CIs; proportional bias by OLS of difference on mean. |
+| `icc(rows, ci_level)` | Shrout & Fleiss (1979), Psychol Bull 86:420; McGraw & Wong (1996), Psychol Methods 1:30 | ICC(1,1), (2,1), (3,1), (1,k), (2,k), (3,k) with F tests and F-based CIs (Satterthwaite df for ICC(2,.)), as R `psych::ICC`. Hand-tested on the Shrout–Fleiss example. |
+| `cohen_kappa(table, weights, ci_level)`, `cohen_kappa_ratings(r1, r2, weights, ci_level)` | Cohen (1960); Fleiss, Cohen & Everitt (1969), Psychol Bull 72:323; Cicchetti & Allison (1971); Fleiss & Cohen (1973) | Unweighted, linear or quadratic weights; asymptotic SE (CI) and null SE (z test). Hand-tested. |
+
+## multivariate
+
+| Function | Reference | Notes |
+|---|---|---|
+| `pca(rows, scaling)` | Jolliffe (2002) ch. 1-3 | SVD of the centred (standardized by default, n-1 SD) matrix; eigenvalues S^2/(n-1), explained and cumulative ratios, eigenvectors (rows = components) flipped so the largest-magnitude entry is positive (first on ties), loadings eigenvector x sqrt(eigenvalue), scores U S, Kaiser count. sklearn `PCA` on the standardized matrix. |
+| `parallel_analysis(fit, replicates, percentile, seed)` | Horn (1965), Psychometrika 30:179; Glorfeld (1995) | Eigenvalues of seeded standard-normal data of the same shape and scaling; mean and percentile per component; components retained while above the percentile. |
+| `covariance_matrix(rows)` | | n-1 denominator, compensated two-pass sums, complete rows. |
+
+## resample
+
+| Function | Reference | Notes |
+|---|---|---|
+| `Xoshiro256::new(seed)`, `next_u64`, `next_f64`, `below(n)`, `normal`, `shuffle` | Blackman & Vigna (2021), ACM TOMS 47:36; Steele, Lea & Flood (2014) SplitMix64; Lemire (2019) | xoshiro256** seeded by SplitMix64; 53-bit uniforms; unbiased bounded integers; normals by inversion; Fisher–Yates. Deterministic on every platform. |
+| `bootstrap_ci(samples, stat, replicates, ci_level, method, seed)` | Efron (1979); Efron (1987), JASA 82:171; Efron & Tibshirani (1993) ch. 14 | Each sample resampled within itself; percentile or BCa (z0 with ties counted 1/2, acceleration from the leave-one-out jackknife of every observation); quantiles of the replicates by type 7 interpolation; non-finite replicates dropped. |
+| `bootstrap_mean_difference(a, b, replicates, ci_level, method, seed)` | | mean(a) - mean(b). |
+| `permutation_test(a, b, exact_limit, monte_carlo, seed)` | Fisher (1935); Pitman (1937); Phipson & Smyth (2010) | Difference in means; exact enumeration of all C(n, n_a) splits when within `exact_limit`, else Monte Carlo with p = (count + 1)/(B + 1); two-sided and one-sided p. |

@@ -467,7 +467,7 @@ pub fn runs_cdf(r: usize, n1: usize, n2: usize) -> f64 {
     compensated_sum(terms).min(1.0)
 }
 
-fn lack_of_fit(x: &[f64], y: &[f64], rss: f64, npar: usize) -> Option<LackOfFit> {
+pub(crate) fn lack_of_fit(x: &[f64], y: &[f64], rss: f64, npar: usize) -> Option<LackOfFit> {
     let mut idx: Vec<usize> = (0..x.len()).collect();
     idx.sort_by(|&a, &b| x[a].total_cmp(&x[b]));
     let mut groups: Vec<Vec<f64>> = Vec::new();

@@ -236,3 +236,109 @@ fn bench_fisher_rxc_and_tukey() {
         tukey_kramer(&refs, 0.05).unwrap().comparisons[0].p_adj
     });
 }
+
+#[test]
+#[ignore]
+fn bench_curve_fitting_and_survival() {
+    use dioptra_stats::equations;
+    use dioptra_stats::nonlinear::{self as nl, Dataset, FitOptions};
+    use dioptra_stats::survival::{self as sv, KmOptions, LogRankWeight};
+    // 4PL on 1,000 points from the rule-based initial values.
+    let eq = equations::log_agonist_variable_slope();
+    let x: Vec<f64> = (0..1000).map(|i| -9.0 + 5.0 * i as f64 / 999.0).collect();
+    let e = data(1000, 17);
+    let y: Vec<f64> = x
+        .iter()
+        .zip(&e)
+        .map(|(&v, n)| eq.eval(&[v], &[5.0, 95.0, -6.5, 0.8]) + 2.0 * n)
+        .collect();
+    let d = Dataset::new(&x, &y);
+    time("4PL fit, 1,000 points (rule starts)", 20, || {
+        nl::fit(&eq, &d, &FitOptions::default()).unwrap().ss
+    });
+    let prof = FitOptions {
+        profile_ci: true,
+        curve_points: 1000,
+        ..FitOptions::default()
+    };
+    time("4PL fit, 1,000 points + profile CIs + bands", 5, || {
+        nl::fit(&eq, &d, &prof).unwrap().ss
+    });
+    // NIST Thurber from both starts (7 parameters, rational, 37 points).
+    let path = format!(
+        "{}/../../fixtures/nist/Thurber.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let j: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let names: Vec<String> = j["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_string())
+        .collect();
+    let nr: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+    let teq = dioptra_stats::equations::Equation::custom_with(
+        j["equation"].as_str().unwrap(),
+        &["x"],
+        Some(&nr),
+    )
+    .unwrap();
+    let col = |k: &str| -> Vec<f64> {
+        j["data"][k]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap())
+            .collect()
+    };
+    let td = Dataset::new(&col("x"), &col("y"));
+    for start in ["start1", "start2"] {
+        let p0: Vec<f64> = j["parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p[start].as_f64().unwrap())
+            .collect();
+        let o = FitOptions {
+            initial: Some(vec![p0]),
+            ..FitOptions::default()
+        };
+        time(&format!("NIST Thurber from {start}"), 50, || {
+            nl::fit(&teq, &td, &o).unwrap().ss
+        });
+    }
+    // Kaplan-Meier and log-rank on 10,000 subjects.
+    let u = data(20_000, 3);
+    let t1: Vec<f64> = u[..10_000]
+        .iter()
+        .map(|v| (v.abs() * 100.0).round())
+        .collect();
+    let e1: Vec<bool> = (0..10_000).map(|i| i % 4 != 0).collect();
+    let t2: Vec<f64> = u[10_000..]
+        .iter()
+        .map(|v| (v.abs() * 90.0).round())
+        .collect();
+    time("Kaplan-Meier, 10,000 subjects", 50, || {
+        sv::kaplan_meier(&t1, &e1, KmOptions::default())
+            .unwrap()
+            .median
+    });
+    time("log-rank, 2 x 10,000 subjects", 20, || {
+        sv::logrank(&[(&t1, &e1), (&t2, &e1)], LogRankWeight::LogRank, None)
+            .unwrap()
+            .chi2
+    });
+    let mut tt = t1.clone();
+    tt.extend(&t2);
+    let mut ee = e1.clone();
+    ee.extend(&e1);
+    let xx: Vec<Vec<f64>> = (0..20_000)
+        .map(|i| vec![(i < 10_000) as u8 as f64])
+        .collect();
+    time("Cox PH (Efron), 20,000 subjects, 1 covariate", 5, || {
+        sv::cox_ph(&tt, &ee, &xx, sv::CoxTies::Efron, 0.95)
+            .unwrap()
+            .log_likelihood
+    });
+}
