@@ -2,9 +2,10 @@
 //! results sheet (DESIGN §4.3, §5).
 //!
 //! Computations plug in through [`AnalysisEngine`], a table from analysis kind to a
-//! function. This crate implements descriptive statistics itself; every other kind is
-//! declared (so the UI can be built against its options) and answers with a sheet that
-//! says it is not available yet until `dioptra-stats` provides the numerics.
+//! function. Descriptive statistics live here; every other kind is computed in
+//! [`crate::compute`] on `dioptra-stats`, registered by [`crate::compute::register_all`]
+//! (which `Session::new` calls). A kind without a registered computation answers with a
+//! sheet that says so.
 
 use std::collections::BTreeMap;
 
@@ -428,6 +429,8 @@ spec_struct!(
         bands: Bands = Bands::None,
         /// Confidence level.
         ci_level: f64 = ci95(),
+        /// Add a table of residuals to the sheet.
+        residuals: bool = false,
     }
 );
 spec_struct!(
@@ -447,6 +450,15 @@ spec_struct!(
         initial: BTreeMap<String, f64> = BTreeMap::new(),
         /// Compare with a second model (extra sum of squares F test / AICc).
         compare_with: Option<EquationSpec> = None,
+        /// Profile-likelihood (asymmetrical) confidence intervals as well as asymptotic ones.
+        profile_ci: bool = false,
+        /// ROUT outlier removal with this Q in percent (1 is the usual choice): robust fit,
+        /// flag outliers, refit without them. `None`: no outlier removal.
+        rout_q: Option<f64> = None,
+        /// Confidence level of parameters, derived values and bands.
+        ci_level: f64 = ci95(),
+        /// Bands drawn around the curve on graphs.
+        bands: Bands = Bands::Confidence,
     }
 );
 spec_struct!(
@@ -885,9 +897,13 @@ impl AnalysisEngine {
                 ),
             }
         };
-        if sheet.checklist.is_empty() {
-            sheet.checklist = checklist(kind);
+        let mut cl = checklist(kind);
+        for line in sheet.checklist.drain(..) {
+            if !cl.contains(&line) {
+                cl.push(line);
+            }
         }
+        sheet.checklist = cl;
         sheet
     }
 }
@@ -901,7 +917,8 @@ fn message_sheet(spec: &AnalysisSpec, message: String) -> ResultsSheet {
     }
 }
 
-fn checklist(kind: &str) -> Vec<String> {
+/// What an analysis assumes and cannot tell you (DESIGN §4.3), 3–6 plain lines per kind.
+pub fn checklist(kind: &str) -> Vec<String> {
     let v: &[&str] = match kind {
         "descriptive" => &[
             "Are the values independent? Repeated measurements of one subject are not independent observations.",
@@ -909,19 +926,123 @@ fn checklist(kind: &str) -> Vec<String> {
             "If the distribution is skewed, the median and quartiles describe it better than the mean and SD.",
         ],
         "t_test" => &[
-            "Are the two groups sampled from populations that are roughly Gaussian, or are the samples large?",
-            "Welch's test does not assume equal SDs; Student's test does.",
-            "Are the data unpaired? If each value in one group pairs with one in the other, use the paired test.",
+            "Are the two groups sampled from populations that are roughly Gaussian, or are the samples large (say 30 or more each)?",
+            "Welch's test does not assume equal SDs; Student's test does. Welch's is the default here.",
+            "Are the data unpaired? If each value in one group pairs with one in the other (same subject, same litter, same day), use the paired test.",
             "Did you choose a one-sided test before seeing the data? If not, use two-sided.",
+            "A small P says the means probably differ; the CI of the difference says by how much. A large P does not show the means are equal.",
         ],
-        "one_way_anova" | "repeated_measures_anova" => &[
+        "mann_whitney" => &[
+            "Are the values independent, and the two groups unrelated? For paired data use the Wilcoxon signed-rank test.",
+            "The test compares the whole distributions (does one tend to be larger?); it is a test of medians only if the two shapes are the same.",
+            "The Hodges–Lehmann shift is the median of all pairwise differences, not the difference of the medians.",
+            "With very small samples (fewer than 4 or 5 per group) the test cannot reach P < .05 whatever the data.",
+        ],
+        "wilcoxon" => &[
+            "Are the pairs independent of each other, and is the pairing part of the design?",
+            "The test assumes the differences are distributed symmetrically about their median.",
+            "Zero differences are dropped (Wilcoxon's method), which lowers the effective sample size.",
+            "The Hodges–Lehmann estimate is the median of the Walsh averages of the differences.",
+        ],
+        "one_way_anova" => &[
             "Are the residuals roughly Gaussian and the SDs similar (or is Welch's ANOVA chosen)?",
-            "Are the errors independent?",
-            "Plan the comparisons you care about before looking at the data.",
+            "Are the values independent and the groups unrelated? For matched data use repeated-measures ANOVA.",
+            "Plan the comparisons you care about before looking at the data; the multiple-comparison test controls the error rate only for the family it is given.",
+            "A significant F says some means differ, not which ones; a non-significant F does not show the means are equal.",
+            "Tukey's test compares all pairs, Dunnett's compares each group with a control; choose the family that matches the question.",
         ],
-        "chi_square" | "fisher_exact" => &[
+        "repeated_measures_anova" => &[
+            "Is each row one subject (or matched set), measured under every condition?",
+            "Sphericity (equal variances of all pairwise differences) is assumed by the uncorrected test; the Greenhouse–Geisser correction removes that assumption.",
+            "Rows with a missing condition are left out entirely; with many missing values a mixed-effects model (deferred) uses the data better.",
+            "Are the residuals roughly Gaussian? If not, consider the Friedman test.",
+        ],
+        "two_way_anova" => &[
+            "Look at the interaction first: when it is present, the main effects average over effects that differ, and the simple effects tell the story.",
+            "Are the residuals roughly Gaussian and the variances similar across cells?",
+            "Are the values independent? If the same subjects appear in several cells, set the repeated factor.",
+            "Type III sums of squares (the default) test each effect adjusted for all others; with unbalanced designs types I, II and III differ.",
+        ],
+        "kruskal_wallis" => &[
+            "Are the values independent and the groups unrelated? For matched data use the Friedman test.",
+            "The test asks whether values in some group tend to be larger; it compares medians only if the shapes are the same.",
+            "Dunn's test compares mean ranks; the P values are adjusted for the number of comparisons.",
+            "With small groups the chi-square approximation is rough.",
+        ],
+        "friedman" => &[
+            "Is each row one subject (or matched set), measured under every condition?",
+            "The test ranks the values within each row; it ignores how large the differences are.",
+            "Rows with a missing condition are left out entirely.",
+            "With few subjects the chi-square approximation is rough.",
+        ],
+        "chi_square" => &[
             "Are the counts of independent subjects (not of repeated observations of the same subjects)?",
-            "With small expected counts, use Fisher's exact test.",
+            "Is each subject counted in exactly one cell?",
+            "With small expected counts (below 5), use Fisher's exact test.",
+            "The test says whether rows and columns are associated; the relative risk or odds ratio says how strongly.",
+        ],
+        "fisher_exact" => &[
+            "Are the counts of independent subjects, each counted in exactly one cell?",
+            "Rows are the groups and columns the outcomes; the odds ratio and relative risk compare the first row with the second for the first outcome column.",
+            "The test is exact but conservative when the totals were not fixed by the design.",
+            "The conditional maximum-likelihood odds ratio differs slightly from the sample odds ratio ad/bc.",
+        ],
+        "correlation" => &[
+            "Is each row an independent case, with both variables measured on it?",
+            "Pearson's r measures linear association only and is sensitive to outliers; Spearman's and Kendall's coefficients measure monotonic association.",
+            "Correlation does not say which variable affects the other, or whether a third variable drives both.",
+            "Do not correlate a variable with something computed from it (for example X with X − Y).",
+        ],
+        "linear_regression" => &[
+            "Is the relationship linear over the range of X? The runs test and the residual plot check this.",
+            "Is X known without error? If both variables are measured with error, Deming regression is the better line.",
+            "Is the scatter of Y about the line Gaussian and the same at every X?",
+            "Are the points independent? Replicates of one sample are not independent points.",
+            "Do not extrapolate the line beyond the range of the data.",
+        ],
+        "nonlinear_regression" => &[
+            "Did you choose the model from the science before seeing the fit? Compare models with an F test or AICc, not by eye.",
+            "Do the data define the whole curve (both plateaus of a sigmoid, for example)? If not, constrain the parameters the data cannot determine.",
+            "Is the scatter of Y about the curve Gaussian, with the SD the weighting assumes?",
+            "Are the points independent? Replicates of one sample are not independent experiments.",
+            "Asymptotic CIs are symmetric approximations; profile-likelihood CIs are more accurate for parameters such as LogEC50 near the edge of the data.",
+        ],
+        "normality" => &[
+            "A normality test cannot prove that data are Gaussian; passing means only that no departure was detected.",
+            "With small samples the tests have little power; with very large samples they flag departures too small to matter.",
+            "What matters for a t test or ANOVA is the distribution of the residuals, and moderate departures matter little with moderate samples.",
+            "A QQ plot shows how the data depart, which a P value cannot.",
+        ],
+        "outliers" => &[
+            "An outlier test assumes the bulk of the data is Gaussian; in skewed data, extreme values are expected.",
+            "A flagged value is a candidate for checking, not for deletion. Exclude it only with a reason beyond the test, and report that you did.",
+            "Values are flagged, never removed; excluding a cell keeps it in the table, marked.",
+            "Grubbs' test removes one value at a time; ROUT handles several outliers at once.",
+        ],
+        "survival" => &[
+            "Is the start time defined the same way for every subject, and is an event clearly defined?",
+            "Censoring must be uninformative: subjects lost to follow-up must have the same outlook as those still followed.",
+            "The log-rank test and the hazard ratio assume proportional hazards; crossing curves are a warning sign.",
+            "Medians are undefined when survival never falls to 50%; report the curve instead.",
+        ],
+        "roc" => &[
+            "Were the controls and patients chosen like the people the test will be used on? Spectrum bias inflates the AUC.",
+            "Higher values are assumed to indicate a positive case; swap the data sets if the opposite holds.",
+            "Sensitivity and specificity do not depend on prevalence, but the predictive values do.",
+            "The Youden cut-off weights false positives and false negatives equally; the right cut-off depends on their costs.",
+        ],
+        "bland_altman" => &[
+            "Are both methods measured on the same subjects, one pair per subject?",
+            "The limits of agreement assume Gaussian differences whose size does not change with the measurement (check proportional bias).",
+            "Whether the agreement is good enough is a judgement about the acceptable difference, made before looking.",
+            "Correlation is not agreement: two methods can correlate perfectly and still disagree.",
+        ],
+        "pca" => &[
+            "Are the variables on comparable scales, or standardized (the default)?",
+            "PCA describes linear correlations; outliers and curved relationships distort the components.",
+            "Rows with a missing value are left out.",
+            "How many components to keep is a judgement; parallel analysis is a better guide than Kaiser's eigenvalue-above-1 rule.",
+            "Components are directions of variance, not causes; naming them is interpretation.",
         ],
         _ => &["Check that the design of the experiment matches the assumptions of this analysis."],
     };
@@ -1146,29 +1267,29 @@ fn descriptive(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
             format!("{}: no values.", g.name)
         });
     }
-    let mut assumptions = vec![AssumptionCheck {
-        name: "Values used".into(),
-        status: if caution {
+    let mut assumptions = vec![AssumptionCheck::new(
+        "Values used",
+        if caution {
             CheckStatus::Caution
         } else {
             CheckStatus::Pass
         },
-        detail: if notes.is_empty() {
-            "Every non-empty numeric cell was used.".into()
+        if notes.is_empty() {
+            "Every non-empty numeric cell was used.".to_string()
         } else {
             notes.join(" ")
         },
-    }];
-    assumptions.push(AssumptionCheck {
-        name: "Independent observations".into(),
-        status: CheckStatus::NotChecked,
-        detail: "The CI of the mean assumes each value is an independent sample; only the design of the experiment can tell.".into(),
-    });
-    assumptions.push(AssumptionCheck {
-        name: "Gaussian distribution".into(),
-        status: CheckStatus::NotChecked,
-        detail: "The CI of the mean is exact for Gaussian data and approximate otherwise; run a normality test, or report the median and quartiles for skewed data.".into(),
-    });
+    )];
+    assumptions.push(AssumptionCheck::new(
+        "Independent observations",
+        CheckStatus::NotChecked,
+        "The CI of the mean assumes each value is an independent sample; only the design of the experiment can tell.",
+    ));
+    assumptions.push(AssumptionCheck::new(
+        "Gaussian distribution",
+        CheckStatus::NotChecked,
+        "The CI of the mean is exact for Gaussian data and approximate otherwise; run a normality test, or report the median and quartiles for skewed data.",
+    ).or_else("Analyze → Normality tests, or report the median and quartiles."));
     let mut sheet = ResultsSheet {
         title: "Descriptive statistics".into(),
         analysis_kind: "descriptive".into(),

@@ -11,6 +11,7 @@
 
 pub mod analysis;
 pub mod api;
+pub mod compute;
 pub mod deps;
 pub mod export;
 pub mod file;

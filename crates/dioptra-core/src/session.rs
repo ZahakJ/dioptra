@@ -30,7 +30,11 @@ impl Default for Session {
             project: Project::new(),
             history: History::default(),
             renderer: Box::new(DioptraRenderer),
-            engine: AnalysisEngine::default(),
+            engine: {
+                let mut e = AnalysisEngine::default();
+                crate::compute::register_all(&mut e);
+                e
+            },
         }
     }
 }
@@ -292,16 +296,31 @@ impl Session {
         Ok(self.project.analyses[id].results.clone().expect("results"))
     }
 
+    /// The graph material of an analysis, recomputing the analysis when it is stale or
+    /// was loaded from a file (graph material is not saved).
+    fn analysis_graph(&mut self, id: &str) -> R<Option<graph::AnalysisGraph>> {
+        let sheet = self.results(id)?;
+        if sheet.graph.is_some() || sheet.message.is_some() {
+            return Ok(sheet.graph);
+        }
+        if let Some(a) = self.project.analyses.get_mut(id) {
+            a.stale = true;
+        }
+        Ok(self.results(id)?.graph)
+    }
+
     fn graph_data(&mut self, spec: &GraphSpec) -> R<graph::GraphData> {
-        let table_id = if self.project.tables.contains_key(&spec.source) {
-            spec.source.clone()
-        } else if let Some(a) = self.project.analyses.get(&spec.source) {
-            a.table.clone()
-        } else {
+        if self.project.tables.contains_key(&spec.source) {
+            let t = self.fresh_table(&spec.source.clone())?;
+            return Ok(graph::extract(spec, t));
+        }
+        let Some(a) = self.project.analyses.get(&spec.source) else {
             return Err("the graph's data source no longer exists".into());
         };
+        let table_id = a.table.clone();
+        let ag = self.analysis_graph(&spec.source.clone())?;
         let t = self.fresh_table(&table_id)?;
-        Ok(graph::extract(spec, t))
+        Ok(graph::extract_analysis(spec, t, ag.as_ref()))
     }
 
     fn render(&mut self, id: &str) -> R<graph::Rendered> {
@@ -1386,7 +1405,28 @@ impl Session {
                         graph: None,
                     },
                 ];
-                let spec = GraphSpec::new(source, &family);
+                let spec = if let Some(a) = self.project.analyses.get(&source) {
+                    // Computed afresh, not cached: creating a graph does not change the
+                    // analysis (its stale flag and cached sheet stay as they were).
+                    let (table_id, aspec) = (a.table.clone(), a.spec.clone());
+                    let style = self.project.p_value_style;
+                    deps::refresh_table(&mut self.project, &table_id)?;
+                    let t = self.table(&table_id)?;
+                    let ag = self.engine.run(t, &aspec, style).graph;
+                    crate::compute::graph_spec_for_analysis(
+                        source,
+                        &family,
+                        ag.as_ref(),
+                        self.project.p_value_style,
+                    )
+                } else {
+                    let family = if family.trim().is_empty() || family == "auto" {
+                        crate::compute::default_table_family(self.table(&source)?.kind).to_string()
+                    } else {
+                        family
+                    };
+                    GraphSpec::new(source, &family)
+                };
                 self.project.graphs.insert(
                     id.clone(),
                     Graph {

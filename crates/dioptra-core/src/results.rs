@@ -43,6 +43,28 @@ pub struct AssumptionCheck {
     pub status: CheckStatus,
     /// What was checked and what it means for this result.
     pub detail: String,
+    /// What to do instead when the check is in doubt or fails, e.g. "Consider
+    /// Mann–Whitney (Analyze → Mann–Whitney test) or report both."
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alternative: Option<String>,
+}
+
+impl AssumptionCheck {
+    /// A check without an alternative.
+    pub fn new(name: impl Into<String>, status: CheckStatus, detail: impl Into<String>) -> Self {
+        AssumptionCheck {
+            name: name.into(),
+            status,
+            detail: detail.into(),
+            alternative: None,
+        }
+    }
+
+    /// Offer an alternative.
+    pub fn or_else(mut self, alternative: impl Into<String>) -> Self {
+        self.alternative = Some(alternative.into());
+        self
+    }
 }
 
 /// One cell of a results table.
@@ -123,7 +145,7 @@ pub struct Section {
 }
 
 /// The output of an analysis.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ResultsSheet {
     /// Title.
     pub title: String,
@@ -143,6 +165,33 @@ pub struct ResultsSheet {
     /// Whether the data changed since this was computed.
     #[serde(default)]
     pub stale: bool,
+    /// A methods sentence ready to paste: test, sidedness, correction, CI level, software
+    /// version ("Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.1.0.").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub methods: Option<String>,
+    /// The graph family `CreateGraph` picks for this analysis when none is named.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph_family: Option<String>,
+    /// What graphs of this analysis draw (curves, brackets, replacement series). Runtime
+    /// only: rebuilt by recomputing, never saved or sent to the UI.
+    #[serde(skip)]
+    pub graph: Option<crate::graph::AnalysisGraph>,
+}
+
+impl PartialEq for ResultsSheet {
+    /// Compares what is saved and shown; the runtime graph material is ignored.
+    fn eq(&self, o: &Self) -> bool {
+        self.title == o.title
+            && self.analysis_kind == o.analysis_kind
+            && self.message == o.message
+            && self.sections == o.sections
+            && self.assumptions == o.assumptions
+            && self.summary == o.summary
+            && self.checklist == o.checklist
+            && self.stale == o.stale
+            && self.methods == o.methods
+            && self.graph_family == o.graph_family
+    }
 }
 
 /// GraphPad asterisks: `****` < .0001, `***` < .001, `**` < .01, `*` < .05, else `ns`.

@@ -395,6 +395,99 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
     d
 }
 
+/// A significance bracket an analysis offers: categories (0-based, in the order the
+/// graph shows the analysed data sets) and the p value it carries.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Bracket {
+    /// First category.
+    pub from: usize,
+    /// Second category.
+    pub to: usize,
+    /// Adjusted p value.
+    pub p: f64,
+}
+
+/// What a graph of an analysis draws for one family: curves and at-risk tables to add,
+/// or series that replace those extracted from the table (scores, pairs, differences).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GraphView {
+    /// Family this view serves (`scatter` also serves `line`, `xy` and `residuals`).
+    pub family: String,
+    /// Replace the table's series and categories with `series` and `categories`.
+    pub replace: bool,
+    /// Replacement series.
+    pub series: Vec<Series>,
+    /// Replacement categories.
+    pub categories: Vec<String>,
+    /// Curves on a linear X axis.
+    pub curves: Vec<Curve>,
+    /// The same curves evaluated at log-spaced X, for log X axes (when X > 0).
+    pub curves_log: Option<Vec<Curve>>,
+    /// At-risk tables.
+    pub tables: Vec<AtRiskTable>,
+    /// X title.
+    pub x_label: Option<String>,
+    /// Y title.
+    pub y_label: Option<String>,
+}
+
+/// Graph material an analysis provides (DESIGN §5 step 4): the default family, the data
+/// sets it analysed, family views, and significance brackets.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AnalysisGraph {
+    /// Default family.
+    pub family: String,
+    /// Table data sets analysed, in graph order (`mapping.datasets` of a new graph).
+    pub datasets: Vec<usize>,
+    /// Views by family.
+    pub views: Vec<GraphView>,
+    /// Brackets for `CreateGraph`.
+    pub brackets: Vec<Bracket>,
+}
+
+fn family_key(f: &str) -> &str {
+    match f {
+        "line" | "xy" | "residuals" => "scatter",
+        "bar" => "column",
+        other => other,
+    }
+}
+
+impl AnalysisGraph {
+    /// The view serving a family, if any.
+    pub fn view(&self, family: &str) -> Option<&GraphView> {
+        let k = family_key(family);
+        self.views.iter().find(|v| family_key(&v.family) == k)
+    }
+}
+
+/// Graph data for a graph whose source is an analysis: the analysed table's data (as the
+/// spec maps it), then the analysis's view for the family on top.
+pub fn extract_analysis(spec: &GraphSpec, table: &Table, ag: Option<&AnalysisGraph>) -> GraphData {
+    let mut d = extract(spec, table);
+    let Some(view) = ag.and_then(|g| g.view(&spec.family)) else {
+        return d;
+    };
+    if view.replace {
+        d.series = view.series.clone();
+        d.categories = view.categories.clone();
+        d.group_names.clear();
+    }
+    let log_x = matches!(spec.axes.x.scale, Scale::Log10 | Scale::Log2);
+    match (&view.curves_log, log_x) {
+        (Some(c), true) => d.curves.extend(c.iter().cloned()),
+        _ => d.curves.extend(view.curves.iter().cloned()),
+    }
+    d.tables.extend(view.tables.iter().cloned());
+    if let Some(x) = &view.x_label {
+        d.x_label = x.clone();
+    }
+    if let Some(y) = &view.y_label {
+        d.y_label = y.clone();
+    }
+    d
+}
+
 /// A rendered graph.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rendered {

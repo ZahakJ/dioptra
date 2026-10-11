@@ -301,3 +301,58 @@ one against Richardson differences.
 | `bootstrap_ci(samples, stat, replicates, ci_level, method, seed)` | Efron (1979); Efron (1987), JASA 82:171; Efron & Tibshirani (1993) ch. 14 | Each sample resampled within itself; percentile or BCa (z0 with ties counted 1/2, acceleration from the leave-one-out jackknife of every observation); quantiles of the replicates by type 7 interpolation; non-finite replicates dropped. |
 | `bootstrap_mean_difference(a, b, replicates, ci_level, method, seed)` | | mean(a) - mean(b). |
 | `permutation_test(a, b, exact_limit, monte_carlo, seed)` | Fisher (1935); Pitman (1937); Phipson & Smyth (2010) | Difference in means; exact enumeration of all C(n, n_a) splits when within `exact_limit`, else Monte Carlo with p = (count + 1)/(B + 1); two-sided and one-sided p. |
+
+## Results sheets
+
+`dioptra-core::compute` turns each analysis specification into a results sheet on top of
+the functions above. Every sheet has the same parts, in the order the UI shows them:
+assumption checks, summary sentences, a methods line, typed sections, a checklist.
+`docs/ANALYSES.md` describes each analysis kind.
+
+**Data.** Excluded cells are never used; empty and text cells are missing. Paired and
+repeated-measures analyses align values by row and drop a row with a missing member,
+saying how many. Nested tables are averaged within each subgroup first (n counts the
+experimental units). Data sets entered as mean/SD/N (or mean/SEM/N, mean/CI/N) are used
+where the result depends only on the means, SDs and sizes: t tests (one-sample, Student,
+Welch), one-way ANOVA with its post tests, and two-way ANOVA cells. Dioptra builds a
+synthetic sample with exactly that mean, SD and N, so these results are exact; rank
+tests, paired designs, normality and outlier tests say they are not possible from summary
+data. Contingency counts must be non-negative whole numbers; the first bad cell is named
+and the table is left as it is. Survival codes must be 1 (event) or 0 (censored).
+
+**Assumption checks.** Each check has a status (`pass`, `caution`, `fail`, `not_checked`),
+a one-sentence meaning, and an `alternative` when the status is not `pass`. Every check
+uses α = 0.05.
+
+| Check | Rule | Used by |
+|---|---|---|
+| Normality | Shapiro–Wilk (3 ≤ n ≤ 5000), D'Agostino–Pearson as a second opinion (n ≥ 8). Pass when every p ≥ .05; caution when the smallest p is in [.01, .05) or only D'Agostino–Pearson objects; fail below .01; not checked below n = 3. Applied to each group (t tests, correlation), the paired differences or log ratios (paired tests), the residuals (ANOVA, regression, curve fits), the differences (Bland–Altman). | t tests, ANOVA, correlation (Pearson), regressions, Bland–Altman, outliers |
+| Equal variances | Brown–Forsythe (Levene on medians) decides; Bartlett is shown. Caution below .05, fail below .01. Informational (pass) when the test in use does not assume them (Welch, Welch's ANOVA). From summary data: the SD ratio (t test) or Bartlett (ANOVA). | t tests, one-way and two-way ANOVA, Mann–Whitney (as a shape check) |
+| Sphericity | Mauchly's W; pass when the Greenhouse–Geisser correction is on. Not checked for the two-way repeated design. | Repeated-measures ANOVA |
+| Expected counts | Cochran's rule: caution when more than 20% are below 5, fail when any is below 1; Fisher's exact test offered. | Chi-square |
+| Sample size | Fail below 2 per group; caution below a minimum per analysis (5 for t tests and ANOVA, 6 pairs for Wilcoxon, 10 for correlation and ROC, 30 pairs for Bland–Altman). | most |
+| Linearity | Runs test (too few runs, exact Swed–Eisenhart p); replicates (lack-of-fit) test when X repeats. | Linear and nonlinear regression |
+| Outliers | Grubbs at α = 0.05 on each group, as a note only (caution, never fail). Nonlinear fits use ROUT when asked. | t tests, ANOVA, correlation |
+| Convergence | Caution when a parameter hit a constraint or is ambiguous; fail when the fit did not converge. | Nonlinear regression |
+| Stated, not tested | Independence (every analysis), proportional hazards and uninformative censoring (survival), X without error (regression), representative samples (ROC), acceptable agreement (Bland–Altman). | — |
+
+**Summary sentences.** APA style, estimate first: the effect with its CI, then the test
+statistic with its degrees of freedom, then p in the project's style (`p_phrase`), then an
+effect size. Examples: "The mean difference (A − B) was 3.2 (95% CI 1.1 to 5.3),
+t(17.4) = 3.21, p = .005, Hedges' g = 1.40."; "One-way ANOVA: F(2, 27) = 4.85, p = .016,
+η² = .26 (ω² = .20)." plus one sentence per multiple-comparison family naming the
+comparisons that differ. Estimates and CI limits share their decimals: two significant
+digits of the CI width (at least two of the estimate), scientific notation below 0.001 or
+from 10⁶. Test statistics have two decimals; fractional df one decimal (two below 10);
+quantities bounded by 1 (r, η², R², AUC) drop the leading zero in APA style.
+
+**Methods line.** Test, sidedness, correction or adjustment, CI level, data form (for
+example "computed from the entered mean, SD and N") and the software version, ready to
+paste: "Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.1.0."
+
+**Graphs.** A sheet names a default graph family (`graph_family`) and carries runtime
+graph material: the analysed data sets, significance brackets (adjusted p of each
+comparison; all of them up to six, otherwise the significant ones), fit curves with
+confidence or prediction bands evaluated at 200 X values (linear and, when X > 0, log
+spaced), survival curves with bands and numbers at risk, ROC points, replacement series
+(correlation pairs, PCA scores and scree, Bland–Altman ratio or percent differences).
