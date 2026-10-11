@@ -142,6 +142,10 @@ pub fn results_to_tsv(sheet: &ResultsSheet, style: PValueStyle) -> String {
         out.push_str(s);
         out.push('\n');
     }
+    if let Some(m) = &sheet.methods {
+        out.push_str(m);
+        out.push('\n');
+    }
     out
 }
 
@@ -159,10 +163,13 @@ pub fn results_to_markdown(sheet: &ResultsSheet, style: PValueStyle) -> String {
         out.push_str("## Assumptions\n\n");
         for a in &sheet.assumptions {
             out.push_str(&format!(
-                "- **{}** ({}): {}\n",
+                "- **{}** ({}): {}{}\n",
                 a.name,
                 a.status.label(),
-                a.detail
+                a.detail,
+                a.alternative
+                    .as_ref()
+                    .map_or(String::new(), |x| format!(" *Alternative:* {x}"))
             ));
         }
         out.push('\n');
@@ -172,6 +179,9 @@ pub fn results_to_markdown(sheet: &ResultsSheet, style: PValueStyle) -> String {
         for s in &sheet.summary {
             out.push_str(&format!("{s}\n\n"));
         }
+    }
+    if let Some(m) = &sheet.methods {
+        out.push_str(&format!("## Methods\n\n{m}\n\n"));
     }
     for s in &sheet.sections {
         out.push_str(&format!("## {}\n\n", s.title));
