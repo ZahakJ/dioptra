@@ -1375,3 +1375,417 @@ def gen_outliers():
         "ROUT steps documented in rout_constant() docstring and research/04-algorithms.md section 16. The robust centre is the minimizer of the Lorentzian merit with adaptive RSDR; flagged indices come from the P68-based RSDR; rsdr_alt_1p4826_mad is recorded for comparison only.",
         "Q is a fraction (0.01 = Prism's default Q = 1%).",
     ])
+
+
+# ================================================================= survival
+def km_table(T, E):
+    T, E = np.asarray(T, float), np.asarray(E, int)
+    kmf = KaplanMeierFitter().fit(T, E)
+    times = np.unique(T[E == 1])
+    S, cum, rows = 1.0, 0.0, []
+    for t in times:
+        n = int((T >= t).sum())
+        d = int(((T == t) & (E == 1)).sum())
+        c = int(((T == t) & (E == 0)).sum())
+        S *= 1 - d / n
+        cum += d / (n * (n - d)) if n > d else float("inf")
+        var = S * S * cum
+        if 0 < S < 1 and np.isfinite(cum):
+            th = math.log(-math.log(S))
+            se_th = math.sqrt(cum) / abs(math.log(S))
+            lo, hi = S ** math.exp(Z975 * se_th), S ** math.exp(-Z975 * se_th)
+        else:
+            lo = hi = None
+        lin = [max(0.0, S - Z975 * math.sqrt(var)), min(1.0, S + Z975 * math.sqrt(var))] if np.isfinite(var) else [None, None]
+        rows.append({"time": t, "n_at_risk": n, "events": d, "censored_at_time": c, "survival": S,
+                     "greenwood_var": var if np.isfinite(var) else None, "se": math.sqrt(var) if np.isfinite(var) else None,
+                     "ci95_loglog": [lo, hi], "ci95_linear_clipped": lin})
+    # cross-check with lifelines
+    sf = kmf.survival_function_.iloc[:, 0]
+    ci = kmf.confidence_interval_
+    for row in rows:
+        assert abs(sf.loc[row["time"]] - row["survival"]) < 1e-12
+        if row["ci95_loglog"][0] is not None:
+            assert abs(ci.loc[row["time"]].iloc[0] - row["ci95_loglog"][0]) < 1e-9, (ci.loc[row["time"]], row)
+    return rows, kmf.median_survival_time_
+
+
+def logrank_parts(T1, E1, T2, E2):
+    T = np.r_[T1, T2].astype(float)
+    E = np.r_[E1, E2].astype(int)
+    G = np.r_[np.ones(len(T1)), np.zeros(len(T2))]
+    O1 = E1v = V = 0.0
+    O2 = E2v = 0.0
+    for t in np.unique(T[E == 1]):
+        at = T >= t
+        n, n1 = at.sum(), (at & (G == 1)).sum()
+        d = ((T == t) & (E == 1)).sum()
+        d1 = ((T == t) & (E == 1) & (G == 1)).sum()
+        e1 = d * n1 / n
+        O1 += d1; E1v += e1
+        O2 += d - d1; E2v += d - e1
+        if n > 1:
+            V += d * (n1 / n) * (1 - n1 / n) * (n - d) / (n - 1)
+    hr_lr = (O1 / E1v) / (O2 / E2v)
+    se_lr = math.sqrt(1 / E1v + 1 / E2v)
+    L = (O1 - E1v) / V
+    return {"O1": O1, "E1": E1v, "O2": O2, "E2": E2v, "V": V, "chi2_mantel_haenszel": (O1 - E1v) ** 2 / V,
+            "hr_logrank_OE": hr_lr, "hr_logrank_OE_ci95": [hr_lr * math.exp(-Z975 * se_lr), hr_lr * math.exp(Z975 * se_lr)],
+            "hr_mantel_haenszel": math.exp(L), "hr_mantel_haenszel_ci95": [math.exp(L - Z975 / math.sqrt(V)), math.exp(L + Z975 / math.sqrt(V))]}
+
+
+def gen_survival():
+    cases = []
+    def synth(n, scale, cens_scale):
+        t = RNG.exponential(scale, n)
+        c = RNG.exponential(cens_scale, n)
+        T = np.ceil(np.minimum(t, c))      # integer days create ties
+        E = (t <= c).astype(int)
+        return T.tolist(), E.tolist()
+    sets = [("gehan_leukemia_classic", GEHAN_6MP_T, GEHAN_6MP_E, GEHAN_PL_T, GEHAN_PL_E)]
+    t1, e1 = synth(30, 20, 40)
+    t2, e2 = synth(25, 12, 40)
+    sets.append(("synthetic_ties_censoring_30_25", t1, e1, t2, e2))
+    sets.append(("small_censor_at_end", [2, 3, 3, 5, 8, 9], [1, 1, 0, 1, 1, 0], [1, 1, 2, 4, 4, 6, 7], [1, 1, 1, 1, 0, 1, 1]))
+    for name, T1, E1, T2, E2 in sets:
+        exp = {}
+        for g, (T, E) in (("group1", (T1, E1)), ("group2", (T2, E2))):
+            rows, med = km_table(T, E)
+            exp["km_" + g] = rows
+            exp["median_" + g] = med
+        for w, key in ((None, "logrank"), ("wilcoxon", "gehan_breslow_wilcoxon"), ("tarone-ware", "tarone_ware")):
+            kw = {"weightings": w} if w else {}
+            lr = logrank_test(T1, T2, event_observed_A=E1, event_observed_B=E2, **kw)
+            exp[key] = {"chi2": lr.test_statistic, "p": lr.p_value}
+        parts = logrank_parts(T1, E1, T2, E2)
+        assert abs(parts["chi2_mantel_haenszel"] - exp["logrank"]["chi2"]) < 1e-9
+        exp["logrank_components"] = parts
+        df = pd.DataFrame({"T": list(T1) + list(T2), "E": list(E1) + list(E2), "group1": [1] * len(T1) + [0] * len(T2)})
+        cph = CoxPHFitter().fit(df, "T", "E")
+        s = cph.summary.loc["group1"]
+        exp["cox_efron"] = {"coef": s["coef"], "se": s["se(coef)"], "hr": s["exp(coef)"], "hr_ci95": [s["exp(coef) lower 95%"], s["exp(coef) upper 95%"]],
+                            "p_wald": s["p"], "log_likelihood": cph.log_likelihood_}
+        cases.append(case(name, {"group1": {"time": list(map(float, T1)), "event": list(map(int, E1))},
+                                 "group2": {"time": list(map(float, T2)), "event": list(map(int, E2))}}, exp,
+                          {"rel": 1e-9, "abs": 1e-12, "fields": {"cox_efron": {"rel": 1e-6, "abs": 1e-8}}}))
+    write("survival", "lifelines KaplanMeierFitter / logrank_test(weightings=None|'wilcoxon'|'tarone-ware') / CoxPHFitter; Greenwood, CIs, O/E and Mantel-Haenszel HR computed here",
+          cases, notes=[
+              "event = 1 for an observed event, 0 for censored. KM rows only at distinct event times; censored times step nothing.",
+              "greenwood_var = S^2 sum d/(n(n-d)); ci95_loglog = S^exp(+/- 1.959964 sqrt(sum d/(n(n-d)))/|ln S|) (lifelines 'exponential Greenwood' = Prism 'asymmetrical'; asserted against lifelines); ci95_linear_clipped = S +/- 1.959964 se clipped to [0,1]. null where S is 0 or 1.",
+              "median = smallest t with S(t) <= 0.5 (lifelines); 'Infinity' if never reached.",
+              "logrank chi2 is the Mantel-Haenszel form (O1-E1)^2/V with hypergeometric V (asserted equal to lifelines).",
+              "hr_logrank_OE = (O1/E1)/(O2/E2), CI exp(ln HR +/- z sqrt(1/E1+1/E2)); hr_mantel_haenszel = exp((O1-E1)/V), CI exp((O1-E1)/V +/- z/sqrt(V)). Group 1 relative to group 2.",
+              "cox_efron: lifelines CoxPH with Efron tie handling (R coxph default is also Efron), covariate group1 = 1 for group 1.",
+          ])
+
+
+# ================================================================= ROC
+def delong(pos, neg):
+    """DeLong (1988) variance via the Sun & Xu (2014) midrank formulation."""
+    pos, neg = np.asarray(pos, float), np.asarray(neg, float)
+    m, n = pos.size, neg.size
+    allr = st.rankdata(np.r_[pos, neg])
+    rx, ry = st.rankdata(pos), st.rankdata(neg)
+    auc = (allr[:m].sum() - m * (m + 1) / 2) / (m * n)
+    v10 = (allr[:m] - rx) / n
+    v01 = 1 - (allr[m:] - ry) / m
+    var = v10.var(ddof=1) / m + v01.var(ddof=1) / n
+    return auc, math.sqrt(var), v10, v01
+
+
+def wilson(k, n, z=Z975):
+    if n == 0:
+        return [None, None]
+    p = k / n
+    den = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / den
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
+    return [c - h, c + h]
+
+
+def gen_roc():
+    cases = []
+    sets = []
+    pos = np.round(RNG.normal(1.2, 1, 25), 1)
+    neg = np.round(RNG.normal(0, 1, 30), 1)
+    sets.append(("binormal_rounded_ties_25_30", pos, neg))
+    sets.append(("small_no_ties_5_6", np.array([0.9, 0.8, 0.55, 0.7, 0.35]), np.array([0.1, 0.4, 0.3, 0.6, 0.2, 0.5])))
+    sets.append(("hanley_mcneil_style_ratings", np.array([5] * 33 + [4] * 11 + [3] * 2 + [2] * 3 + [1] * 2, float),
+                 np.array([5] * 3 + [4] * 2 + [3] * 6 + [2] * 11 + [1] * 33, float)))
+    for name, pos, neg in sets:
+        y = np.r_[np.ones(pos.size), np.zeros(neg.size)]
+        s = np.r_[pos, neg]
+        fpr, tpr, thr = roc_curve(y, s, drop_intermediate=False)
+        auc = roc_auc_score(y, s)
+        a2, se, v10, v01 = delong(pos, neg)
+        assert abs(a2 - auc) < 1e-12
+        A, m, n = auc, pos.size, neg.size
+        q1, q2 = A / (2 - A), 2 * A * A / (1 + A)
+        se_hm = math.sqrt((A * (1 - A) + (m - 1) * (q1 - A * A) + (n - 1) * (q2 - A * A)) / (m * n))
+        sens = tpr
+        spec = 1 - fpr
+        J = sens + spec - 1
+        jbest = int(np.argmax(J))
+        tp = np.round(tpr * m).astype(int)
+        tn = np.round(spec * n).astype(int)
+        exp = {"auc": auc, "delong_se": se, "delong_ci95": [max(0.0, auc - Z975 * se), min(1.0, auc + Z975 * se)],
+               "hanley_mcneil_se": se_hm, "hanley_mcneil_ci95": [max(0.0, auc - Z975 * se_hm), min(1.0, auc + Z975 * se_hm)],
+               "p_auc_vs_0p5_delong_z": 2 * st.norm.sf(abs(auc - 0.5) / se),
+               "thresholds": thr, "tpr": tpr, "fpr": fpr, "sensitivity": sens, "specificity": spec,
+               "sensitivity_wilson_ci95": [wilson(int(k), m) for k in tp], "specificity_wilson_ci95": [wilson(int(k), n) for k in tn],
+               "youden_J": J, "youden_best_index": jbest, "youden_best_threshold": thr[jbest], "youden_best_J": J[jbest],
+               "delong_v10": v10, "delong_v01": v01}
+        cases.append(case(name, {"scores_positive": pos.tolist(), "scores_negative": neg.tolist()}, exp, {"rel": 1e-10, "abs": 1e-12}))
+    write("roc", "sklearn.metrics roc_curve(drop_intermediate=False) / roc_auc_score; DeLong (Sun & Xu 2014), Hanley-McNeil 1982 SE, Wilson score CIs implemented here",
+          cases, notes=[
+              "Classification rule: positive if score >= threshold. thresholds descend; the first is 'Infinity' (sklearn's sentinel: nothing called positive).",
+              "DeLong: V10_i = (R_pooled(x_i) - R_pos(x_i))/n_neg, V01_j = 1 - (R_pooled(y_j) - R_neg(y_j))/n_pos, Var = var(V10)/n_pos + var(V01)/n_neg (n-1 denominators). CI = AUC +/- 1.959964 SE clipped to [0,1].",
+              "Hanley-McNeil: Q1 = A/(2-A), Q2 = 2A^2/(1+A), SE^2 = (A(1-A) + (n_pos-1)(Q1-A^2) + (n_neg-1)(Q2-A^2))/(n_pos n_neg).",
+              "Wilson CIs are the plain Wilson score interval (Prism uses a Wilson/Brown hybrid; may differ at the extremes).",
+              "youden_best_index: first index (in the descending threshold order) attaining max J.",
+          ])
+
+
+# ================================================================= Bland-Altman
+def gen_bland_altman():
+    cases = []
+    a_ = r(RNG.normal(100, 20, 30), 2)
+    b_ = r(np.asarray(a_) * 1.04 - 2 + RNG.normal(0, 4, 30), 2)
+    for name, A, B in (("pefr_wright_vs_mini_classic", BA_WRIGHT, BA_MINI), ("proportional_bias_n30", a_, b_), ("n5", [10.0, 12.0, 15.0, 9.0, 11.0], [10.5, 11.0, 15.5, 9.6, 10.4])):
+        A, B = np.asarray(A, float), np.asarray(B, float)
+        d = A - B
+        mean = (A + B) / 2
+        n = d.size
+        bias, sd = d.mean(), d.std(ddof=1)
+        tc = st.t.ppf(0.975, n - 1)
+        lo, hi = bias - 1.96 * sd, bias + 1.96 * sd
+        se_lim = sd * math.sqrt(1 / n + 1.96 ** 2 / (2 * (n - 1)))
+        lr = st.linregress(mean, d)
+        exp = {"bias": bias, "sd_diff": sd, "loa_lower": lo, "loa_upper": hi,
+               "bias_ci95": [bias - tc * sd / math.sqrt(n), bias + tc * sd / math.sqrt(n)],
+               "loa_se": se_lim, "loa_lower_ci95": [lo - tc * se_lim, lo + tc * se_lim], "loa_upper_ci95": [hi - tc * se_lim, hi + tc * se_lim],
+               "loa_lower_exact_z": bias - Z975 * sd, "loa_upper_exact_z": bias + Z975 * sd,
+               "proportional_bias_slope": lr.slope, "proportional_bias_intercept": lr.intercept, "proportional_bias_p": lr.pvalue,
+               "proportional_bias_slope_se": lr.stderr,
+               "differences": d, "averages": mean}
+        cases.append(case(name, {"a": A.tolist(), "b": B.tolist()}, exp, {"rel": 1e-12, "abs": 1e-12, "fields": {"proportional_bias_p": TOL_P}}))
+    write("bland_altman", "formulas of Bland & Altman 1986 (Lancet) and 1999 (Stat Methods Med Res) computed with numpy/scipy", cases, notes=[
+        "d = a - b; bias = mean(d); sd with n-1; LoA = bias +/- 1.96 sd (the constant 1.96, as Prism does); *_exact_z variants use 1.959964...",
+        "loa_se = sd sqrt(1/n + 1.96^2/(2(n-1))); CI of each limit = limit +/- t(0.975, n-1) loa_se; bias CI = bias +/- t sd/sqrt(n).",
+        "proportional bias: OLS of d on (a+b)/2.",
+    ])
+
+
+# ================================================================= PCA
+def gen_pca():
+    cases = []
+    n = 15
+    Z = RNG.normal(0, 1, (n, 2))
+    X = np.column_stack([Z[:, 0] * 3 + 10, Z[:, 0] * 2 + Z[:, 1] + 5, Z[:, 1] * 4 - 2 + RNG.normal(0, 0.5, n), RNG.normal(0, 1, n), Z[:, 0] - Z[:, 1] + RNG.normal(0, 0.3, n)])
+    X = np.round(X, 3)
+    for name, M in (("five_vars_n15", X), ("three_vars_n8", np.array([[2.5, 2.4, 1.2], [0.5, 0.7, 0.3], [2.2, 2.9, 1.1], [1.9, 2.2, 0.8], [3.1, 3.0, 1.6], [2.3, 2.7, 1.0], [2.0, 1.6, 0.9], [1.0, 1.1, 0.4]]))):
+        Zs = (M - M.mean(axis=0)) / M.std(axis=0, ddof=1)
+        p = PCA().fit(Zs)
+        comps = p.components_.copy()
+        scores = p.transform(Zs)
+        for k in range(comps.shape[0]):
+            j = int(np.argmax(np.abs(comps[k])))
+            if comps[k, j] < 0:
+                comps[k] *= -1
+                scores[:, k] *= -1
+        ev = p.explained_variance_
+        R = np.corrcoef(M, rowvar=False)
+        assert np.allclose(np.sort(np.linalg.eigvalsh(R))[::-1], ev, rtol=1e-10)
+        exp = {"eigenvalues": ev, "explained_variance_ratio": p.explained_variance_ratio_, "cumulative_ratio": np.cumsum(p.explained_variance_ratio_),
+               "eigenvectors": comps, "loadings_scaled": comps * np.sqrt(ev)[:, None], "scores": scores, "column_means": M.mean(axis=0),
+               "column_sds": M.std(axis=0, ddof=1)}
+        cases.append(case(name, {"X": M.tolist(), "standardize": "z-score with n-1 SD"}, exp, {"rel": 1e-9, "abs": 1e-11}))
+    write("pca", "sklearn.decomposition.PCA on the column-standardized matrix (n-1 SD); eigenvalues checked against eig of the correlation matrix", cases, notes=[
+        "eigenvectors: rows are components (sklearn components_ layout: component x variable). Sign convention: each row flipped so that its largest-|.| entry is positive (first such entry on ties); scores flipped accordingly.",
+        "eigenvalues = explained_variance_ (n-1 denominator) = eigenvalues of the correlation matrix.",
+        "loadings_scaled[k] = eigenvectors[k] * sqrt(eigenvalue_k) = correlations between variables and PC k.",
+    ])
+
+
+# ================================================================= distribution functions
+mp = mpmath.mp
+mp.dps = 40
+PGRID = [1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-3, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.975, 0.99, 0.999]
+SMALL_Q = [1e-12, 1e-8, 1e-4, 0.025]
+
+
+def mpf(x):
+    return mpmath.mpf(float(x))
+
+
+def mp_root(fn, target, guess):
+    """Solve fn(q) = target at 40 digits starting from a double-precision guess."""
+    g = mpf(guess)
+    h = abs(g) * mpf("1e-6") + mpf("1e-12")
+    return mpmath.findroot(lambda q: fn(q) - target, (g - h, g + h), solver="secant", tol=mpf("1e-35"), maxsteps=200)
+
+
+def mp_t_cdf(x, df):
+    x, df = mpf(x) if not isinstance(x, mpmath.mpf) else x, mpf(df)
+    tail = mpmath.betainc(df / 2, mpf(0.5), 0, df / (df + x * x), regularized=True) / 2
+    return tail if x < 0 else 1 - tail
+
+
+def mp_t_sf(x, df):
+    return mp_t_cdf(-x if isinstance(x, mpmath.mpf) else -mpf(x), df)
+
+
+def mp_f_cdf(x, a, b):
+    x, a, b = (v if isinstance(v, mpmath.mpf) else mpf(v) for v in (x, a, b))
+    return mpmath.betainc(a / 2, b / 2, 0, a * x / (a * x + b), regularized=True)
+
+
+def mp_f_sf(x, a, b):
+    x, a, b = (v if isinstance(v, mpmath.mpf) else mpf(v) for v in (x, a, b))
+    return mpmath.betainc(b / 2, a / 2, 0, b / (b + a * x), regularized=True)
+
+
+def mp_chi2_cdf(x, k):
+    x = x if isinstance(x, mpmath.mpf) else mpf(x)
+    return mpmath.gammainc(mpf(k) / 2, 0, x / 2, regularized=True)
+
+
+def mp_chi2_sf(x, k):
+    x = x if isinstance(x, mpmath.mpf) else mpf(x)
+    return mpmath.gammainc(mpf(k) / 2, x / 2, mpmath.inf, regularized=True)
+
+
+def mp_nct_cdf(x, df, nc):
+    """P(T <= x), T = (Z + nc)/sqrt(V/df): integral over u = sqrt(V/df) of Phi(x u - nc) f(u) du."""
+    x, df, nc = mpf(x), mpf(df), mpf(nc)
+    lc = mpmath.log(2) + (df / 2) * mpmath.log(df / 2) - mpmath.loggamma(df / 2)
+    f = lambda u: mpmath.ncdf(x * u - nc) * mpmath.exp(lc + (df - 1) * mpmath.log(u) - df * u * u / 2)
+    sd = 1 / mpmath.sqrt(2 * df)
+    pts = [0, max(mpf("1e-30"), 1 - 10 * sd), 1, 1 + 10 * sd, mpmath.inf]
+    return mpmath.quad(f, pts)
+
+
+class Tracker:
+    def __init__(self):
+        self.worst = {}
+
+    def rec(self, table, ref, got):
+        ref = float(ref)
+        got = float(got)
+        if ref == 0:
+            e = abs(got)
+        else:
+            e = abs(got - ref) / abs(ref)
+        self.worst[table] = max(self.worst.get(table, 0.0), e)
+        return ref
+
+
+def gen_distributions():
+    T = Tracker()
+    cases = []
+    # normal
+    xs = [-38, -20, -10, -5, -3, -1.959963984540054, -1, -0.5, 0, 0.5, 1, 2, 3, 5, 8]
+    rows = [{"x": x, "cdf": T.rec("normal", mpmath.ncdf(mpf(x)), sp.ndtr(x)), "sf": T.rec("normal", mpmath.ncdf(-mpf(x)), st.norm.sf(x)),
+             "pdf": T.rec("normal", mpmath.npdf(mpf(x)), st.norm.pdf(x)), "logcdf": T.rec("normal", mpmath.log(mpmath.ncdf(mpf(x))), st.norm.logcdf(x))} for x in xs]
+    q = [{"p": p, "ppf": T.rec("normal_ppf", mp_root(mpmath.ncdf, mpf(p), st.norm.ppf(p)), st.norm.ppf(p))} for p in PGRID]
+    qi = [{"q": p, "isf": T.rec("normal_ppf", -mp_root(mpmath.ncdf, mpf(p), st.norm.ppf(p)), st.norm.isf(p))} for p in SMALL_Q]
+    cases.append(case("normal", {"x": xs, "p": PGRID, "q_upper": SMALL_Q}, {"values": rows, "ppf": q, "isf": qi}, {"rel": 1e-13, "abs": 0.0}))
+    # Student t
+    dfs = [1, 2, 3, 5, 10, 17.776473516178488, 30, 100, 1000, 0.5]
+    xs = [-1e3, -40, -10, -4, -2, -1, -0.1, 0, 0.5, 1.5, 2.5, 6, 30]
+    rows, qs = [], []
+    for df in dfs:
+        rows.append({"df": df, "x": xs, "cdf": [T.rec("t", mp_t_cdf(x, df), st.t.cdf(x, df)) for x in xs],
+                     "sf": [T.rec("t", mp_t_sf(x, df), st.t.sf(x, df)) for x in xs]})
+        pp = [p for p in PGRID if not (df < 1 and p < 1e-8)]
+        qs.append({"df": df, "p": pp, "ppf": [T.rec("t_ppf", mp_root(lambda v: mp_t_cdf(v, df), mpf(p), st.t.ppf(p, df)), st.t.ppf(p, df)) for p in pp],
+                   "q_upper": SMALL_Q, "isf": [T.rec("t_ppf", mp_root(lambda v: mp_t_sf(v, df), mpf(p), st.t.isf(p, df)), st.t.isf(p, df)) for p in SMALL_Q]})
+    cases.append(case("student_t", {"df": dfs}, {"cdf_sf": rows, "quantiles": qs}, {"rel": 1e-12, "abs": 0.0}))
+    # F
+    pairs = [(1, 1), (2, 10), (5, 3), (10, 20), (3, 1000), (1.5, 7.3), (50, 50), (4, 0.5)]
+    xs = [1e-4, 0.01, 0.1, 0.5, 1, 2, 5, 10, 50, 1000]
+    rows, qs = [], []
+    for a, b in pairs:
+        rows.append({"df1": a, "df2": b, "x": xs, "cdf": [T.rec("F", mp_f_cdf(x, a, b), st.f.cdf(x, a, b)) for x in xs],
+                     "sf": [T.rec("F", mp_f_sf(x, a, b), st.f.sf(x, a, b)) for x in xs]})
+        pp = [1e-6, 0.01, 0.05, 0.5, 0.9, 0.95, 0.99]
+        qs.append({"df1": a, "df2": b, "p": pp, "ppf": [T.rec("F_ppf", mp_root(lambda v: mp_f_cdf(v, a, b), mpf(p), st.f.ppf(p, a, b)), st.f.ppf(p, a, b)) for p in pp],
+                   "q_upper": SMALL_Q, "isf": [T.rec("F_ppf", mp_root(lambda v: mp_f_sf(v, a, b), mpf(p), st.f.isf(p, a, b)), st.f.isf(p, a, b)) for p in SMALL_Q]})
+    cases.append(case("f", {"pairs": pairs}, {"cdf_sf": rows, "quantiles": qs}, {"rel": 1e-12, "abs": 0.0}))
+    # chi-square
+    ks = [0.5, 1, 2, 3, 5, 10, 50, 100, 1000]
+    rows, qs = [], []
+    for k in ks:
+        xs = [k * f for f in (1e-6, 0.01, 0.2, 0.5, 1, 1.5, 3, 10)] + [k + 60 * math.sqrt(2 * k)]
+        rows.append({"df": k, "x": xs, "cdf": [T.rec("chi2", mp_chi2_cdf(x, k), st.chi2.cdf(x, k)) for x in xs],
+                     "sf": [T.rec("chi2", mp_chi2_sf(x, k), st.chi2.sf(x, k)) for x in xs]})
+        qs.append({"df": k, "p": PGRID, "ppf": [T.rec("chi2_ppf", mp_root(lambda v: mp_chi2_cdf(v, k), mpf(p), st.chi2.ppf(p, k)), st.chi2.ppf(p, k)) for p in PGRID],
+                   "q_upper": SMALL_Q, "isf": [T.rec("chi2_ppf", mp_root(lambda v: mp_chi2_sf(v, k), mpf(p), st.chi2.isf(p, k)), st.chi2.isf(p, k)) for p in SMALL_Q]})
+    cases.append(case("chi2", {"df": ks}, {"cdf_sf": rows, "quantiles": qs}, {"rel": 1e-12, "abs": 0.0}))
+    # regularized incomplete beta I_x(a,b) and its complement
+    bpairs = [(0.5, 1000), (1000, 0.5), (0.5, 0.5), (2, 3), (50, 50), (0.1, 10), (5000, 5000), (1e-3, 1e-3), (1, 1e5), (30, 0.01)]
+    xs = [1e-10, 1e-6, 1e-4, 1e-3, 0.002, 0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 0.99, 0.999, 0.999999]
+    rows = []
+    for a, b in bpairs:
+        rows.append({"a": a, "b": b, "x": xs,
+                     "I": [T.rec("betainc", mpmath.betainc(mpf(a), mpf(b), 0, mpf(x), regularized=True), sp.betainc(a, b, x)) for x in xs],
+                     "I_complement": [T.rec("betainc", mpmath.betainc(mpf(a), mpf(b), mpf(x), 1, regularized=True), sp.betaincc(a, b, x)) for x in xs]})
+    binv = []
+    for a, b in bpairs[:7]:
+        pp = [1e-10, 1e-4, 0.05, 0.5, 0.95]
+        binv.append({"a": a, "b": b, "p": pp, "x": [T.rec("betaincinv", mp_root(lambda v: mpmath.betainc(mpf(a), mpf(b), 0, v, regularized=True), mpf(p), sp.betaincinv(a, b, p)), sp.betaincinv(a, b, p)) for p in pp]})
+    cases.append(case("incomplete_beta", {"pairs": bpairs}, {"rows": rows, "inverse": binv}, {"rel": 1e-12, "abs": 1e-300}))
+    # regularized incomplete gamma P(a,x), Q(a,x)
+    avals = [1e-3, 0.5, 1, 5, 30, 100, 1000, 1e5]
+    rows = []
+    for a in avals:
+        xs = [1e-8, a * 1e-3, a * 0.5, a * 0.9, a, a * 1.1, a * 2, a * 10 + 10]
+        rows.append({"a": a, "x": xs, "P": [T.rec("gammainc", mpmath.gammainc(mpf(a), 0, mpf(x), regularized=True), sp.gammainc(a, x)) for x in xs],
+                     "Q": [T.rec("gammainc", mpmath.gammainc(mpf(a), mpf(x), mpmath.inf, regularized=True), sp.gammaincc(a, x)) for x in xs]})
+    ginv = []
+    for a in avals[1:7]:
+        pp = [1e-10, 1e-4, 0.05, 0.5, 0.95, 0.999999]
+        ginv.append({"a": a, "p": pp, "x": [T.rec("gammaincinv", mp_root(lambda v: mpmath.gammainc(mpf(a), 0, v, regularized=True), mpf(p), sp.gammaincinv(a, p)), sp.gammaincinv(a, p)) for p in pp]})
+    lg = [{"x": x, "lgamma": T.rec("lgamma", mpmath.loggamma(mpf(x)), sp.gammaln(x)), "digamma": T.rec("digamma", mpmath.digamma(mpf(x)), sp.digamma(x))}
+          for x in (1e-8, 0.5, 1, 1.5, 2, 2.5, 10, 100.5, 1e5, 1e10)]
+    cases.append(case("incomplete_gamma", {"a": avals}, {"rows": rows, "inverse": ginv, "lgamma_digamma": lg}, {"rel": 1e-12, "abs": 1e-300}))
+    # binomial
+    rows = []
+    for n, p in ((10, 0.5), (20, 0.1), (100, 0.37), (1000, 0.002), (5, 0.999)):
+        ks_ = sorted({0, 1, n // 4, n // 2, int(n * p), n - 1, n})
+        def pmf(k):
+            return mpmath.binomial(n, k) * mpf(p) ** k * (1 - mpf(p)) ** (n - k)
+        cdf = lambda k: mpmath.fsum(pmf(j) for j in range(0, k + 1))
+        sf = lambda k: mpmath.fsum(pmf(j) for j in range(k + 1, n + 1))
+        rows.append({"n": n, "p": p, "k": ks_, "pmf": [T.rec("binom", pmf(k), st.binom.pmf(k, n, p)) for k in ks_],
+                     "cdf": [T.rec("binom", cdf(k), st.binom.cdf(k, n, p)) for k in ks_],
+                     "sf": [T.rec("binom", sf(k), st.binom.sf(k, n, p)) if k < n else 0.0 for k in ks_]})
+    cases.append(case("binomial", {}, {"rows": rows}, {"rel": 1e-12, "abs": 1e-300}))
+    # hypergeometric (population M, K successes in population, N draws) -- exact rationals
+    from fractions import Fraction
+    rows = []
+    for M, K, N in ((20, 7, 12), (50, 5, 10), (1000, 30, 100), (8, 4, 4)):
+        lo, hi = max(0, N - (M - K)), min(K, N)
+        pmf = {k: Fraction(math.comb(K, k) * math.comb(M - K, N - k), math.comb(M, N)) for k in range(lo, hi + 1)}
+        ks_ = list(range(lo, hi + 1)) if hi - lo <= 12 else sorted({lo, lo + 1, 2, 3, 5, 8, hi - 1, hi})
+        rows.append({"M_population": M, "K_successes": K, "N_draws": N, "k": ks_,
+                     "pmf": [T.rec("hypergeom", float(pmf[k]), st.hypergeom.pmf(k, M, K, N)) for k in ks_],
+                     "cdf": [T.rec("hypergeom", float(sum(pmf[j] for j in pmf if j <= k)), st.hypergeom.cdf(k, M, K, N)) for k in ks_],
+                     "sf": [T.rec("hypergeom", float(sum(pmf[j] for j in pmf if j > k)), st.hypergeom.sf(k, M, K, N)) if k < hi else 0.0 for k in ks_]})
+    cases.append(case("hypergeometric", {}, {"rows": rows}, {"rel": 1e-13, "abs": 1e-300},
+                      note="scipy convention hypergeom(M, n, N): M population size, n = K successes, N draws."))
+    # noncentral t
+    rows = []
+    for df, nc in ((3, 0.0), (10, 1.0), (10, -1.5), (30, 2.5), (5, 8.0), (50, 0.5)):
+        xs = [-3, -1, 0, 1, 2, 4, 8, 15]
+        ppv = [0.025, 0.5, 0.975]
+        rows.append({"df": df, "nc": nc, "x": xs, "cdf": [T.rec("nct", mp_nct_cdf(x, df, nc), st.nct.cdf(x, df, nc)) for x in xs],
+                     "p": ppv, "ppf": [T.rec("nct_ppf", mp_root(lambda v: mp_nct_cdf(v, df, nc), mpf(p), st.nct.ppf(p, df, nc)), st.nct.ppf(p, df, nc)) for p in ppv]})
+    cases.append(case("noncentral_t", {}, {"rows": rows}, {"rel": 1e-10, "abs": 1e-15},
+                      note="Reference by 40-digit quadrature of int_0^inf Phi(x u - nc) f(u) du, u = sqrt(chi2_df/df). Note the mpmath quadrature grid; values agree with scipy (Boost) to the scipy_max_rel_err shown."))
+    notes = ["Expected values are 40-digit mpmath references rounded to double, not scipy output. scipy's worst relative error per table is recorded in scipy_max_rel_err (for orientation only).",
+             "t cdf via 0.5*I_{df/(df+x^2)}(df/2, 1/2); F via I_{d1 x/(d1 x + d2)}(d1/2, d2/2); chi2 via regularized gamma P(k/2, x/2); sf computed directly (never 1-cdf).",
+             "ppf/isf found by 40-digit secant root of cdf/sf. p down to 1e-12 is covered by isf on the small upper-tail grid.",
+             "Studentized range lives in studentized_range.json."]
+    write("distributions", "mpmath 40-digit references (betainc, gammainc, ncdf, loggamma, quad), cross-checked against scipy.special/scipy.stats",
+          cases + [case("scipy_max_rel_err", {}, {k: v for k, v in T.worst.items()}, {"rel": 1.0, "abs": 1.0}, note="informational, not a test")], notes=notes)
