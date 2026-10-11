@@ -4,6 +4,22 @@
 //! `fixtures/oracle/*.json` and `fixtures/nist/*.json`.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+// `!(x > 0.0)` is used deliberately throughout: unlike `x <= 0.0` it is also true for NaN,
+// so invalid parameters are rejected in one comparison.
+#![allow(clippy::neg_cmp_op_on_partial_ord)]
+
+pub mod descriptive;
+pub mod dist;
+mod lilliefors_table;
+pub mod mannwhitney;
+pub mod normality;
+pub mod outliers;
+pub mod quad;
+pub mod rank;
+pub mod roots;
+pub mod special;
+pub mod ttest;
+pub mod wilcoxon;
 
 /// Error type for the engine.
 #[derive(Debug, Clone, PartialEq, thiserror::Error, serde::Serialize, serde::Deserialize)]
