@@ -274,3 +274,104 @@ the things people like, kept on purpose. Phases refer to PLAN.md.
 Kept from Prism (K1–K10): guided analyses by table kind, results linked to data and
 recomputed on change, publication-quality defaults, analysis checklists, graphs that follow
 the data, one file for data + analyses + graphs.
+
+## 12. The UI system (v0.2.0 design round)
+
+The v0.1.0 interface was functionally complete but read as a generic desktop app: native
+form controls, a Windows-style in-window menu bar, an endless grey grid, default scrollbars,
+and a dark mode that was a palette swap rather than a design. This section fixes the visual
+direction; `apps/dioptra/src/styles/tokens.css` is its executable form and must match it.
+
+### 12.1 Colour
+
+One accent, verdigris, used only for the thing the user is pointing at (selection, focus,
+the active tab marker, primary buttons) and for the app mark. Everything else is neutral.
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `--bg-app` | `#F4F2EE` (warm paper) | `#15181B` (deep graphite, blue-black, never pure grey) | window background, the "desk" |
+| `--bg-panel` | `#FBFAF8` | `#1C2024` | rail, inspector, results column |
+| `--bg-sheet` | `#FFFFFF` | `#202529` | the grid's cell area, dialogs |
+| `--bg-raised` | `#FFFFFF` | `#262B30` | popovers, menus, palette |
+| `--bg-inset` | `#EEEBE5` | `#111416` | inputs, code, formula bar well |
+| `--line` | `#E2DED6` | `#2C3238` | hairlines (1 px, never 2) |
+| `--line-strong` | `#C9C4BA` | `#3A4148` | header separators, table rules |
+| `--fg` | `#1E2225` | `#E4E1DA` (warm off-white) | primary text |
+| `--fg-muted` | `#5E6469` | `#9AA1A7` | secondary text, units, captions |
+| `--fg-faint` | `#9A9FA4` | `#5F666D` | row numbers, placeholders |
+| `--accent` | `#2E7D78` | `#5FB3AD` | the one accent |
+| `--accent-fg` | `#FFFFFF` | `#0F1A19` | text on accent |
+| `--accent-soft` | `#DCEEEC` | `#1E3D3B` | selection fill, active row tint |
+| `--ok` / `--caution` / `--fail` | `#2F7D4F` / `#A8690B` / `#B5433B` | `#6CC18F` / `#E0A64A` / `#E6776E` | assumption marks only |
+| `--focus` | `#2E7D78` at 2 px outside, 2 px offset | `#5FB3AD` | every focusable element |
+
+Dataset colours in headers and swatches come from the graph palette (Okabe–Ito by default)
+so the table and the figure share one colour story. All text/background pairs must pass
+WCAG AA (4.5:1 body, 3:1 large and UI); `scripts/contrast.mjs` checks the token file and
+prints the table that goes into `docs/DESIGN-AUDIT.md`.
+
+### 12.2 Type
+
+Inter for the interface (13 px base, 12 px in the grid, 11 px captions; weights 400/500/600,
+never 700 except panel letters in figures). JetBrains Mono with `tabular-nums` for every
+number the user reads: grid cells, formula bar, inspector values, results tables, status
+line. Headings use Inter 600 at 15/18/22 px with tight tracking (−0.01 em). Line height
+1.45 for prose, 1.2 in tables.
+
+### 12.3 Space, shape, elevation
+
+8-pt scale (4, 8, 12, 16, 24, 32). Radii 4 px for controls, 6 px for popovers and dialogs,
+nothing larger. Hairline borders carry structure; shadows exist only on floating surfaces
+(popovers, menus, dialogs, tooltips): `0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12)`
+in light, deeper and tighter in dark. Panels are flat and separated by hairlines.
+
+### 12.4 Controls
+
+No native form control is visible anywhere. Own set in `src/ui/`: `Select` (popover list,
+keyboard navigable, typeahead), `Segmented` (small enums: Cell/Column, In/Out/Cross,
+light/dark/system), `Toggle` and `Checkbox` (drawn), `NumberField` (stepper, unit suffix,
+arrow keys ±1, shift ±10, mm/pt/dpi aware), `ColorSwatch` (palette grid + hex),
+`Button` (primary/secondary/quiet), `Tabs`, `Menu`/`ContextMenu`, `Dialog`, `Tooltip`,
+`Scroll` (thin overlay scrollbars via `scrollbar-width: thin` + custom `::-webkit-scrollbar`
+styled per theme). Icons from Lucide (1.5 px stroke, 16 px) — one set, including the
+project rail glyphs (table kinds, analysis, graph, layout) redrawn in that stroke.
+
+### 12.5 Menus and chrome (decision)
+
+On macOS the menu lives in the system menu bar through Tauri's native menu API, as every
+Mac app does. On Linux and Windows there is no in-window menu bar: a slim top bar holds the
+app mark, the project name (editable), the command field (opens the palette), and a compact
+"Menu" button that opens the same command tree as a designed popover. Reasons: an
+in-window menu bar is the strongest "Windows 2000" tell; native GTK/WebView2 menus look
+foreign inside a webview and do not follow the app theme; the palette is the primary
+surface anyway (DESIGN §2.6). The window follows the OS theme by default (`prefers-color-
+scheme` plus Tauri `window.setTheme` so the title bar matches), with an explicit override
+in View and the palette. Window size and panel widths are remembered across launches.
+
+### 12.6 The grid as a document
+
+The sheet is bounded: rows and data sets end where the data ends plus a small margin, with
+quiet "+ rows" and "+ data set" affordances; no lettered columns to the horizon. Headers show
+the kind glyph, the dataset swatch, the name and subcolumn labels. Selection is a soft
+accent fill with a 1.5 px accent border and corner handles; the active cell has a stronger
+ring. Alternating rows differ by 2% luminance. Density: comfortable (28 px rows) and
+compact (22 px). The formula bar is a first-class strip with the cell reference in mono, a
+segmented Cell/Column control and the expression in a mono well.
+
+### 12.7 Results and the graph editor
+
+Results sheets render in a reading column (max 72 ch) with the type system above;
+assumption cards carry designed marks (check, warning triangle, cross, dash) in the
+semantic colours. The graph editor is a dark desk in dark mode with the figure on "paper"
+whose colour the user chooses (white by default, since exports are usually white); a mm
+readout and rulers frame the figure; zoom is a segmented control plus a mono readout;
+hover shows a halo on targets; inspector sections collapse and remember their state.
+Motion: 120–180 ms ease-out on panel open and selection change only; none under
+`prefers-reduced-motion`.
+
+### 12.8 First launch and icon
+
+The empty state is designed: three cards (paste data, open a sample project, read the
+manual) under a one-line statement of what the window is for. The icon is the dioptra mark
+(sighting bar over a graduated disc) in verdigris on graphite, generated for every platform
+by `tauri icon` from `apps/dioptra/public/icon.svg`.
