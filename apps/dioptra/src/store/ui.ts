@@ -1,5 +1,6 @@
-// UI preferences and transient UI state. Theme, panel sizes and column widths persist in
-// localStorage; everything else is per session.
+// UI preferences and transient UI state. Theme, panel sizes and visibility, collapsed
+// sections and column widths persist in localStorage (the window's own size and position are
+// kept by the desktop shell); everything else is per session.
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Id } from '../engine/types';
@@ -14,6 +15,8 @@ export interface UiState {
   inspectorVisible: boolean;
   /** Column widths in px per table, by flat column index. */
   colWidths: Record<Id, Record<number, number>>;
+  /** Collapsed state of named sections: `insp:<section id>`, `rail:<kind>`. */
+  collapsed: Record<string, boolean>;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
   setTheme(t: ThemePref): void;
@@ -22,6 +25,7 @@ export interface UiState {
   toggleRail(): void;
   toggleInspector(): void;
   setColWidth(table: Id, col: number, width: number): void;
+  setCollapsed(key: string, collapsed: boolean): void;
   setPaletteOpen(open: boolean): void;
   setShortcutsOpen(open: boolean): void;
 }
@@ -57,6 +61,7 @@ export const useUi = create<UiState>()(
       railVisible: true,
       inspectorVisible: true,
       colWidths: {},
+      collapsed: {},
       paletteOpen: false,
       shortcutsOpen: false,
       setTheme: (theme) => set({ theme }),
@@ -68,12 +73,14 @@ export const useUi = create<UiState>()(
         set((s) => ({
           colWidths: { ...s.colWidths, [table]: { ...s.colWidths[table], [col]: clamp(width, 36, 640) } },
         })),
+      setCollapsed: (key, c) => set((s) => ({ collapsed: { ...s.collapsed, [key]: c } })),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
     }),
     {
       name: 'dioptra-ui',
-      version: 1,
+      version: 2,
+      migrate: (old) => ({ collapsed: {}, ...(old as object) }) as UiState,
       storage: safeStorage,
       partialize: (s) => ({
         theme: s.theme,
@@ -82,6 +89,7 @@ export const useUi = create<UiState>()(
         railVisible: s.railVisible,
         inspectorVisible: s.inspectorVisible,
         colWidths: s.colWidths,
+        collapsed: s.collapsed,
       }),
     },
   ),

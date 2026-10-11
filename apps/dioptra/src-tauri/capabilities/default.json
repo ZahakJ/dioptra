@@ -13,6 +13,9 @@
     "core:window:allow-set-title",
     "dialog:allow-open",
     "dialog:allow-save",
-    "fs:allow-write-file"
+    "fs:allow-write-file",
+    "core:window:allow-set-theme",
+    "core:event:default",
+    "window-state:default"
   ]
 }

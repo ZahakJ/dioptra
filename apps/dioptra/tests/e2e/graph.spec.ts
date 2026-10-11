@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { boot, mod, newGraphOf, threeGroupTable } from './helpers';
+import { boot, mod, newGraphOf, threeGroupTable, menu, choose } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await boot(page);
@@ -39,15 +39,15 @@ test('(b) select the y axis through the overlay, edit its title in the inspector
 test('(c) theme night and family box', async ({ page }) => {
   await threeGroupTable(page);
   await newGraphOf(page, 'column');
-  await page.getByTestId('tb-theme').selectOption('night');
+  await choose(page, 'tb-theme', 'night');
   await expect
     .poll(() => page.evaluate(() => document.querySelector('[data-testid="graph-svg"] #background')?.getAttribute('fill')))
     .toBe('#16191a');
-  await page.getByTestId('tb-family').selectOption('box');
+  await choose(page, 'tb-family', 'box');
   await expect(page.getByTestId('rail-item-Graph of Table 1')).toContainText('box');
-  await expect(page.getByTestId('tb-family')).toHaveValue('box');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'box');
   // The theme survived the family switch.
-  await expect(page.getByTestId('tb-theme')).toHaveValue('night');
+  await expect(page.getByTestId('tb-theme')).toHaveAttribute('data-value', 'night');
 });
 
 test('(d) export SVG and PNG downloads', async ({ page }) => {
@@ -123,9 +123,9 @@ test('(e3) a layout changes its columns, survives save and reopen, and opens a p
   await expect(page.getByTestId('layout-panel-1')).toBeVisible();
   const box = async (i: number) => (await page.getByTestId(`layout-panel-${i}`).boundingBox())!;
   // Two columns: side by side. One column: stacked.
-  await expect(page.getByTestId('layout-columns')).toHaveValue('2');
+  await expect(page.getByTestId('layout-columns-2')).toHaveAttribute('aria-checked', 'true');
   expect((await box(1)).x).toBeGreaterThan((await box(0)).x + 10);
-  await page.getByTestId('layout-columns').selectOption('1');
+  await page.getByTestId('layout-columns-1').click();
   await expect.poll(async () => (await box(1)).y > (await box(0)).y + 10).toBe(true);
   // Save, start over, reopen: the layout knows its graphs from the engine.
   const download = page.waitForEvent('download');
@@ -133,17 +133,15 @@ test('(e3) a layout changes its columns, survives save and reopen, and opens a p
   const file = await download;
   const path = info.outputPath(file.suggestedFilename());
   await file.saveAs(path);
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.new').click();
+  await menu(page, 'File', 'file.new');
   await expect(page.getByTestId('rail-item-Layout 1')).toHaveCount(0);
   const chooser = page.waitForEvent('filechooser');
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.open').click();
+  await menu(page, 'File', 'file.open');
   await (await chooser).setFiles(path);
   await page.getByTestId('rail-item-Layout 1').click();
-  await expect(page.getByTestId('layout-columns')).toHaveValue('1');
+  await expect(page.getByTestId('layout-columns-1')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('layout-panel-1').dblclick();
-  await expect(page.getByTestId('tb-family')).toHaveValue('box');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'box');
 });
 
 test('(f2) typing a title with pauses is one undo step', async ({ page }) => {

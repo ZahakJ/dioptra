@@ -59,6 +59,9 @@ export async function saveProjectPath(e: Engine, path: string): Promise<Changed>
 export async function setPValueStyle(e: Engine, style: PValueStyle): Promise<Changed> {
   return changedOf(await call(e, { type: 'set_p_value_style', style }));
 }
+export async function setProjectTitle(e: Engine, title: string): Promise<Changed> {
+  return changedOf(await call(e, { type: 'set_project_title', title }));
+}
 export async function renameObject(e: Engine, id: Id, title: string): Promise<Changed> {
   return changedOf(await call(e, { type: 'rename_object', id, title }));
 }

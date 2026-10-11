@@ -1,6 +1,7 @@
 import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
 import './styles/tokens.css';
+import './ui/ui.css';
 import './styles/app.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -16,6 +17,8 @@ declare global {
     __dioptra?: {
       dispatch: (c: Command) => Promise<unknown>;
       applyChanged: (c: Changed) => Promise<void>;
+      /** Run a command of the registry by id (the macOS native menu, tests). */
+      runCommand?: (id: string) => Promise<boolean>;
     };
   }
 }

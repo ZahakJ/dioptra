@@ -298,7 +298,7 @@ the active tab marker, primary buttons) and for the app mark. Everything else is
 | `--line-strong` | `#C9C4BA` | `#3A4148` | header separators, table rules |
 | `--fg` | `#1E2225` | `#E4E1DA` (warm off-white) | primary text |
 | `--fg-muted` | `#5E6469` | `#9AA1A7` | secondary text, units, captions |
-| `--fg-faint` | `#9A9FA4` | `#5F666D` | row numbers, placeholders |
+| `--fg-faint` | `#80858A` | `#6F767D` | row numbers, placeholders (tuned from `#9A9FA4` / `#5F666D` to reach 3:1 on every surface) |
 | `--accent` | `#2E7D78` | `#5FB3AD` | the one accent |
 | `--accent-fg` | `#FFFFFF` | `#0F1A19` | text on accent |
 | `--accent-soft` | `#DCEEEC` | `#1E3D3B` | selection fill, active row tint |
@@ -309,6 +309,16 @@ Dataset colours in headers and swatches come from the graph palette (Okabe–Ito
 so the table and the figure share one colour story. All text/background pairs must pass
 WCAG AA (4.5:1 body, 3:1 large and UI); `scripts/contrast.mjs` checks the token file and
 prints the table that goes into `docs/DESIGN-AUDIT.md`.
+
+Supporting tokens, derived from the table and also in `tokens.css`: `--bg-hover` /
+`--bg-active` (translucent fg washes, so hover works on any surface), `--line-grid` (cell
+rules), `--fg-disabled` (exempt from contrast), `--accent-hover`, `--accent-wash`
+(translucent selection over cells), `--accent-line`, `--ok-soft` / `--caution-soft` /
+`--fail-soft`, `--scrim`, `--scrollbar` / `--scrollbar-hover`, `--raised-edge` (the hairline
+of floating surfaces) and `--tooltip-bg` / `--tooltip-fg` (light `#2A2F33` / `#F4F2EE`, dark
+`#3A4148` / `#E4E1DA`). Elevation: `--elev-1` (tooltips), `--elev-2` (popovers, menus),
+`--elev-3` (dialogs, the palette). Motion: `--dur-fast` 120 ms, `--dur-base` 150 ms,
+`--dur-slow` 180 ms with `--ease-out`, all 0 under `prefers-reduced-motion`.
 
 ### 12.2 Type
 

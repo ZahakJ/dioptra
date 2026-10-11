@@ -1,7 +1,9 @@
 // The Analyze dialog: the list of analyses for the table and selection (fitting ones first,
 // each with one sentence; the others greyed with the reason), then the options panel.
 import { useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
 import { DialogHeader } from '../app/dialogs';
+import { Button } from '../ui';
 import type { AnalysisOption, TableMeta } from '../engine/types';
 import type { Spec } from '../engine/objects';
 import { describe } from './descriptions';
@@ -50,32 +52,35 @@ export function AnalyzeDialog({
 
   return (
     <div className="modal-body analyze" data-testid="analyze-dialog">
-      <DialogHeader title="Analyze" sub={scope} />
-      <input
-        className="input"
-        placeholder="Filter analyses"
-        aria-label="Filter analyses"
-        value={filter}
-        data-autofocus
-        data-testid="analyze-filter"
-        onChange={(e) => {
-          setFilter(e.target.value);
-          setActive(0);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setActive((a) => Math.min(a + 1, fitting.length - 1));
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setActive((a) => Math.max(a - 1, 0));
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            void choose(fitting[active]);
-          }
-        }}
-      />
-      <div className="an-list" role="listbox" aria-label="Analyses" ref={listRef}>
+      <DialogHeader title="Analyze" sub={scope} onClose={() => close(null)} />
+      <label className="search-field">
+        <Search size={16} strokeWidth={1.5} aria-hidden="true" />
+          <input
+          className="input"
+          placeholder="Filter analyses"
+          aria-label="Filter analyses"
+          value={filter}
+          data-autofocus
+          data-testid="analyze-filter"
+          onChange={(e) => {
+            setFilter(e.target.value);
+            setActive(0);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setActive((a) => Math.min(a + 1, fitting.length - 1));
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setActive((a) => Math.max(a - 1, 0));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              void choose(fitting[active]);
+            }
+          }}
+        />
+      </label>
+      <div className="an-list scroll-area" role="listbox" aria-label="Analyses" ref={listRef}>
         {sorted.map((o) => {
           const i = fitting.indexOf(o);
           return (
@@ -102,9 +107,7 @@ export function AnalyzeDialog({
       </div>
       <footer className="modal-foot">
         <span className="foot-note">{loading ? 'Loading options…' : `${fitting.length} of ${options.length} fit this table`}</span>
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
+        <Button onClick={() => close(null)}>Cancel</Button>
       </footer>
     </div>
   );
@@ -139,7 +142,7 @@ export function OptionsStep({
         if (!errors.length) close({ spec });
       }}
     >
-      <DialogHeader title={name ?? kindTitle(spec.kind)} sub={`${describe(spec.kind)} ${scope}.`} />
+      <DialogHeader title={name ?? kindTitle(spec.kind)} sub={`${describe(spec.kind)} ${scope}.`} onClose={() => close(null)} />
       <OptionsPanel spec={spec} meta={meta} onChange={onSpec} />
       {errors.length > 0 && (
         <ul className="opt-errors" data-testid="options-errors">
@@ -150,16 +153,14 @@ export function OptionsStep({
       )}
       <footer className="modal-foot">
         {back && (
-          <button type="button" className="btn btn-ghost foot-left" onClick={back}>
+          <Button variant="quiet" className="foot-left" onClick={back}>
             Back to the list
-          </button>
+          </Button>
         )}
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={errors.length > 0} data-testid="analysis-run" data-autofocus>
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={errors.length > 0} testId="analysis-run" data-autofocus>
           {confirm}
-        </button>
+        </Button>
       </footer>
     </form>
   );

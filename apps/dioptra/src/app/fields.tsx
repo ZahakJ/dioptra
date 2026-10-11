@@ -1,5 +1,7 @@
-// Small form controls for the inspector: text fields that commit on Enter or blur.
-import { useEffect, useState } from 'react';
+// Small form controls for the inspector: text fields that commit on Enter or blur, and the
+// label/value rows every section is made of.
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { TextInput } from '../ui';
 
 export function CommitField({
   value,
@@ -34,15 +36,14 @@ export function CommitField({
   return (
     <label className="kv-field">
       <span className="kv-label">{label}</span>
-      <input
-        className={'input input-compact' + (mono ? ' mono' : '')}
+      <TextInput
+        size="sm"
+        mono={mono}
         value={v}
         placeholder={placeholder}
         disabled={disabled}
-        spellCheck={false}
-        aria-invalid={!!error}
-        title={error ?? undefined}
-        data-testid={testId}
+        invalid={!!error}
+        testId={testId}
         onFocus={() => setEditing(true)}
         onChange={(e) => {
           setEditing(true);
@@ -64,6 +65,19 @@ export function CommitField({
       />
       {error && <span className="field-error">{error}</span>}
     </label>
+  );
+}
+
+/** A labelled control row; the label names the control for assistive technology. */
+export function FieldRow({ label, children }: { label: string; children: (labelId: string) => ReactNode }) {
+  const id = useId();
+  return (
+    <div className="kv-field">
+      <span className="kv-label" id={id}>
+        {label}
+      </span>
+      {children(id)}
+    </div>
   );
 }
 

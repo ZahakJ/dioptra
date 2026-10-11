@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Dioptra: data, statistics and publication graphs without the spreadsheet. Tauri app frontend.",
   "license": "MIT",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite --port 5760 --strictPort",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
@@ -23,6 +25,7 @@
     "@tauri-apps/plugin-dialog": "^2.4.0",
     "@tauri-apps/plugin-fs": "^2.4.0",
     "@tauri-apps/plugin-opener": "^2.5.0",
+    "lucide-react": "0.468.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zustand": "^5.0.15"

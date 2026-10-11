@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { TableFormat } from '../engine/types';
 import { DialogHeader } from '../app/dialogs';
+import { Button, RadioList } from '../ui';
 
 const FORMATS: { value: TableFormat; label: string; hint: string }[] = [
   { value: 'csv', label: 'CSV', hint: 'Comma separated, full precision, point decimals.' },
@@ -28,25 +29,15 @@ export function ExportDialog({
       }}
     >
       <DialogHeader title="Export table" sub={`"${tableTitle}": every value at full precision.`} />
-      <fieldset className="choice-list">
-        <legend className="field-label">Format</legend>
-        {FORMATS.map((f) => (
-          <label key={f.value} className="choice">
-            <input type="radio" name="fmt" checked={format === f.value} onChange={() => setFormat(f.value)} />
-            <span>
-              <span className="choice-title">{f.label}</span>
-              <span className="choice-hint">{f.hint}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <div className="field">
+        <span className="field-label">Format</span>
+        <RadioList label="Format" value={format} onChange={setFormat} choices={FORMATS.map((f) => ({ value: f.value, label: f.label, hint: f.hint, testId: `export-format-${f.value}` }))} />
+      </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary">
           {desktop ? 'Choose location' : 'Download'}
-        </button>
+        </Button>
       </footer>
     </form>
   );

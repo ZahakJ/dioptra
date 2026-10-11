@@ -1,5 +1,7 @@
 // Phase 5B registrations: the analysis flow, results sheets, the graph editor, layouts,
 // transforms. Called once from the app shell after the core registrations.
+import { ChartSpline, Sigma } from 'lucide-react';
+import { Button } from './ui';
 import './styles/features.css';
 import { analyze, analyzableTable, editAnalysisOptions } from './analysis/actions';
 import { kindTitle } from './analysis/AnalyzeDialog';
@@ -53,12 +55,12 @@ function AnalysisSection({ ctx }: { ctx: InspectorContext }) {
       <KV label="State">{item.stale || sheet?.stale ? 'Out of date' : 'Up to date'}</KV>
       {sheet && <KV label="Tables">{sheet.sections.length}</KV>}
       <div className="btn-row">
-        <button type="button" className="btn btn-small" onClick={() => void editAnalysisOptions(item.id)} data-testid="insp-analysis-options">
+        <Button size="sm" onClick={() => void editAnalysisOptions(item.id)} testId="insp-analysis-options">
           Options…
-        </button>
-        <button type="button" className="btn btn-small" onClick={() => void makeGraphFromAnalysis(item.id)}>
+        </Button>
+        <Button size="sm" onClick={() => void makeGraphFromAnalysis(item.id)}>
           Make graph
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -67,12 +69,12 @@ function AnalysisSection({ ctx }: { ctx: InspectorContext }) {
 function AnalyzeTool({ tableId }: { tableId: Id }) {
   return (
     <>
-      <button type="button" className="btn btn-small" onClick={() => void analyze(tableId)} data-testid="tool-analyze" title="Analyze (Ctrl+Shift+A)">
+      <Button size="sm" icon={<Sigma size={16} strokeWidth={1.5} aria-hidden="true" />} onClick={() => void analyze(tableId)} testId="tool-analyze" aria-label="Analyze" tipText="Analyze this table" shortcut="Mod+Shift+A">
         Analyze…
-      </button>
-      <button type="button" className="btn btn-small" onClick={() => void newGraph(tableId)} data-testid="tool-graph" title="New graph (Ctrl+Shift+G)">
+      </Button>
+      <Button size="sm" icon={<ChartSpline size={16} strokeWidth={1.5} aria-hidden="true" />} onClick={() => void newGraph(tableId)} testId="tool-graph" aria-label="New graph" tipText="New graph of this table" shortcut="Mod+Shift+G">
         Graph…
-      </button>
+      </Button>
     </>
   );
 }

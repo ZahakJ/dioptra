@@ -1,4 +1,5 @@
 // Graph and layout actions: new graph, graph from an analysis, annotations, size, export.
+import { Button, Checkbox, Field, NumberField, Segmented, Select, TextInput } from '../ui';
 import { useState } from 'react';
 import { DialogHeader, openDialog } from '../app/dialogs';
 import * as obj from '../engine/objects';
@@ -109,12 +110,10 @@ function FamilyDialog({
         ))}
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" data-testid="new-graph-create">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" testId="new-graph-create">
           Create graph
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -212,44 +211,26 @@ function BracketDialog({
     >
       <DialogHeader title="Add significance bracket" sub="Between two categories; overlapping brackets stack." />
       {fromAnalysis && (
-        <button type="button" className="btn" data-testid="bracket-from-analysis" onClick={() => close('analysis')}>
+        <Button testId="bracket-from-analysis" onClick={() => close('analysis')}>
           Brackets from the analysis
-        </button>
+        </Button>
       )}
       <div className="form-row">
-        <label className="field">
-          <span className="field-label">From</span>
-          <select className="input" value={a} onChange={(e) => setA(Number(e.target.value))} data-testid="bracket-from">
-            {names.map((n, i) => (
-              <option key={i} value={i}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="field-label">To</span>
-          <select className="input" value={b} onChange={(e) => setB(Number(e.target.value))} data-testid="bracket-to">
-            {names.map((n, i) => (
-              <option key={i} value={i}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="From">
+          {(lid) => <Select size="md" labelledBy={lid} value={a} onChange={setA} testId="bracket-from" options={names.map((n, i) => ({ value: i, label: n }))} />}
+        </Field>
+        <Field label="To">
+          {(lid) => <Select size="md" labelledBy={lid} value={b} onChange={setB} testId="bracket-to" options={names.map((n, i) => ({ value: i, label: n }))} />}
+        </Field>
       </div>
-      <label className="field">
-        <span className="field-label">Label</span>
-        <input className="input" value={text} onChange={(e) => setText(e.target.value)} data-testid="bracket-text" />
-        <span className="field-hint">Asterisks, “ns”, or a p value such as p = .003.</span>
-      </label>
+      <Field label="Label" hint="Asterisks, “ns”, or a p value such as p = .003.">
+        {(lid) => <TextInput aria-labelledby={lid} value={text} onChange={(e) => setText(e.target.value)} testId="bracket-text" />}
+      </Field>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!ok} data-testid="bracket-add">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!ok} testId="bracket-add">
           Add bracket
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -297,29 +278,30 @@ function RefLineDialog({ initial, close }: { initial: number; close: (v: { axis:
     >
       <DialogHeader title="Add reference line" sub="A dashed line across the plot at a value, e.g. a detection limit." />
       <div className="form-row">
-        <label className="field">
-          <span className="field-label">Line</span>
-          <select className="input" value={axis} onChange={(e) => setAxis(e.target.value as 'x' | 'y')}>
-            <option value="y">Horizontal (a Y value)</option>
-            <option value="x">Vertical (an X value)</option>
-          </select>
-        </label>
-        <label className="field field-num">
-          <span className="field-label">Value</span>
-          <input className="input num" value={value} onChange={(e) => setValue(e.target.value)} data-testid="refline-value" aria-invalid={!ok} />
-        </label>
+        <Field label="Line">
+          {(lid) => (
+            <Segmented
+              size="md"
+              labelledBy={lid}
+              value={axis}
+              onChange={setAxis}
+              choices={[
+                { value: 'y' as const, label: 'Horizontal', hint: 'At a Y value' },
+                { value: 'x' as const, label: 'Vertical', hint: 'At an X value' },
+              ]}
+            />
+          )}
+        </Field>
+        <Field label="Value" className="field-num">
+          {(lid) => <NumberField size="md" labelledBy={lid} value={Number(value)} format={() => value} onText={(t) => setValue(t)} nullable={false} invalid={!ok} testId="refline-value" />}
+        </Field>
       </div>
-      <label className="field">
-        <span className="field-label">Label (optional)</span>
-        <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. LLOQ" />
-      </label>
+      <Field label="Label (optional)">{(lid) => <TextInput aria-labelledby={lid} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. LLOQ" />}</Field>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!ok}>
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!ok}>
           Add line
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -346,18 +328,14 @@ function TextDialog({ close }: { close: (v: string | null) => void }) {
       }}
     >
       <DialogHeader title="Add text" sub="Placed in the middle of the plot; drag it where it belongs." />
-      <label className="field">
-        <span className="field-label">Text</span>
-        <input className="input" value={t} onChange={(e) => setT(e.target.value)} placeholder="R^2 = 0.98" data-testid="text-value" />
-        <span className="field-hint">^ and _ for super- and subscripts, \alpha for Greek.</span>
-      </label>
+      <Field label="Text" hint="^ and _ for super- and subscripts, \alpha for Greek.">
+        {(lid) => <TextInput aria-labelledby={lid} value={t} onChange={(e) => setT(e.target.value)} placeholder="R^2 = 0.98" testId="text-value" />}
+      </Field>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!t.trim()}>
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!t.trim()}>
           Add text
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -389,22 +367,18 @@ function SizeDialog({ width, height, close }: { width: number; height: number; c
     >
       <DialogHeader title="Graph size" sub="In millimetres; fonts and lines keep their point sizes." />
       <div className="form-row">
-        <label className="field field-num">
-          <span className="field-label">Width (mm)</span>
-          <input className="input num" value={w} onChange={(e) => setW(e.target.value)} aria-invalid={!ok} data-testid="size-width" />
-        </label>
-        <label className="field field-num">
-          <span className="field-label">Height (mm)</span>
-          <input className="input num" value={h} onChange={(e) => setH(e.target.value)} aria-invalid={!ok} data-testid="size-height" />
-        </label>
+        <Field label="Width" className="field-num">
+          {(lid) => <NumberField size="md" labelledBy={lid} value={Number(w)} onText={(t) => setW(t)} unit="mm" min={10} max={1000} nullable={false} invalid={!ok} testId="size-width" />}
+        </Field>
+        <Field label="Height" className="field-num">
+          {(lid) => <NumberField size="md" labelledBy={lid} value={Number(h)} onText={(t) => setH(t)} unit="mm" min={10} max={1000} nullable={false} invalid={!ok} testId="size-height" />}
+        </Field>
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!ok}>
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!ok}>
           Set size
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -527,48 +501,49 @@ function LayoutDialog({
       }}
     >
       <DialogHeader title="New layout" sub="Graphs on one page in a grid, lettered A, B, C in reading order." />
-      <fieldset className="choice-list">
-        <legend className="field-label">Graphs, in order</legend>
-        {graphs.map((g) => (
-          <label key={g.id} className="choice">
-            <input
-              type="checkbox"
+      <div className="field">
+        <span className="field-label">Graphs, in order</span>
+        <div className="check-list">
+          {graphs.map((g) => (
+            <Checkbox
+              key={g.id}
+              className="check-row"
               checked={picked.includes(g.id)}
-              data-testid={`layout-pick-${g.title}`}
-              onChange={(e) => setPicked(e.target.checked ? [...picked, g.id] : picked.filter((x) => x !== g.id))}
-            />
-            <span className="choice-title">
-              {picked.includes(g.id) && <span className="layout-letter">{String.fromCharCode(65 + picked.indexOf(g.id))}</span>}
+              testId={`layout-pick-${g.title}`}
+              onChange={(on) => setPicked(on ? [...picked, g.id] : picked.filter((x) => x !== g.id))}
+            >
+              <span className="layout-letter" aria-hidden="true">
+                {picked.includes(g.id) ? String.fromCharCode(65 + picked.indexOf(g.id)) : ''}
+              </span>
               {g.title}
-            </span>
-          </label>
-        ))}
-      </fieldset>
+            </Checkbox>
+          ))}
+        </div>
+      </div>
       <div className="form-row">
-        <label className="field field-num">
-          <span className="field-label">Columns</span>
-          <input
-            className="input num"
-            type="number"
-            min={1}
-            max={6}
-            value={columns}
-            data-testid="layout-columns"
-            onChange={(e) => setColumns(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">Title (optional)</span>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Figure 1" />
-        </label>
+        <Field label="Columns" className="field-num">
+          {(lid) => (
+            <NumberField
+              size="md"
+              labelledBy={lid}
+              value={columns}
+              min={1}
+              max={6}
+              integer
+              nullable={false}
+              testId="layout-columns"
+              onText={(_, v) => Number.isFinite(v) && setColumns(Math.max(1, Math.min(6, Math.round(v))))}
+              onCommit={(v) => v !== null && setColumns(Math.max(1, Math.min(6, v)))}
+            />
+          )}
+        </Field>
+        <Field label="Title (optional)">{(lid) => <TextInput aria-labelledby={lid} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Figure 1" />}</Field>
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!ok} data-testid="layout-create">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!ok} testId="layout-create">
           Create layout
-        </button>
+        </Button>
       </footer>
     </form>
   );

@@ -196,6 +196,11 @@ pub enum Command {
         /// Style.
         style: PValueStyle,
     },
+    /// Rename the project (its title; the file keeps its path until saved elsewhere).
+    SetProjectTitle {
+        /// New title.
+        title: String,
+    },
     /// Rename any object.
     RenameObject {
         /// Object id.

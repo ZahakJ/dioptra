@@ -9,7 +9,8 @@ import { useHistory } from '../store/history';
 import { useProject } from '../store/project';
 import { mutate } from '../store/sync';
 import { useTableMeta } from '../store/table';
-import { CommitField, KV } from './fields';
+import { Button, NumberField, Select } from '../ui';
+import { CommitField, FieldRow, KV } from './fields';
 import { registerInspectorSection, type InspectorContext } from './inspector';
 import { kindInfo } from './kinds';
 
@@ -118,63 +119,70 @@ function ColumnSection({ ctx }: { ctx: InspectorContext }) {
         <KV label="Title">{col.dataset_name}</KV>
       )}
       {meta.kind === 'variables' && ds !== null && (
-        <label className="kv-field">
-          <span className="kv-label">Type</span>
-          <select
-            className="input input-compact"
-            value={col.var_type ?? 'number'}
-            disabled={ro}
-            onChange={(e) => void mutate((en) => cmd.setVariableType(en, id, ds, e.target.value as VariableType))}
-          >
-            {VARIABLE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FieldRow label="Type">
+          {(lid) => (
+            <Select
+              labelledBy={lid}
+              value={col.var_type ?? 'number'}
+              disabled={ro}
+              testId="insp-var-type"
+              options={VARIABLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              onChange={(v) => void mutate((en) => cmd.setVariableType(en, id, ds, v as VariableType))}
+            />
+          )}
+        </FieldRow>
       )}
       {format && kindInfo(meta.kind)?.formats && (
-        <label className="kv-field">
-          <span className="kv-label">Subcolumns</span>
-          <select
-            className="input input-compact"
-            value={format.kind}
-            disabled={ro}
-            title="Applies to every data set of the table"
-            onChange={(e) => {
-              const k = e.target.value as SubcolumnFormat['kind'];
-              const f = k === 'values' ? { kind: 'values' as const, n: 3 } : ({ kind: k } as SubcolumnFormat);
-              void mutate((en) => cmd.setSubcolumnFormat(en, id, f));
-            }}
-          >
-            {FORMAT_CHOICES.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FieldRow label="Subcolumns">
+          {(lid) => (
+            <Select
+              labelledBy={lid}
+              value={format.kind}
+              disabled={ro}
+              testId="insp-subcolumns"
+              tipText="Applies to every data set of the table"
+              options={FORMAT_CHOICES.map((f) => ({ value: f.value, label: f.label }))}
+              onChange={(k) => {
+                const f = k === 'values' ? { kind: 'values' as const, n: 3 } : ({ kind: k } as SubcolumnFormat);
+                void mutate((en) => cmd.setSubcolumnFormat(en, id, f));
+              }}
+            />
+          )}
+        </FieldRow>
       )}
       {format?.kind === 'values' && kindInfo(meta.kind)?.formats && (
-        <CommitField
-          label="Replicates"
-          value={String(format.n)}
-          disabled={ro}
-          validate={(v) => (/^\d+$/.test(v.trim()) && Number(v) >= 1 && Number(v) <= 100 ? null : '1 to 100')}
-          onCommit={(v) => mutate((e) => cmd.setSubcolumnFormat(e, id, { kind: 'values', n: Number(v.trim()) }))}
-        />
+        <FieldRow label="Replicates">
+          {(lid) => (
+            <NumberField
+              labelledBy={lid}
+              value={format.n}
+              min={1}
+              max={100}
+              integer
+              nullable={false}
+              disabled={ro}
+              testId="insp-replicates"
+              onCommit={(v) => v !== null && void mutate((e) => cmd.setSubcolumnFormat(e, id, { kind: 'values', n: v }))}
+            />
+          )}
+        </FieldRow>
       )}
       {format && !kindInfo(meta.kind)?.formats && <KV label="Format">{formatLabel(format)}</KV>}
-      <CommitField
-        label="Decimals"
-        value={col.decimals !== undefined ? String(col.decimals) : ''}
-        placeholder="Automatic"
-        disabled={ro}
-        testId="insp-decimals"
-        validate={(v) => (v.trim() === '' || (/^\d{1,2}$/.test(v.trim()) && Number(v) <= 15) ? null : '0 to 15, or empty')}
-        onCommit={(v) => mutate((e) => cmd.setColumnDecimals(e, id, col.index, v.trim() === '' ? null : Number(v.trim())))}
-      />
+      <FieldRow label="Decimals">
+        {(lid) => (
+          <NumberField
+            labelledBy={lid}
+            value={col.decimals ?? null}
+            min={0}
+            max={15}
+            integer
+            placeholder="Automatic"
+            disabled={ro}
+            testId="insp-decimals"
+            onCommit={(v) => void mutate((e) => cmd.setColumnDecimals(e, id, col.index, v))}
+          />
+        )}
+      </FieldRow>
       <CommitField
         label="Formula"
         value={col.formula ? `=${col.formula}` : ''}
@@ -208,9 +216,15 @@ function TableSection({ ctx }: { ctx: InspectorContext }) {
       />
       <KV label="Kind">{info?.name ?? meta.kind}</KV>
       {info && <p className="muted small">{info.sentence}</p>}
-      <KV label="Rows">{meta.rows.toLocaleString('en-US')}</KV>
-      <KV label={meta.kind === 'variables' ? 'Variables' : 'Data sets'}>{meta.datasets.length.toLocaleString('en-US')}</KV>
-      <KV label="Columns">{meta.columns.length.toLocaleString('en-US')}</KV>
+      <KV label="Rows" mono>
+        {meta.rows.toLocaleString('en-US')}
+      </KV>
+      <KV label={meta.kind === 'variables' ? 'Variables' : 'Data sets'} mono>
+        {meta.datasets.length.toLocaleString('en-US')}
+      </KV>
+      <KV label="Columns" mono>
+        {meta.columns.length.toLocaleString('en-US')}
+      </KV>
       {meta.read_only && <KV label="Read-only">Derived from another table</KV>}
     </div>
   );
@@ -223,19 +237,19 @@ function HistorySection() {
   return (
     <div>
       <div className="btn-row">
-        <button type="button" className="btn btn-small" disabled={!view?.can_undo} onClick={() => void undoAction()} data-testid="insp-undo">
+        <Button size="sm" disabled={!view?.can_undo} onClick={() => void undoAction()} testId="insp-undo" shortcut="Mod+Z" tipText="Undo">
           Undo
-        </button>
-        <button type="button" className="btn btn-small" disabled={!view?.can_redo} onClick={() => void redoAction()} data-testid="insp-redo">
+        </Button>
+        <Button size="sm" disabled={!view?.can_redo} onClick={() => void redoAction()} testId="insp-redo" shortcut="Mod+Shift+Z" tipText="Redo">
           Redo
-        </button>
+        </Button>
       </div>
       {entries.length === 0 ? (
         <p className="muted">Nothing done yet.</p>
       ) : (
         <ol className="history-list">
           {entries.slice(0, 50).map((e, i) => (
-            <li key={i} title={e.at}>
+            <li key={i} data-tip={e.at}>
               {e.label}
             </li>
           ))}
@@ -245,11 +259,11 @@ function HistorySection() {
   );
 }
 
-const P_STYLES: { value: PValueStyle; label: string }[] = [
-  { value: 'apa', label: 'APA (p = .005)' },
-  { value: 'nejm', label: 'NEJM (p = 0.005)' },
-  { value: 'gp', label: 'Asterisks (**)' },
-  { value: 'exact', label: 'Exact (p = 0.0049)' },
+const P_STYLES: { value: PValueStyle; label: string; secondary: string }[] = [
+  { value: 'apa', label: 'APA', secondary: 'p = .005' },
+  { value: 'nejm', label: 'NEJM', secondary: 'p = 0.005' },
+  { value: 'gp', label: 'Asterisks', secondary: '**' },
+  { value: 'exact', label: 'Exact', secondary: 'p = 0.0049' },
 ];
 
 function ProjectSection() {
@@ -264,21 +278,17 @@ function ProjectSection() {
         </KV>
       )}
       <KV label="State">{view.dirty ? 'Unsaved changes' : 'Saved'}</KV>
-      <label className="kv-field">
-        <span className="kv-label">P values</span>
-        <select
-          className="input input-compact"
-          value={view.p_value_style}
-          data-testid="insp-pstyle"
-          onChange={(e) => void mutate((en) => cmd.setPValueStyle(en, e.target.value as PValueStyle))}
-        >
-          {P_STYLES.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <FieldRow label="P values">
+        {(lid) => (
+          <Select
+            labelledBy={lid}
+            value={view.p_value_style}
+            testId="insp-pstyle"
+            options={P_STYLES}
+            onChange={(v) => void mutate((en) => cmd.setPValueStyle(en, v))}
+          />
+        )}
+      </FieldRow>
     </div>
   );
 }

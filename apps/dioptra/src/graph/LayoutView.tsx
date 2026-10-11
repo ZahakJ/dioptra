@@ -6,6 +6,8 @@ import type { LayoutInfo, Rendered } from '../engine/objects';
 import { withEngine } from '../store/engine';
 import { useProject } from '../store/project';
 import { mutate, onChanged } from '../store/sync';
+import { Download, Maximize, Minus, Plus } from 'lucide-react';
+import { Button, Segmented } from '../ui';
 import { exportLayoutDialog } from './actions';
 import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt } from './units';
 
@@ -57,32 +59,31 @@ export function LayoutView({ item }: WorkAreaProps) {
         <span className="muted small">{panels.length ? `${panels.length} panels, lettered in reading order` : ''}</span>
         <span className="tb-gap" />
         {info && (
-          <label className="tb-field muted small">
-            Columns{' '}
-            <select
-              className="input input-compact"
+          <span className="tb-labelled">
+            <span id={`cols-${id}`}>Columns</span>
+            <Segmented
+              labelledBy={`cols-${id}`}
+              testId="layout-columns"
               value={info.columns}
-              onChange={(e) => setColumns(Number(e.target.value))}
-              data-testid="layout-columns"
-              aria-label="Columns"
-            >
-              {Array.from({ length: Math.max(1, Math.min(6, info.graphs.length)) }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={setColumns}
+              choices={Array.from({ length: Math.max(1, Math.min(6, info.graphs.length)) }, (_, i) => i + 1).map((n) => ({
+                value: n,
+                label: <span className="mono">{n}</span>,
+                aria: `${n} ${n === 1 ? 'column' : 'columns'}`,
+                testId: `layout-columns-${n}`,
+              }))}
+            />
+          </span>
         )}
-        <button
-          type="button"
-          className="btn btn-small"
+        <Button
+          size="sm"
+          icon={<Download size={16} strokeWidth={1.5} aria-hidden="true" />}
           disabled={!r}
           onClick={() => r && void exportLayoutDialog(id, { width: r.width_mm, height: r.height_mm })}
-          data-testid="layout-export"
+          testId="layout-export"
         >
           Export…
-        </button>
+        </Button>
       </div>
       <div className="graph-stage">
         <div className="graph-view" ref={viewRef}>
@@ -100,7 +101,7 @@ export function LayoutView({ item }: WorkAreaProps) {
                       key={t.id}
                       className="tg tg-panel"
                       data-testid={`layout-${t.id}`}
-                      title={gid ? 'Double-click to open this graph' : `Panel ${String.fromCharCode(65 + i)}`}
+                      data-tip={gid ? 'Double-click to open this graph' : `Panel ${String.fromCharCode(65 + i)}`}
                       style={{ left: b.x, top: b.y, width: b.width, height: b.height }}
                       onDoubleClick={() => gid && useProject.getState().open(gid)}
                     />
@@ -119,19 +120,18 @@ export function LayoutView({ item }: WorkAreaProps) {
             </span>
           )}
           <div className="zoom" role="group" aria-label="Zoom">
-            <button type="button" className="icon-btn" aria-label="Zoom out" onClick={() => setZoom(clampZoom(z / 1.25))}>
-              −
-            </button>
-            <span className="zoom-val">{Math.round(z * 100)}%</span>
-            <button type="button" className="icon-btn" aria-label="Zoom in" onClick={() => setZoom(clampZoom(z * 1.25))}>
-              +
-            </button>
-            <button type="button" className="btn btn-small btn-ghost" onClick={() => setZoom('fit')}>
-              Fit
-            </button>
-            <button type="button" className="btn btn-small btn-ghost" onClick={() => setZoom(1)} title="Actual size at 96 dpi">
-              1:1
-            </button>
+            <Button variant="quiet" size="sm" iconOnly="Zoom out" icon={<Minus size={16} strokeWidth={1.5} />} onClick={() => setZoom(clampZoom(z / 1.25))} />
+            <span className="zoom-val mono">{Math.round(z * 100)}%</span>
+            <Button variant="quiet" size="sm" iconOnly="Zoom in" icon={<Plus size={16} strokeWidth={1.5} />} onClick={() => setZoom(clampZoom(z * 1.25))} />
+            <Segmented
+              label="Zoom preset"
+              value={zoom === 'fit' ? 'fit' : zoom === 1 ? 'actual' : 'other'}
+              choices={[
+                { value: 'fit', label: <Maximize size={16} strokeWidth={1.5} aria-hidden="true" />, aria: 'Fit', hint: 'Fit the window' },
+                { value: 'actual', label: '1:1', hint: 'Actual size at 96 dpi' },
+              ]}
+              onChange={(v) => setZoom(v === 'fit' ? 'fit' : 1)}
+            />
           </div>
         </div>
       </div>

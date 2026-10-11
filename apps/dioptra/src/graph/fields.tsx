@@ -1,14 +1,19 @@
 // Inspector controls bound to a graph spec path. Text sends after 150 ms of quiet; numbers
-// commit on Enter or blur; selects and switches commit at once.
-import { useEffect, useRef, useState } from 'react';
+// commit on Enter, blur or a step; selects and switches commit at once.
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { Id, JsonValue } from '../engine/types';
+import { ColorSwatch, NumberField, Select, TextInput, Toggle, type SelectOption } from '../ui';
 import { setGraphValue, setGraphValueDebounced } from './store';
 
-export function Row({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+/** A label and its control. `children` may take the label's id to name the control. */
+export function Row({ label, children, hint }: { label: string; children: ReactNode | ((labelId: string) => ReactNode); hint?: string }) {
+  const id = useId();
   return (
-    <div className="g-row" title={hint}>
-      <span className="g-label">{label}</span>
-      <span className="g-control">{children}</span>
+    <div className="g-row">
+      <span className={'g-label' + (hint ? ' has-tip' : '')} id={id} data-tip={hint}>
+        {label}
+      </span>
+      <span className="g-control">{typeof children === 'function' ? children(id) : children}</span>
     </div>
   );
 }
@@ -41,14 +46,13 @@ export function TextField({
   }, [autoFocus]);
   return (
     <Row label={label}>
-      <input
+      <TextInput
         ref={ref}
-        className="input input-compact"
+        size="sm"
         value={v}
         placeholder={placeholder}
         aria-label={label}
-        data-testid={testId}
-        spellCheck={false}
+        testId={testId}
         onFocus={() => (focused.current = true)}
         onBlur={() => (focused.current = false)}
         onChange={(e) => {
@@ -72,6 +76,7 @@ export function NumField({
   placeholder = 'Auto',
   min,
   max,
+  step,
   integer,
   unit,
   testId,
@@ -84,57 +89,27 @@ export function NumField({
   placeholder?: string;
   min?: number;
   max?: number;
+  step?: number;
   integer?: boolean;
   unit?: string;
   testId?: string;
   /** Instead of patching `path` (e.g. to send an array). */
   onCommit?: (v: number | null) => void;
 }) {
-  const show = (x: number | undefined | null) => (typeof x === 'number' && Number.isFinite(x) ? String(Math.round(x * 1e6) / 1e6) : '');
-  const [v, setV] = useState(show(value));
-  const focused = useRef(false);
-  useEffect(() => {
-    if (!focused.current) setV(show(value));
-  }, [value]);
-  const bad = (() => {
-    if (v.trim() === '') return false;
-    const n = Number(v.replace(',', '.'));
-    return !Number.isFinite(n) || (min !== undefined && n < min) || (max !== undefined && n > max);
-  })();
-  const commit = () => {
-    focused.current = false;
-    if (bad) return setV(show(value));
-    const n = v.trim() === '' ? null : Number(v.replace(',', '.'));
-    const val = n === null ? null : integer ? Math.round(n) : n;
-    if (val === (value ?? null)) return;
-    if (onCommit) onCommit(val);
-    else void setGraphValue(graph, path, val);
-  };
   return (
     <Row label={label}>
-      <span className="g-num">
-        <input
-          className="input input-compact num"
-          value={v}
-          placeholder={placeholder}
-          aria-label={label}
-          aria-invalid={bad}
-          data-testid={testId}
-          inputMode="decimal"
-          onFocus={() => (focused.current = true)}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-            else if (e.key === 'Escape') {
-              setV(show(value));
-              requestAnimationFrame(() => (e.target as HTMLInputElement).blur());
-            }
-            e.stopPropagation();
-          }}
-        />
-        {unit && <span className="g-unit">{unit}</span>}
-      </span>
+      <NumberField
+        value={value}
+        label={label}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step ?? (unit === 'pt' ? 0.25 : 1)}
+        integer={integer}
+        unit={unit}
+        testId={testId}
+        onCommit={(v) => (onCommit ? onCommit(v) : void setGraphValue(graph, path, v))}
+      />
     </Row>
   );
 }
@@ -152,25 +127,19 @@ export function SelectField({
   path: string;
   value: string | undefined;
   label: string;
-  options: { value: string; label: string }[];
+  options: SelectOption<string>[];
   testId?: string;
   onCommit?: (v: string) => void;
 }) {
   return (
     <Row label={label}>
-      <select
-        className="input input-compact"
+      <Select
         value={value ?? ''}
-        aria-label={label}
-        data-testid={testId}
-        onChange={(e) => (onCommit ? onCommit(e.target.value) : void setGraphValue(graph, path, e.target.value as JsonValue))}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        label={label}
+        testId={testId}
+        options={options}
+        onChange={(v) => (onCommit ? onCommit(v) : void setGraphValue(graph, path, v as JsonValue))}
+      />
     </Row>
   );
 }
@@ -193,21 +162,12 @@ export function CheckField({
 }) {
   return (
     <Row label={label}>
-      <label className="g-check">
-        <input
-          type="checkbox"
-          checked={!!value}
-          data-testid={testId}
-          aria-label={label}
-          onChange={(e) => void setGraphValue(graph, path, e.target.checked ? true : falseIsNull ? null : false)}
-        />
-        <span>{value ? 'On' : 'Off'}</span>
-      </label>
+      <Toggle checked={!!value} label={label} testId={testId} onChange={(on) => void setGraphValue(graph, path, on ? true : falseIsNull ? null : false)} />
     </Row>
   );
 }
 
-/** A colour: swatches of the palette and a hex field. */
+/** A colour: the palette's swatches and a hex field, in a popover. */
 export function ColourField({
   value,
   fallback,
@@ -223,52 +183,5 @@ export function ColourField({
   label: string;
   testId?: string;
 }) {
-  const [hex, setHex] = useState(value ?? '');
-  useEffect(() => setHex(value ?? ''), [value]);
-  const valid = (s: string) => /^#[0-9a-fA-F]{6}$/.test(s);
-  return (
-    <div className="colour-field" data-testid={testId}>
-      <div className="swatches" role="radiogroup" aria-label={label}>
-        {swatches.map((c) => (
-          <button
-            key={c}
-            type="button"
-            role="radio"
-            aria-checked={(value ?? '').toLowerCase() === c.toLowerCase()}
-            className="swatch"
-            style={{ background: c }}
-            title={c}
-            aria-label={c}
-            onClick={() => onChange(c)}
-          />
-        ))}
-      </div>
-      <div className="colour-hex">
-        <span className="swatch is-current" style={{ background: valid(hex) ? hex : fallback }} aria-hidden="true" />
-        <input
-          className="input input-compact mono"
-          value={hex}
-          placeholder={`${fallback} (palette)`}
-          aria-label={`${label} hex`}
-          aria-invalid={hex !== '' && !valid(hex)}
-          spellCheck={false}
-          onChange={(e) => setHex(e.target.value)}
-          onBlur={() => {
-            if (hex === '') onChange(null);
-            else if (valid(hex)) onChange(hex.toUpperCase());
-            else setHex(value ?? '');
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-            e.stopPropagation();
-          }}
-        />
-        {value && (
-          <button type="button" className="btn btn-small btn-ghost" onClick={() => onChange(null)}>
-            Palette
-          </button>
-        )}
-      </div>
-    </div>
-  );
+  return <ColorSwatch value={value} fallback={fallback} palette={swatches} onChange={onChange} label={label} testId={testId} />;
 }

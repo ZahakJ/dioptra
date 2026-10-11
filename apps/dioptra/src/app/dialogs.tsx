@@ -1,6 +1,7 @@
 // Modal dialogs as promises: `await confirmDialog(...)`, `await promptDialog(...)`.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { create } from 'zustand';
+import { Button, DialogFrame, DialogHeader, RadioList, TextInput } from '../ui';
 
 interface DialogEntry {
   id: number;
@@ -39,63 +40,7 @@ export function DialogHost() {
   return <>{stack.map((d) => d.node)}</>;
 }
 
-function DialogFrame({ children, onCancel }: { children: ReactNode; onCancel: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const el = ref.current;
-    const first = el?.querySelector<HTMLElement>('[data-autofocus], input, select, textarea, button');
-    first?.focus();
-    if (first instanceof HTMLInputElement) first.select();
-    return () => prev?.focus?.();
-  }, []);
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
-      <div
-        ref={ref}
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.stopPropagation();
-            onCancel();
-          }
-          if (e.key === 'Tab') trapFocus(e, ref.current);
-          e.stopPropagation();
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function trapFocus(e: React.KeyboardEvent, root: HTMLElement | null) {
-  if (!root) return;
-  const items = [...root.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"]')].filter(
-    (x) => !x.hasAttribute('disabled'),
-  );
-  if (!items.length) return;
-  const first = items[0]!;
-  const last = items[items.length - 1]!;
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
-
-export function DialogHeader({ title, sub }: { title: string; sub?: string }) {
-  return (
-    <header className="modal-head">
-      <h2>{title}</h2>
-      {sub && <p>{sub}</p>}
-    </header>
-  );
-}
+export { DialogFooter, DialogHeader } from '../ui';
 
 export function confirmDialog(opts: {
   title: string;
@@ -116,12 +61,10 @@ export function confirmDialog(opts: {
         <DialogHeader title={opts.title} />
         <p className="modal-text">{opts.message}</p>
         <footer className="modal-foot">
-          <button type="button" className="btn" onClick={() => close(false)}>
-            Cancel
-          </button>
-          <button type="submit" className={opts.danger ? 'btn btn-danger' : 'btn btn-primary'} data-autofocus>
+          <Button onClick={() => close(false)}>Cancel</Button>
+          <Button type="submit" variant={opts.danger ? 'danger' : 'primary'} data-autofocus>
             {opts.confirm}
-          </button>
+          </Button>
         </footer>
       </form>
     ),
@@ -162,22 +105,14 @@ function PromptBody({
       <DialogHeader title={opts.title} />
       <label className="field">
         <span className="field-label">{opts.label}</span>
-        <input
-          className={opts.mono ? 'input mono' : 'input'}
-          value={value}
-          spellCheck={false}
-          onChange={(e) => setValue(e.target.value)}
-          aria-invalid={!!error}
-        />
+        <TextInput mono={opts.mono} value={value} onChange={(e) => setValue(e.target.value)} invalid={!!error} />
         {error ? <span className="field-error">{error}</span> : opts.hint && <span className="field-hint">{opts.hint}</span>}
       </label>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!!error}>
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!!error}>
           {opts.confirm ?? 'OK'}
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -210,25 +145,15 @@ function ChooseBody<T extends string>({
       }}
     >
       <DialogHeader title={opts.title} />
-      <fieldset className="choice-list">
-        <legend className="field-label">{opts.label}</legend>
-        {opts.options.map((o) => (
-          <label key={o.value} className="choice">
-            <input type="radio" name="choice" checked={value === o.value} onChange={() => setValue(o.value)} />
-            <span>
-              <span className="choice-title">{o.label}</span>
-              {o.hint && <span className="choice-hint">{o.hint}</span>}
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <div className="field">
+        <span className="field-label">{opts.label}</span>
+        <RadioList label={opts.label} value={value} onChange={setValue} choices={opts.options.map((o) => ({ value: o.value, label: o.label, hint: o.hint }))} />
+      </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary">
           {opts.confirm ?? 'OK'}
-        </button>
+        </Button>
       </footer>
     </form>
   );

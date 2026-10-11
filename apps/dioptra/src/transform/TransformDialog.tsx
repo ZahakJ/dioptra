@@ -2,7 +2,7 @@
 // remembers its recipe and rebuilds when the source changes (transform.rs).
 import { useState } from 'react';
 import { DialogHeader, openDialog } from '../app/dialogs';
-import { Segmented, Switch } from '../analysis/OptionsPanel';
+import { Button, Checkbox, Field, NumberField, Segmented, Select, TextInput, Toggle } from '../ui';
 import * as obj from '../engine/objects';
 import type { NormRef, TransformOpT } from '../engine/objects';
 import type { Id, TableMeta } from '../engine/types';
@@ -64,17 +64,21 @@ function ColSelect({
   testId?: string;
 }) {
   return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <select className="input" value={value ?? ''} data-testid={testId} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}>
-        {allowNone && <option value="">{allowNone}</option>}
-        {meta.columns.map((c) => (
-          <option key={c.index} value={c.index}>
-            {c.label}: {c.header}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Field label={label}>
+      {(lid) => (
+        <Select
+          size="md"
+          labelledBy={lid}
+          value={value ?? -1}
+          testId={testId}
+          onChange={(v) => onChange(v === -1 ? null : v)}
+          options={[
+            ...(allowNone ? [{ value: -1, label: allowNone }] : []),
+            ...meta.columns.map((c) => ({ value: c.index, label: c.header || c.label, secondary: c.label })),
+          ]}
+        />
+      )}
+    </Field>
   );
 }
 
@@ -82,36 +86,38 @@ function NormRefField({ label, value, onChange }: { label: string; value: NormRe
   const [num, setNum] = useState(value.kind === 'value' ? String(value.value) : '0');
   return (
     <div className="form-row">
-      <label className="field">
-        <span className="field-label">{label}</span>
-        <select
-          className="input"
-          value={value.kind}
-          onChange={(e) => {
-            const k = e.target.value as NormRef['kind'];
-            onChange(k === 'value' ? { kind: 'value', value: Number(num) || 0 } : ({ kind: k } as NormRef));
-          }}
-        >
-          <option value="min">Smallest value</option>
-          <option value="max">Largest value</option>
-          <option value="first_row">First row</option>
-          <option value="last_row">Last row</option>
-          <option value="value">A number</option>
-        </select>
-      </label>
-      {value.kind === 'value' && (
-        <label className="field field-num">
-          <span className="field-label">Value</span>
-          <input
-            className="input num"
-            value={num}
-            onChange={(e) => {
-              setNum(e.target.value);
-              const v = Number(e.target.value);
-              if (Number.isFinite(v)) onChange({ kind: 'value', value: v });
-            }}
+      <Field label={label}>
+        {(lid) => (
+          <Select
+            size="md"
+            labelledBy={lid}
+            value={value.kind}
+            onChange={(k) => onChange(k === 'value' ? { kind: 'value', value: Number(num) || 0 } : ({ kind: k } as NormRef))}
+            options={[
+              { value: 'min' as NormRef['kind'], label: 'Smallest value' },
+              { value: 'max' as NormRef['kind'], label: 'Largest value' },
+              { value: 'first_row' as NormRef['kind'], label: 'First row' },
+              { value: 'last_row' as NormRef['kind'], label: 'Last row' },
+              { value: 'value' as NormRef['kind'], label: 'A number' },
+            ]}
           />
-        </label>
+        )}
+      </Field>
+      {value.kind === 'value' && (
+        <Field label="Value" className="field-num">
+          {(lid) => (
+            <NumberField
+              size="md"
+              labelledBy={lid}
+              value={Number(num)}
+              nullable={false}
+              onText={(t, v) => {
+                setNum(t);
+                if (Number.isFinite(v)) onChange({ kind: 'value', value: v });
+              }}
+            />
+          )}
+        </Field>
       )}
     </div>
   );
@@ -226,41 +232,41 @@ function TransformDialog({ meta, initial, close }: { meta: TableMeta; initial?: 
                   { value: 'asc', label: 'Smallest first' },
                   { value: 'desc', label: 'Largest first' },
                 ]}
+                size="md"
                 value={desc ? 'desc' : 'asc'}
                 onChange={(v) => setDesc(v === 'desc')}
               />
             </>
           )}
           {op === 'filter_rows' && (
-            <label className="field">
-              <span className="field-label">Keep rows where</span>
-              <input className="input mono" value={predicate} placeholder="A > 0 && !isna(B)" onChange={(e) => setPredicate(e.target.value)} data-testid="tf-predicate" spellCheck={false} />
-              <span className="field-hint">Data set letters name the values in the row; the formula language of the formula bar.</span>
-            </label>
+            <Field label="Keep rows where" hint="Data set letters name the values in the row; the formula language of the formula bar.">
+              {(lid) => <TextInput mono aria-labelledby={lid} value={predicate} placeholder="A > 0 && !isna(B)" onChange={(e) => setPredicate(e.target.value)} testId="tf-predicate" />}
+            </Field>
           )}
           {op === 'remove_baseline' && (
             <>
-              <label className="field">
-                <span className="field-label">Baseline</span>
-                <select className="input" value={baseKind} onChange={(e) => setBaseKind(e.target.value as typeof baseKind)}>
-                  <option value="first_row">The first row of each column</option>
-                  <option value="mean_of_rows">The mean of chosen rows</option>
-                  <option value="column">Row by row, another column</option>
-                  <option value="row_title">The row with a title</option>
-                </select>
-              </label>
+              <Field label="Baseline">
+                {(lid) => (
+                  <Select
+                    size="md"
+                    labelledBy={lid}
+                    value={baseKind}
+                    onChange={setBaseKind}
+                    options={[
+                      { value: 'first_row' as typeof baseKind, label: 'The first row of each column' },
+                      { value: 'mean_of_rows' as typeof baseKind, label: 'The mean of chosen rows' },
+                      { value: 'column' as typeof baseKind, label: 'Row by row, another column' },
+                      { value: 'row_title' as typeof baseKind, label: 'The row with a title' },
+                    ]}
+                  />
+                )}
+              </Field>
               {baseKind === 'mean_of_rows' && (
-                <label className="field">
-                  <span className="field-label">Rows</span>
-                  <input className="input" value={baseRows} onChange={(e) => setBaseRows(e.target.value)} placeholder="1, 2, 3" />
-                </label>
+                <Field label="Rows">{(lid) => <TextInput mono aria-labelledby={lid} value={baseRows} onChange={(e) => setBaseRows(e.target.value)} placeholder="1, 2, 3" />}</Field>
               )}
               {baseKind === 'column' && <ColSelect meta={meta} label="Baseline column" value={baseCol} onChange={(v) => setBaseCol(v ?? 0)} />}
               {baseKind === 'row_title' && (
-                <label className="field">
-                  <span className="field-label">Row title</span>
-                  <input className="input" value={baseTitle} onChange={(e) => setBaseTitle(e.target.value)} placeholder="Blank" />
-                </label>
+                <Field label="Row title">{(lid) => <TextInput aria-labelledby={lid} value={baseTitle} onChange={(e) => setBaseTitle(e.target.value)} placeholder="Blank" />}</Field>
               )}
               <Segmented
                 label="Remove by"
@@ -288,14 +294,12 @@ function TransformDialog({ meta, initial, close }: { meta: TableMeta; initial?: 
           )}
           {op === 'prune' && (
             <div className="form-row">
-              <label className="field field-num">
-                <span className="field-label">Keep 1 row in</span>
-                <input className="input num" value={keep} onChange={(e) => setKeep(e.target.value)} />
-              </label>
-              <label className="field field-num">
-                <span className="field-label">Starting at row</span>
-                <input className="input num" value={offset} onChange={(e) => setOffset(e.target.value)} />
-              </label>
+              <Field label="Keep 1 row in" className="field-num">
+                {(lid) => <NumberField size="md" labelledBy={lid} value={Number(keep)} min={1} integer nullable={false} onText={(t) => setKeep(t)} />}
+              </Field>
+              <Field label="Starting at row" className="field-num">
+                {(lid) => <NumberField size="md" labelledBy={lid} value={Number(offset)} min={1} integer nullable={false} onText={(t) => setOffset(t)} />}
+              </Field>
             </div>
           )}
           {op === 'pivot_long_to_wide' && (
@@ -311,39 +315,39 @@ function TransformDialog({ meta, initial, close }: { meta: TableMeta; initial?: 
               <NormRefField label="Maps to 0" value={lo} onChange={setLo} />
               <NormRefField label="Maps to 1" value={hi} onChange={setHi} />
               <div className="ex-row">
-                <Switch checked={pct} onChange={setPct} label="As percent" />
+                <Toggle checked={pct} onChange={setPct} label="As percent" showState={false} />
                 <span className="small">Show as percent (0 to 100)</span>
               </div>
             </>
           )}
           {op === 'stack' && (
-            <fieldset className="choice-list">
-              <legend className="field-label">Columns (none picked: every Y column)</legend>
-              {meta.columns
-                .filter((c) => c.role === 'y')
-                .map((c) => (
-                  <label key={c.index} className="opt-check">
-                    <input
-                      type="checkbox"
+            <div className="field">
+              <span className="field-label">Columns (none picked: every Y column)</span>
+              <div className="check-list">
+                {meta.columns
+                  .filter((c) => c.role === 'y')
+                  .map((c) => (
+                    <Checkbox
+                      key={c.index}
+                      className="check-row"
                       checked={stackCols.includes(c.index)}
-                      onChange={(e) => setStackCols(e.target.checked ? [...stackCols, c.index].sort((a, b) => a - b) : stackCols.filter((x) => x !== c.index))}
-                    />
-                    {c.label}: {c.header}
-                  </label>
-                ))}
-            </fieldset>
+                      onChange={(on) => setStackCols(on ? [...stackCols, c.index].sort((a, b) => a - b) : stackCols.filter((x) => x !== c.index))}
+                    >
+                      {c.label}: {c.header}
+                    </Checkbox>
+                  ))}
+              </div>
+            </div>
           )}
           {(op === 'transpose' || op === 'average_replicates') && <p className="muted small">No options.</p>}
           {!ok && <p className="field-error">{result}</p>}
         </div>
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!ok} data-testid="tf-create">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!ok} testId="tf-create">
           Create table
-        </button>
+        </Button>
       </footer>
     </form>
   );

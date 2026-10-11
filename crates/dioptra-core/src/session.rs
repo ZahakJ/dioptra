@@ -702,6 +702,19 @@ impl Session {
                 self.commit(format!("Set p-value style to {style:?}"), log, snaps);
                 Ok(changed(ids, true, None))
             }
+            Command::SetProjectTitle { title } => {
+                let title = title.trim().to_string();
+                if title.is_empty() {
+                    return Err("a project title cannot be empty".to_string());
+                }
+                let snaps = vec![Snapshot::Settings {
+                    title: self.project.title.clone(),
+                    p_value_style: self.project.p_value_style,
+                }];
+                let old = std::mem::replace(&mut self.project.title, title.clone());
+                self.commit(format!("Rename the project \"{old}\" to \"{title}\""), log, snaps);
+                Ok(changed(Vec::new(), true, None))
+            }
             Command::RenameObject { id, title } => {
                 let old = self
                     .project

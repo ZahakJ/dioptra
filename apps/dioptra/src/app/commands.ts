@@ -25,6 +25,7 @@ export const CORE_COMMANDS: AppCommand[] = [
   { id: 'file.import', title: 'Import file...', menu: 'File', group: 'io', shortcut: 'Mod+I', keywords: ['csv', 'xlsx', 'excel', 'pzfx', 'prism'], run: app.importFile },
   { id: 'file.pasteNew', title: 'Paste as new table...', menu: 'File', group: 'io', shortcut: 'Mod+Shift+V', keywords: ['clipboard', 'import'], run: () => app.pasteAsNewTable() },
   { id: 'file.export', title: 'Export table...', menu: 'File', group: 'io', shortcut: 'Mod+Shift+E', keywords: ['csv', 'tsv', 'xlsx'], enabled: grid.hasActiveTable, run: app.exportTable },
+  { id: 'project.rename', title: 'Rename project...', menu: 'File', group: 'object', keywords: ['title', 'name'], run: app.renameProject },
   { id: 'object.rename', title: 'Rename object...', menu: 'File', group: 'object', keywords: ['title'], enabled: () => !!useProject.getState().activeId, run: () => app.renameObject() },
   { id: 'object.delete', title: 'Delete object...', menu: 'File', group: 'object', keywords: ['remove'], enabled: () => !!useProject.getState().activeId, run: () => app.deleteObject() },
 

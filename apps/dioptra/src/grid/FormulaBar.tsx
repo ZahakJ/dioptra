@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useRef } from 'react';
 import { FormulaIcon } from '../app/icons';
 import { TableTools } from '../app/tableTools';
+import { Segmented } from '../ui';
 import * as cmd from '../engine/commands';
 import type { TableMeta } from '../engine/types';
 import { mutate } from '../store/sync';
@@ -79,59 +80,59 @@ export function FormulaBar({ meta }: { meta: TableMeta }) {
 
   return (
     <div className="formula-bar" data-testid="formula-bar">
-      <div className="fb-address mono" title="Active cell" data-testid="formula-address">
+      <div className="fb-address mono" data-tip="Active cell or selection" data-testid="formula-address">
         {address}
       </div>
-      <div className="seg" role="radiogroup" aria-label="Formula bar edits">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={mode === 'cell'}
-          className="seg-btn"
-          data-testid="formula-mode-cell"
-          onClick={() => useGrid.getState().setFormulaMode(tableId, 'cell')}
-        >
-          Cell
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={mode === 'column'}
-          className="seg-btn"
-          data-testid="formula-mode-column"
-          onClick={() => {
-            useGrid.getState().setFormulaMode(tableId, 'column');
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }}
-        >
-          Column{hasColumnFormula ? ' =' : ''}
-        </button>
-      </div>
-      <FormulaIcon size={14} />
-      <input
-        ref={inputRef}
-        className="fb-input mono"
-        data-testid="formula-input"
-        aria-label={mode === 'column' ? `Formula for column ${column?.label ?? ''}` : `Content of ${address}`}
-        spellCheck={false}
-        autoComplete="off"
-        disabled={!column || ro}
-        placeholder={mode === 'column' ? `=formula for every row of ${column?.label ?? 'the column'}, e.g. =log10(A)` : ''}
-        value={state.text}
-        onChange={(e) => dispatch({ type: 'input', text: e.target.value })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            void commit().then(() => (document.querySelector('[data-grid]') as HTMLElement | null)?.focus());
-          } else if (e.key === 'Escape') {
-            e.preventDefault();
-            dispatch({ type: 'cancel' });
-            (document.querySelector('[data-grid]') as HTMLElement | null)?.focus();
-          }
-          e.stopPropagation();
+      <Segmented
+        label="Formula bar edits"
+        value={mode}
+        choices={[
+          { value: 'cell' as const, label: 'Cell', testId: 'formula-mode-cell', hint: 'Edit the active cell' },
+          {
+            value: 'column' as const,
+            label: hasColumnFormula ? (
+              <>
+                Column <span className="seg-mark">=</span>
+              </>
+            ) : (
+              'Column'
+            ),
+            testId: 'formula-mode-column',
+            hint: 'One formula for every row of the column',
+          },
+        ]}
+        onChange={(m) => {
+          useGrid.getState().setFormulaMode(tableId, m);
+          if (m === 'column') requestAnimationFrame(() => inputRef.current?.focus());
         }}
-        onBlur={() => state.editing && dispatch({ type: 'cancel' })}
       />
+      <span className="fb-well">
+        <FormulaIcon size={16} />
+        <input
+          ref={inputRef}
+          className="fb-input mono"
+          data-testid="formula-input"
+          aria-label={mode === 'column' ? `Formula for column ${column?.label ?? ''}` : `Content of ${address}`}
+          spellCheck={false}
+          autoComplete="off"
+          disabled={!column || ro}
+          placeholder={mode === 'column' ? `=formula for every row of ${column?.label ?? 'the column'}, e.g. =log10(A)` : ''}
+          value={state.text}
+          onChange={(e) => dispatch({ type: 'input', text: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void commit().then(() => (document.querySelector('[data-grid]') as HTMLElement | null)?.focus());
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              dispatch({ type: 'cancel' });
+              (document.querySelector('[data-grid]') as HTMLElement | null)?.focus();
+            }
+            e.stopPropagation();
+          }}
+          onBlur={() => state.editing && dispatch({ type: 'cancel' })}
+        />
+      </span>
       {mode === 'column' && column?.formula && (
         <span className="fb-note">Computed for every row</span>
       )}
