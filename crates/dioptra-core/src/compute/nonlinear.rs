@@ -21,6 +21,63 @@ use crate::analysis::{
 use crate::graph::{Curve, GraphView};
 use crate::results::{CheckStatus, ResultCell};
 
+/// The snake_case name of every built-in equation, in menu order (each also accepts the
+/// aliases in [`equation`]).
+pub const EQUATION_KEYS: &[&str] = &[
+    "four_parameter_logistic",
+    "three_parameter_logistic",
+    "log_agonist_normalized_variable_slope",
+    "log_inhibitor_variable_slope",
+    "log_inhibitor_vs_response",
+    "five_parameter_logistic",
+    "agonist_vs_response",
+    "agonist_variable_slope",
+    "bell_shaped",
+    "log_logistic",
+    "one_phase_decay",
+    "two_phase_decay",
+    "plateau_then_one_phase_decay",
+    "one_phase_association",
+    "two_phase_association",
+    "plateau_then_one_phase_association",
+    "exponential_growth",
+    "michaelis_menten",
+    "substrate_inhibition",
+    "allosteric_sigmoidal",
+    "competitive_inhibition",
+    "one_site_specific",
+    "specific_binding_hill",
+    "one_site_total",
+    "one_site_fit_logic50",
+    "one_site_fit_ki",
+    "two_sites_fit_logic50",
+    "straight_line",
+    "line_through_origin",
+    "quadratic",
+    "cubic",
+    "polynomial_4",
+    "polynomial_5",
+    "polynomial_6",
+    "segmental_linear",
+    "gaussian",
+    "lorentzian",
+    "sine_wave",
+    "sine_wave_baseline",
+    "power",
+    "power_series",
+    "boltzmann_sigmoid",
+    "logistic_growth",
+    "gompertz_growth",
+];
+
+/// A built-in equation by its snake_case name or alias.
+pub fn builtin_equation(name: &str) -> Result<Equation, String> {
+    equation(&EquationSpec {
+        name: name.into(),
+        formula: None,
+    })
+}
+
 /// The equation a spec names: a snake_case name used by the UI, a Prism name or alias,
 /// or a user formula (`Y = …`).
 pub(crate) fn equation(spec: &EquationSpec) -> Result<Equation, String> {
@@ -345,6 +402,7 @@ fn curve_for(
                     lo: t.pi_lower,
                     hi: t.pi_upper,
                     step: false,
+                    censor: vec![],
                 });
             }
             v

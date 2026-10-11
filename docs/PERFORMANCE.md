@@ -55,3 +55,45 @@ How it stays fast:
   carries a comment saying how many points were drawn.
 - PNG and PDF parse the engine's own SVG once with usvg against a font database holding
   only the four bundled Inter files.
+
+## Measured by `dioptra bench`
+
+`dioptra bench` measures the whole engine through the same JSON commands the app sends,
+so these are the numbers a user sees, not those of an isolated function. Run it yourself
+with a release build:
+
+```sh
+cargo build -p dioptra-cli --release
+./target/release/dioptra bench            # or --markdown for this table
+```
+
+Measured on 2026-10-11 on an AMD Ryzen 7 7800X3D (8 cores, 16 threads), Linux, release
+build; each time is the median of 3 to 9 runs and includes parsing the command and, for
+mutations, the undo snapshot.
+
+| Operation | Size | Time (median) |
+|---|---|---|
+| Paste (parse, detect, store) | 1,000,000 cells, 10 × 100,000 (10.8 MB of text) | 76.2 ms |
+| Export table to CSV | 1,000,000 cells | 91.7 ms |
+| Export table to XLSX | 1,000,000 cells | 611 ms |
+| Save the project (.dioptra) | 1,000,000 cells | 235 ms |
+| Column formula = A * 2 + 1 (set, recompute on read) | 1,000,000 rows | 19.6 ms |
+| Edit one cell, formula column recomputes | 1,000,000 rows | 17.4 ms |
+| Scatter → SVG for the editor (with hit-test targets) | 10,000 points (381 kB) | 2.02 ms |
+| Scatter → SVG file | 10,000 points (381 kB) | 1.81 ms |
+| Scatter → PDF (fonts embedded) | 10,000 points (549 kB) | 146 ms |
+| Scatter → PNG at 300 dpi | 10,000 points (73 kB) | 57.5 ms |
+
+What the rows do:
+
+- **Paste**: a fresh column table receives 10.8 MB of tab-separated text (10 columns by
+  100,000 rows); the engine detects separator and decimal mark, parses, and stores every
+  cell.
+- **Export / save**: the same 1,000,000 cells written as CSV, as an Excel workbook, and as
+  a `.dioptra` project (zip with the data, the analyses and the history).
+- **Column formula**: setting `= A * 2 + 1` on a second column of 1,000,000 rows and
+  reading a viewport, which recomputes the column; then editing one cell of `A`, which
+  marks the formula column dirty, and reading again.
+- **Scatter**: 10,000 points rendered for the graph editor (SVG plus the hit-test boxes of
+  every clickable element), then exported as SVG, as PDF with the fonts embedded, and as
+  PNG at 300 dpi.

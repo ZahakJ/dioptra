@@ -151,6 +151,9 @@ pub struct History {
     pub redo: Vec<Entry>,
     /// Audit log (oldest first).
     pub log: Vec<HistoryEntry>,
+    /// Key of the last step when it may absorb the next one (a coalescing graph patch:
+    /// graph id plus the patched fields). Cleared by every other step, undo and redo.
+    pub coalesce: Option<String>,
 }
 
 /// Capture the current state of cells.

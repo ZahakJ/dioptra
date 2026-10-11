@@ -1,7 +1,9 @@
 //! `kaplan_meier`: survival step curves in percent with censor ticks, 95% CI bands
 //! (exponential Greenwood) and a number-at-risk table under the X axis. Each series holds
 //! X = time and Y = event code (1 = event, 0 = censored). Precomputed curves in
-//! `GraphData::curves` (survival as fractions or percent) are drawn instead when present.
+//! `GraphData::curves` (survival as fractions or percent, with their censoring times) are
+//! drawn instead when present; this is how graphs of a survival analysis show the
+//! analysis's own CI level.
 
 use crate::plot::{AtRiskRow, AxisPlan, Ctx, Layer, LegendEntry, Mark, Plot, Swatch};
 use crate::scene::{MarkerShape, Paint, Stroke};
@@ -55,6 +57,19 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 stroke: st.stroke(),
                 step: c.step,
             });
+            if o.censor_ticks && !c.censor.is_empty() {
+                l.marks.push(Mark::Points {
+                    pts: c
+                        .censor
+                        .iter()
+                        .map(|t| (*t, c.step_value(*t) * k))
+                        .filter(|(_, y)| y.is_finite())
+                        .collect(),
+                    shape: MarkerShape::Tick,
+                    size: t.marker_pt * 1.1,
+                    paint: Paint::stroke(Stroke::solid(st.colour, st.line_pt)),
+                });
+            }
             p.layers.push(l);
             p.legend.push(LegendEntry {
                 label: st.label.clone(),
@@ -62,7 +77,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 dataset: Some(ds),
             });
         }
-        for tb in &d.tables {
+        for tb in d.tables.iter().filter(|_| o.at_risk) {
             let st = ctx.style(tb.dataset.min(n.saturating_sub(1)), n, tb.dataset, &tb.name);
             p.at_risk.push(AtRiskRow {
                 name: tb.name.clone(),

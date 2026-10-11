@@ -991,7 +991,9 @@ dependencies = [
  "clap",
  "dioptra-core",
  "dioptra-plot",
+ "dioptra-stats",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

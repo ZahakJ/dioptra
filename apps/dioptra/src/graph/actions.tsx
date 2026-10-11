@@ -5,7 +5,7 @@ import * as obj from '../engine/objects';
 import type { Annotation, GraphSpecT } from '../engine/objects';
 import type { GraphFormat, Id, TableMeta } from '../engine/types';
 import { datasetsOf, fieldsFor } from '../analysis/schema';
-import { base64ToBytes, desktopSavePath, downloadBytes, isDesktop } from '../io/files';
+import { desktopSavePath, downloadBytes, isDesktop } from '../io/files';
 import { withEngine } from '../store/engine';
 import { notify, notifyError } from '../store/notices';
 import { itemById, useProject } from '../store/project';
@@ -129,31 +129,24 @@ async function analysisDatasets(id: Id, meta: TableMeta | undefined): Promise<nu
   return datasetsOf(meta, spec[f.path], f.unit);
 }
 
-/** The natural graph for an analysis, with its data sets and significance brackets. */
+/**
+ * The natural graph for an analysis. The engine maps the analysed data sets and adds the
+ * analysis's own significance brackets (in the project's p style), so nothing is added here
+ * except the data sets when an older engine left them out. `family` undefined lets the engine
+ * pick the analysis's default family.
+ */
 export async function makeGraphFromAnalysis(id: Id, family?: string): Promise<void> {
   const item = itemById(id);
   if (!item) return;
-  const fam = family ?? familyForAnalysis(item.subtype ?? '');
-  const changed = await mutate((e) => obj.createGraph(e, id, fam));
+  const changed = await mutate((e) => obj.createGraph(e, id, family ?? 'auto'));
   const gid = changed?.created;
   if (!gid) return;
   try {
+    const spec = await withEngine((e) => obj.getGraphSpec(e, gid));
+    if (spec.mapping.datasets?.length) return;
     const meta = await tableMeta(item.derived_from ?? null);
     const ds = await analysisDatasets(id, meta);
-    const spec = await withEngine((e) => obj.getGraphSpec(e, gid));
-    const patch: Record<string, unknown> = {};
-    if (ds.length && meta && ds.length < meta.datasets.length) {
-      patch.mapping = { datasets: ds };
-      spec.mapping.datasets = ds;
-    }
-    const sheet = await withEngine((e) => obj.getResults(e, id));
-    const style = useProject.getState().view?.p_value_style ?? 'apa';
-    if (['column', 'box', 'strip', 'violin', 'before_after'].includes(fam)) {
-      const names = categoriesOf(spec, meta);
-      const ann = bracketsFromSheet(spec.annotations ?? [], sheet, names, style);
-      if (ann.length) patch.annotations = ann;
-    }
-    if (Object.keys(patch).length) await patchGraph(gid, patch as never);
+    if (ds.length && meta && ds.length < meta.datasets.length) await patchGraph(gid, { mapping: { datasets: ds } });
   } catch (err) {
     notifyError(err);
   }
@@ -482,23 +475,21 @@ export async function exportLayoutDialog(layout: Id, size: { width: number; heig
   );
   if (!c) return;
   try {
-    const b = await withEngine((e) => obj.exportLayout(e, layout, formatOf(c)));
     if (desktop) {
       const path = await desktopSavePath(c.filename, [FILTERS[c.format]!]);
       if (!path) return;
-      const { writeFile } = await import('@tauri-apps/plugin-fs');
-      await writeFile(path, base64ToBytes(b.base64));
+      await withEngine((e) => obj.exportLayoutPath(e, layout, formatOf(c), path));
       notify(`Exported ${path.split(/[\\/]/).pop()}.`);
-    } else downloadBytes(c.filename, b.mime, b.base64);
+    } else {
+      const b = await withEngine((e) => obj.exportLayout(e, layout, formatOf(c)));
+      downloadBytes(c.filename, b.mime, b.base64);
+    }
   } catch (err) {
     notifyError(err);
   }
 }
 
 // ---- layouts -----------------------------------------------------------------------------------
-
-/** Graph ids of layouts created in this session (the engine does not list them back). */
-export const layoutGraphs: Record<Id, Id[]> = {};
 
 export async function newLayout(): Promise<void> {
   const graphs = useProject.getState().view?.items.filter((i) => i.kind === 'graph') ?? [];
@@ -511,8 +502,7 @@ export async function newLayout(): Promise<void> {
     null,
   );
   if (!r) return;
-  const changed = await mutate((e) => obj.createLayout(e, r.title || null, r.graphs, r.columns));
-  if (changed?.created) layoutGraphs[changed.created] = r.graphs;
+  await mutate((e) => obj.createLayout(e, r.title || null, r.graphs, r.columns));
 }
 
 function LayoutDialog({

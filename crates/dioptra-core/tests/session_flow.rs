@@ -438,6 +438,198 @@ fn graphs_patch_and_layouts() {
     assert_eq!(b["mime"], "image/svg+xml");
 }
 
+fn scatter_graph(s: &mut Session) -> String {
+    let t = create(s, "xy", 1, json!({"kind": "values", "n": 1}), 0);
+    ok(
+        s,
+        json!({"type": "paste", "table": t, "row0": 0, "col0": 0, "text": "1\t2\n2\t4", "options": {}}),
+    );
+    ok(
+        s,
+        json!({"type": "create_graph", "source": t, "family": "scatter"}),
+    )["changed"]["created"]
+        .as_str()
+        .unwrap()
+        .to_string()
+}
+
+#[test]
+fn layouts_get_update_undo_and_export_by_path() {
+    let mut s = Session::new();
+    let g1 = scatter_graph(&mut s);
+    let g2 = scatter_graph(&mut s);
+    let l = ok(
+        &mut s,
+        json!({"type": "create_layout", "title": "Figure 2", "graphs": [g1, g2], "columns": 2}),
+    )["changed"]["created"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let v = ok(&mut s, json!({"type": "get_layout", "id": l}));
+    assert_eq!(v["type"], "layout");
+    assert_eq!(v["id"], l.as_str());
+    assert_eq!(v["title"], "Figure 2");
+    assert_eq!(v["graphs"], json!([g1, g2]));
+    assert_eq!(v["columns"], 2);
+    let wide = ok(&mut s, json!({"type": "render_layout", "id": l}))["width_mm"]
+        .as_f64()
+        .unwrap();
+    let r = ok(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": [g2, g1], "columns": 1}),
+    );
+    assert_eq!(r["changed"]["ids"], json!([l]));
+    let v = ok(&mut s, json!({"type": "get_layout", "id": l}));
+    assert_eq!(v["graphs"], json!([g2, g1]));
+    assert_eq!(v["columns"], 1);
+    let narrow = ok(&mut s, json!({"type": "render_layout", "id": l}))["width_mm"]
+        .as_f64()
+        .unwrap();
+    assert!(narrow < wide * 0.6, "{narrow} vs {wide}");
+    // Zero columns means one; unknown graphs are refused.
+    ok(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": [g1], "columns": 0}),
+    );
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_layout", "id": l}))["columns"],
+        1
+    );
+    let e = err(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": ["nope"], "columns": 1}),
+    );
+    assert!(e.contains("no graph"), "{e}");
+    // Undo restores the previous arrangement.
+    ok(&mut s, json!({"type": "undo"}));
+    ok(&mut s, json!({"type": "undo"}));
+    let v = ok(&mut s, json!({"type": "get_layout", "id": l}));
+    assert_eq!(v["graphs"], json!([g1, g2]));
+    assert_eq!(v["columns"], 2);
+    let e = err(&mut s, json!({"type": "get_layout", "id": "nope"}));
+    assert!(e.contains("no layout"), "{e}");
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let dir = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+        let path = dir.path().join("fig.pdf").to_string_lossy().to_string();
+        ok(
+            &mut s,
+            json!({"type": "export_layout_path", "id": l, "format": {"format": "pdf"}, "path": path}),
+        );
+        assert!(std::fs::read(&path).unwrap().starts_with(b"%PDF-1."));
+    }
+}
+
+#[test]
+fn untitled_projects_take_their_file_name() {
+    let mut s = Session::new();
+    create(&mut s, "column", 1, json!({"kind": "values", "n": 1}), 0);
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_project"}))["title"],
+        "Untitled"
+    );
+    let b = ok(&mut s, json!({"type": "save_project_bytes"}));
+    ok(
+        &mut s,
+        json!({"type": "open_project_bytes", "base64": b["base64"], "name": "Cytokine study.dioptra"}),
+    );
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_project"}))["title"],
+        "Cytokine study"
+    );
+    // A named project keeps its name.
+    let b = ok(&mut s, json!({"type": "save_project_bytes"}));
+    ok(
+        &mut s,
+        json!({"type": "open_project_bytes", "base64": b["base64"], "name": "copy.dioptra"}),
+    );
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_project"}))["title"],
+        "Cytokine study"
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let dir = tempfile::tempdir_in(env!("CARGO_TARGET_TMPDIR")).unwrap();
+        let path = dir
+            .path()
+            .join("Trial 3.dioptra")
+            .to_string_lossy()
+            .to_string();
+        let mut s = Session::new();
+        ok(&mut s, json!({"type": "save_project_path", "path": path}));
+        assert_eq!(
+            ok(&mut s, json!({"type": "get_project"}))["title"],
+            "Trial 3"
+        );
+    }
+}
+
+#[test]
+fn coalescing_patches_make_one_undo_step() {
+    let mut s = Session::new();
+    let g = scatter_graph(&mut s);
+    let title =
+        |s: &mut Session| ok(s, json!({"type": "get_graph_spec", "id": g}))["title"].clone();
+    // Typing "Dose", one patch per pause.
+    for t in ["D", "Do", "Dos", "Dose"] {
+        ok(
+            &mut s,
+            json!({"type": "patch_graph", "id": g, "patch": {"title": t}, "coalesce": true}),
+        );
+    }
+    assert_eq!(title(&mut s), "Dose");
+    // Another field starts a new step, even when coalescing.
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"axes": {"y": {"title": "R"}}}, "coalesce": true}),
+    );
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"axes": {"y": {"title": "Rate"}}}, "coalesce": true}),
+    );
+    ok(&mut s, json!({"type": "undo"}));
+    let spec = ok(&mut s, json!({"type": "get_graph_spec", "id": g}));
+    assert!(spec["axes"]["y"].get("title").is_none(), "{spec}");
+    assert_eq!(spec["title"], "Dose");
+    ok(&mut s, json!({"type": "undo"}));
+    assert!(title(&mut s).is_null());
+    // Redo brings the whole word back.
+    ok(&mut s, json!({"type": "redo"}));
+    assert_eq!(title(&mut s), "Dose");
+    // After an undo, a coalescing patch never merges into an older step.
+    ok(&mut s, json!({"type": "undo"}));
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"title": "X"}, "coalesce": true}),
+    );
+    ok(&mut s, json!({"type": "undo"}));
+    assert!(title(&mut s).is_null());
+    // Without the flag (the default) every patch is its own step.
+    for t in ["A", "AB"] {
+        ok(
+            &mut s,
+            json!({"type": "patch_graph", "id": g, "patch": {"title": t}}),
+        );
+    }
+    ok(&mut s, json!({"type": "undo"}));
+    assert_eq!(title(&mut s), "A");
+    // Any other step in between ends the run.
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"title": "P"}, "coalesce": true}),
+    );
+    ok(
+        &mut s,
+        json!({"type": "rename_object", "id": g, "title": "G"}),
+    );
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"title": "PQ"}, "coalesce": true}),
+    );
+    ok(&mut s, json!({"type": "undo"}));
+    assert_eq!(title(&mut s), "P");
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn save_and_open_by_path() {

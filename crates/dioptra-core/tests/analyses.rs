@@ -1283,6 +1283,32 @@ fn survival_gehan_leukaemia() {
         "kaplan_meier"
     );
     ok(&mut s, json!({"type": "render_graph", "id": g}));
+    // At a 90% level the graph draws the analysis's own curves, censor ticks included.
+    let mut spec = ok(&mut s, json!({"type": "get_analysis_spec", "id": a}));
+    spec.as_object_mut().unwrap().remove("type");
+    spec["ci_level"] = json!(0.9);
+    ok(
+        &mut s,
+        json!({"type": "update_analysis", "id": a, "spec": spec}),
+    );
+    let with = ok(&mut s, json!({"type": "render_graph", "id": g}))["svg"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    ok(
+        &mut s,
+        json!({"type": "patch_graph", "id": g, "patch": {"options": {"censor_ticks": false}}}),
+    );
+    let without = ok(&mut s, json!({"type": "render_graph", "id": g}))["svg"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        with.len() > without.len() + 40,
+        "censor ticks on analysis curves: {} vs {} bytes",
+        with.len(),
+        without.len()
+    );
     // A bad event code is named.
     ok(
         &mut s,

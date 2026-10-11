@@ -103,6 +103,15 @@ pub fn survival(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
                 )
             })
             .unzip();
+        let mut censor: Vec<f64> = gr
+            .time
+            .iter()
+            .zip(&gr.event)
+            .filter(|(_, e)| !**e)
+            .map(|(t, _)| *t)
+            .collect();
+        censor.sort_by(f64::total_cmp);
+        censor.dedup();
         view.curves.push(Curve {
             name: gr.name.clone(),
             dataset: Some(gr.dataset),
@@ -111,6 +120,7 @@ pub fn survival(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
             lo,
             hi,
             step: true,
+            censor,
         });
         kms.push(km);
     }
@@ -338,15 +348,13 @@ pub fn survival(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
     s.assumptions.push(independence(
         "Each subject must appear once and be independent of the others.",
     ));
-    // Graph: precomputed curves only when the level is not the plot engine's own 95%
-    // (the plot engine draws censor ticks only for curves it computes itself).
+    // Graph: the analysis's own curves (its CI level and transform, its censoring
+    // times, its at-risk table), so a graph of the analysis shows what the sheet reports.
     let mut ag = graph_for(
         "kaplan_meier",
         &groups.iter().map(|g| Some(g.dataset)).collect::<Vec<_>>(),
     );
-    if (spec.ci_level - 0.95).abs() > 1e-12 {
-        ag.views.push(view);
-    }
+    ag.views.push(view);
     s.graph_family = Some("kaplan_meier".into());
     s.graph = Some(ag);
     Ok(s)

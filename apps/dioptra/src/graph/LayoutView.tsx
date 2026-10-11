@@ -2,17 +2,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { WorkAreaProps } from '../app/workArea';
 import * as obj from '../engine/objects';
-import type { Rendered } from '../engine/objects';
-import type { Id } from '../engine/types';
+import type { LayoutInfo, Rendered } from '../engine/objects';
 import { withEngine } from '../store/engine';
 import { useProject } from '../store/project';
-import { onChanged } from '../store/sync';
-import { exportLayoutDialog, layoutGraphs } from './actions';
+import { mutate, onChanged } from '../store/sync';
+import { exportLayoutDialog } from './actions';
 import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt } from './units';
 
 export function LayoutView({ item }: WorkAreaProps) {
   const id = item.id;
   const [r, setR] = useState<Rendered | null>(null);
+  const [info, setInfo] = useState<LayoutInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const viewRef = useRef<HTMLDivElement>(null);
@@ -20,8 +20,8 @@ export function LayoutView({ item }: WorkAreaProps) {
   const seq = useRef(0);
   const load = useCallback(() => {
     const n = ++seq.current;
-    withEngine((e) => obj.renderLayout(e, id))
-      .then((x) => n === seq.current && (setR(x), setError(null)))
+    withEngine(async (e) => [await obj.renderLayout(e, id), await obj.getLayout(e, id)] as const)
+      .then(([x, l]) => n === seq.current && (setR(x), setInfo(l), setError(null)))
       .catch((err: unknown) => n === seq.current && setError(err instanceof Error ? err.message : String(err)));
   }, [id]);
   useEffect(() => load(), [load]);
@@ -45,13 +45,35 @@ export function LayoutView({ item }: WorkAreaProps) {
   const z = r ? (zoom === 'fit' ? fitZoom(r.width_mm, r.height_mm, view.w, view.h) : zoom) : 1;
   const k = pxPerPt(z);
   const panels = r?.targets.filter((t) => /^panel-\d+$/.test(t.id)) ?? [];
-  const graphs: Id[] = layoutGraphs[id] ?? [];
+  const graphs = info?.graphs ?? [];
+  const setColumns = (columns: number) => {
+    if (!info || columns === info.columns) return;
+    void mutate((e) => obj.updateLayout(e, id, info.graphs, columns));
+  };
   return (
     <div className="graph-editor layout-view" data-testid="layout-view">
       <div className="graph-toolbar" role="toolbar" aria-label="Layout">
         <span className="tb-title">{item.title}</span>
         <span className="muted small">{panels.length ? `${panels.length} panels, lettered in reading order` : ''}</span>
         <span className="tb-gap" />
+        {info && (
+          <label className="tb-field muted small">
+            Columns{' '}
+            <select
+              className="input input-compact"
+              value={info.columns}
+              onChange={(e) => setColumns(Number(e.target.value))}
+              data-testid="layout-columns"
+              aria-label="Columns"
+            >
+              {Array.from({ length: Math.max(1, Math.min(6, info.graphs.length)) }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           type="button"
           className="btn btn-small"

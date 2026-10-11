@@ -23,6 +23,8 @@ export interface AssumptionCheck {
   name: string;
   status: CheckStatus;
   detail: string;
+  /** What to do instead when the check is in doubt or fails. */
+  alternative?: string;
 }
 
 /** Externally tagged: `{"number": {...}}`, `{"p_value": {...}}`, `{"text": "..."}`, `"empty"`. */
@@ -51,6 +53,10 @@ export interface Sheet {
   summary: string[];
   checklist: string[];
   stale: boolean;
+  /** A methods sentence ready to paste (test, sidedness, correction, CI level, version). */
+  methods?: string;
+  /** The family a graph of this analysis gets by default. */
+  graph_family?: string;
 }
 
 /** An analysis spec: `{"kind": "t_test", ...options}`. */
@@ -226,8 +232,9 @@ export async function getGraphSpec(e: Engine, id: Id): Promise<GraphSpecT> {
 export async function updateGraph(e: Engine, id: Id, spec: GraphSpecT): Promise<Changed> {
   return changedOf(await call(e, { type: 'update_graph', id, spec: spec as unknown as JsonObject }));
 }
-export async function patchGraph(e: Engine, id: Id, patch: JsonValue): Promise<Changed> {
-  return changedOf(await call(e, { type: 'patch_graph', id, patch }));
+/** `coalesce`: merge into the previous undo step when it patched the same fields (typing). */
+export async function patchGraph(e: Engine, id: Id, patch: JsonValue, coalesce = false): Promise<Changed> {
+  return changedOf(await call(e, { type: 'patch_graph', id, patch, coalesce }));
 }
 export async function renderGraph(e: Engine, id: Id): Promise<Rendered> {
   return strip(await expectType(e, { type: 'render_graph', id }, 'svg'));
@@ -255,6 +262,21 @@ export async function renderLayout(e: Engine, id: Id): Promise<Rendered> {
 }
 export async function exportLayout(e: Engine, id: Id, format: GraphFormat): Promise<Bytes> {
   return strip(await expectType(e, { type: 'export_layout', id, format }, 'bytes'));
+}
+export async function exportLayoutPath(e: Engine, id: Id, format: GraphFormat, path: string): Promise<Changed> {
+  return changedOf(await call(e, { type: 'export_layout_path', id, format, path }));
+}
+export interface LayoutInfo {
+  id: Id;
+  title: string;
+  graphs: Id[];
+  columns: number;
+}
+export async function getLayout(e: Engine, id: Id): Promise<LayoutInfo> {
+  return strip(await expectType(e, { type: 'get_layout', id }, 'layout'));
+}
+export async function updateLayout(e: Engine, id: Id, graphs: Id[], columns: number): Promise<Changed> {
+  return changedOf(await call(e, { type: 'update_layout', id, graphs, columns }));
 }
 
 // ---- transforms ----

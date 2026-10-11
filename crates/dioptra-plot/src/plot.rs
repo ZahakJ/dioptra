@@ -2872,7 +2872,8 @@ fn add_brackets(ctx: &Ctx<'_>, plot: &mut Plot, sy: Scale, ey: (f64, f64)) {
     }
     let tops = category_tops(&plot.layers, n, sy);
     let range = if ey.1 > ey.0 { ey.1 - ey.0 } else { 1.0 };
-    let step = range * 0.09;
+    // One bracket per step: the label above a line plus the end ticks of the next line up.
+    let step = range * 0.105;
     let gap = range * 0.05;
     let mut order: Vec<usize> = (0..brackets.len()).collect();
     order.sort_by_key(|i| (brackets[*i].2 - brackets[*i].1, brackets[*i].1));

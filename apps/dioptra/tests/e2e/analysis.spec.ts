@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { analysisImplemented, boot, clickCell, mod, threeGroupTable } from './helpers';
+import { expect, test, type Page } from '@playwright/test';
+import { boot, cell, clickCell, mod, newColumnTable, pasteIntoGrid, threeGroupTable } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await boot(page);
@@ -60,10 +60,6 @@ test('(a) Analyze a three-group column table: descriptive statistics show the me
 
 test('(g) t test on two columns: the summary reports t(df) and a p value', async ({ page }) => {
   await threeGroupTable(page);
-  test.skip(
-    !(await analysisImplemented(page, 't_test')),
-    'The statistics glue (crates/dioptra-core analysis glue) has not landed in this engine build: the t test sheet still says "not available in this build yet".',
-  );
   await page.getByTestId('tool-analyze').click();
   await page.getByTestId('analysis-t_test').click();
   await expect(page.getByTestId('options-panel')).toContainText('Welch');
@@ -71,21 +67,156 @@ test('(g) t test on two columns: the summary reports t(df) and a p value', async
   const summary = page.getByTestId('sheet-summary');
   await expect(summary).toContainText('t(');
   await expect(summary).toContainText(/\bp\s*[=<>]\s*\.?\d/);
+  // The methods line sits under the title, ready to paste.
+  await expect(page.getByTestId('sheet-methods')).toContainText('t test');
+  await expect(page.getByTestId('sheet-methods')).toContainText('Dioptra');
+  // Make graph: a column graph with the engine's one bracket.
+  await page.getByTestId('sheet-make-graph').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+  await expect(page.getByTestId('tb-family')).toHaveValue('column');
+  await expect.poll(() => bracketIds(page)).toEqual(['annotation-0']);
 });
 
-test('(h) one-way ANOVA with Tukey: a multiple-comparisons table', async ({ page }) => {
+test('(h) one-way ANOVA with Tukey: a multiple-comparisons table and a graph with brackets', async ({ page }) => {
   await threeGroupTable(page);
-  test.skip(
-    !(await analysisImplemented(page, 'one_way_anova')),
-    'The statistics glue (crates/dioptra-core analysis glue) has not landed in this engine build: one-way ANOVA still says "not available in this build yet".',
-  );
   await page.getByTestId('tool-analyze').click();
   await page.getByTestId('analysis-one_way_anova').click();
   await expect(page.getByTestId('posthoc-method')).toHaveValue('tukey');
   await page.getByTestId('analysis-run').click();
   await expect(page.getByTestId('results-sheet')).toBeVisible();
-  await expect(page.locator('.sheet-section h2', { hasText: /compar/i })).toBeVisible();
-  // Three groups: three pairwise comparisons.
+  await expect(page.getByTestId('sheet-summary')).toContainText('F(2, 6)');
   const sec = page.locator('.sheet-section', { has: page.locator('h2', { hasText: /compar/i }) });
+  await expect(sec).toBeVisible();
+  // Three groups: three pairwise comparisons, each "A vs. B" with an adjusted p.
   await expect(sec.locator('tbody tr')).toHaveCount(3);
+  await expect(sec.locator('tbody tr').nth(0).locator('td').nth(0)).toContainText(' vs');
+  await expect(sec.locator('thead')).toContainText('Adjusted P');
+  const adj = sec.locator('thead th').filter({ hasText: /^Adjusted P$/ });
+  await expect(adj).toHaveCount(1);
+  // Make graph: one bracket per comparison, from the engine only (no second set from the UI).
+  await page.getByTestId('sheet-make-graph').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+  await expect(page.getByTestId('tb-family')).toHaveValue('column');
+  await expect.poll(async () => (await bracketIds(page)).sort()).toEqual(['annotation-0', 'annotation-1', 'annotation-2']);
+  const spec = await graphSpecOfActive(page);
+  expect(spec.annotations.filter((a: { kind: string }) => a.kind === 'significance_bracket')).toHaveLength(3);
 });
+
+test('(i) XY table: nonlinear regression 4PL gives LogEC50 and EC50, and the graph draws the curve with its band', async ({ page }) => {
+  await newColumnTable(page, 'xy');
+  await clickCell(page, 0, 0);
+  await pasteIntoGrid(page, DOSE_RESPONSE);
+  await expect(cell(page, 7, 2)).toHaveText('96.1');
+  await page.getByTestId('tool-analyze').click();
+  await page.getByTestId('analysis-nonlinear_regression').click();
+  await page.getByTestId('analysis-run').click();
+  const sheet = page.getByTestId('results-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText('LogEC50');
+  await expect(sheet).toContainText('EC50');
+  // Parameters come with confidence intervals.
+  await expect(sheet.locator('th', { hasText: /95% CI|Lower 95%/ }).first()).toBeVisible();
+  await page.getByTestId('sheet-make-graph').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="curve-"] :is(path, polyline)').length))
+    .toBeGreaterThan(0);
+  // The confidence band is a filled shape under each curve.
+  await expect
+    .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="curve-"] :is(path, polygon)').length))
+    .toBeGreaterThan(0);
+});
+
+test('(j) survival table: Kaplan-Meier with log-rank, step curves on the graph', async ({ page }) => {
+  await newColumnTable(page, 'survival');
+  await clickCell(page, 0, 0);
+  await pasteIntoGrid(page, SURVIVAL);
+  await page.getByTestId('tool-analyze').click();
+  await page.getByTestId('analysis-survival').click();
+  await page.getByTestId('analysis-run').click();
+  const sheet = page.getByTestId('results-sheet');
+  await expect(sheet).toContainText('Log-rank');
+  await expect(sheet).toContainText('Median survival');
+  await page.getByTestId('sheet-make-graph').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+  await expect(page.getByTestId('tb-family')).toHaveValue('kaplan_meier');
+  await expect
+    .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="series-"] :is(path, polyline)').length))
+    .toBeGreaterThan(1);
+  // The number-at-risk table sits under the axis.
+  await expect.poll(() => page.evaluate(() => document.querySelector('[data-testid="graph-svg"] svg')?.textContent ?? '')).toContain('at risk');
+});
+
+test('(k) a skewed group fails the normality check and the sheet offers an alternative', async ({ page }) => {
+  await newColumnTable(page, 'column');
+  await clickCell(page, 0, 0);
+  await pasteIntoGrid(page, SKEWED);
+  await page.getByTestId('tool-analyze').click();
+  await page.getByTestId('analysis-t_test').click();
+  await page.getByTestId('analysis-run').click();
+  const checks = page.getByTestId('sheet-assumptions');
+  await expect(checks).toBeVisible();
+  const doubt = checks.locator('.check[data-status="fail"], .check[data-status="caution"]');
+  await expect(doubt.first()).toBeVisible();
+  await expect(doubt.first().getByTestId('check-alternative')).toBeVisible();
+  await expect(checks.getByTestId('check-alternative').first()).toContainText(/Mann|rank|Welch|transform/i);
+});
+
+test('(l) ROC curve: the sheet reports the area and the graph draws the curve', async ({ page }) => {
+  await newColumnTable(page, 'column');
+  await clickCell(page, 0, 0);
+  await pasteIntoGrid(page, ROC);
+  await page.getByTestId('tool-analyze').click();
+  await page.getByTestId('analysis-roc').click();
+  await page.getByTestId('analysis-run').click();
+  const sheet = page.getByTestId('results-sheet');
+  await expect(sheet).toContainText(/Area/);
+  await page.getByTestId('sheet-make-graph').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+  await expect(page.getByTestId('tb-family')).toHaveValue('roc');
+  await expect
+    .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="series-"] :is(path, polyline)').length))
+    .toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => document.querySelector('[data-testid="graph-svg"] svg')?.textContent ?? '')).toContain('AUC');
+});
+
+/** Ids of the bracket layers in the graph on screen. */
+function bracketIds(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="graph-svg"] [id^="annotation-"]')].map((e) => e.id).filter((i) => /^annotation-\d+$/.test(i)),
+  );
+}
+
+async function graphSpecOfActive(page: Page): Promise<{ annotations: { kind: string }[] }> {
+  return page.evaluate(async () => {
+    const d = window.__dioptra!;
+    const p = (await d.dispatch({ type: 'get_project' })) as { items: { id: string; kind: string }[] };
+    const g = p.items.filter((i) => i.kind === 'graph').pop()!;
+    const s = (await d.dispatch({ type: 'get_graph_spec', id: g.id })) as { annotations?: { kind: string }[] };
+    return { annotations: s.annotations ?? [] };
+  });
+}
+
+// log10 dose (M), then two replicates of % response.
+const DOSE_RESPONSE = [
+  '-9\t2.1\t3.4',
+  '-8.5\t4.8\t6.0',
+  '-8\t12.6\t10.9',
+  '-7.5\t31.2\t28.7',
+  '-7\t58.4\t61.0',
+  '-6.5\t81.3\t79.2',
+  '-6\t92.7\t91.5',
+  '-5.5\t97.0\t96.1',
+].join('\n');
+
+// Months; 1 = death, 0 = censored; one subject per row.
+const SURVIVAL = [
+  '3\t1\t', '5\t1\t', '7\t0\t', '9\t1\t', '12\t1\t', '14\t0\t', '17\t1\t', '21\t0\t', '24\t1\t', '30\t0\t',
+  '6\t\t0', '10\t\t1', '15\t\t0', '19\t\t1', '23\t\t0', '27\t\t1', '31\t\t0', '34\t\t0', '36\t\t1', '40\t\t0',
+].join('\n');
+
+// Group A has one value far above the rest.
+const SKEWED = ['2.1\t3.1', '2.3\t3.4', '2.2\t2.9', '2.4\t3.3', '2.0\t3.0', '2.5\t3.2', '2.2\t3.5', '19.8\t3.1'].join('\n');
+
+// Controls, patients (a marker that runs higher in patients).
+const ROC = ['1.2\t2.4', '1.8\t3.1', '2.1\t2.2', '1.5\t3.8', '2.6\t2.9', '1.1\t4.1', '2.0\t3.3', '1.7\t2.7', '2.3\t3.6', '1.4\t1.9'].join('\n');

@@ -156,6 +156,11 @@ function SheetPane({
         <header className="sheet-head">
           <h1 data-testid="sheet-title">{sheet.title || title}</h1>
           <p className="sheet-method">{method}</p>
+          {sheet.methods && (
+            <p className="sheet-methods" data-testid="sheet-methods">
+              {sheet.methods}
+            </p>
+          )}
         </header>
         {sheet.stale && (
           <div className="sheet-stale" role="status" data-testid="sheet-stale">
@@ -225,6 +230,11 @@ function Assumptions({ sheet }: { sheet: Sheet }) {
                   <span className="check-status">{STATUS_LABEL[a.status]}</span>
                 </div>
                 <p className="check-detail">{a.detail}</p>
+                {a.alternative && (
+                  <p className="check-alt" data-testid="check-alternative">
+                    {a.alternative}
+                  </p>
+                )}
               </div>
             </li>
           ))}

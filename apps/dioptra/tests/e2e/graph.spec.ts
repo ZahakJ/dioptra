@@ -110,3 +110,55 @@ test('(f) undo removes the last graph edit', async ({ page }) => {
   await page.keyboard.press(`${mod}+Shift+z`);
   await expect.poll(() => svgText(page, 'title')).toBe('Undo me');
 });
+
+test('(e3) a layout changes its columns, survives save and reopen, and opens a panel graph', async ({ page }, info) => {
+  await threeGroupTable(page);
+  await newGraphOf(page, 'column');
+  await page.getByTestId('tab-Table 1').click();
+  await newGraphOf(page, 'box');
+  await page.getByTestId('open-palette').click();
+  await page.keyboard.type('New layout');
+  await page.keyboard.press('Enter');
+  await page.getByTestId('layout-create').click();
+  await expect(page.getByTestId('layout-panel-1')).toBeVisible();
+  const box = async (i: number) => (await page.getByTestId(`layout-panel-${i}`).boundingBox())!;
+  // Two columns: side by side. One column: stacked.
+  await expect(page.getByTestId('layout-columns')).toHaveValue('2');
+  expect((await box(1)).x).toBeGreaterThan((await box(0)).x + 10);
+  await page.getByTestId('layout-columns').selectOption('1');
+  await expect.poll(async () => (await box(1)).y > (await box(0)).y + 10).toBe(true);
+  // Save, start over, reopen: the layout knows its graphs from the engine.
+  const download = page.waitForEvent('download');
+  await page.keyboard.press(`${mod}+s`);
+  const file = await download;
+  const path = info.outputPath(file.suggestedFilename());
+  await file.saveAs(path);
+  await page.getByTestId('menubar-File').click();
+  await page.getByTestId('menu-file.new').click();
+  await expect(page.getByTestId('rail-item-Layout 1')).toHaveCount(0);
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByTestId('menubar-File').click();
+  await page.getByTestId('menu-file.open').click();
+  await (await chooser).setFiles(path);
+  await page.getByTestId('rail-item-Layout 1').click();
+  await expect(page.getByTestId('layout-columns')).toHaveValue('1');
+  await page.getByTestId('layout-panel-1').dblclick();
+  await expect(page.getByTestId('tb-family')).toHaveValue('box');
+});
+
+test('(f2) typing a title with pauses is one undo step', async ({ page }) => {
+  await threeGroupTable(page);
+  await newGraphOf(page, 'column');
+  const field = page.getByTestId('g-title');
+  await field.click();
+  // Pauses longer than the 150 ms debounce: one patch per word reaches the engine.
+  for (const w of ['Plasma', ' IL-6', ' levels']) {
+    await field.pressSequentially(w);
+    await page.waitForTimeout(300);
+  }
+  await expect.poll(() => svgText(page, 'title')).toBe('Plasma IL-6 levels');
+  await page.getByTestId('graph-view').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press(`${mod}+z`);
+  await expect.poll(() => svgText(page, 'title')).toBeNull();
+  await expect(field).toHaveValue('');
+});

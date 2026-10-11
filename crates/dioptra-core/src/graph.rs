@@ -669,7 +669,8 @@ mod tests {
             .render_layout(&[(spec.clone(), data.clone()), (spec, data)], 2)
             .unwrap();
         assert_eq!(page.svg.matches("<circle").count(), 6);
-        assert!((page.width_mm - 170.0).abs() < 1e-6);
+        let gutter_mm = dioptra_plot::compose::letter_gutter(2, true) * 25.4 / 72.0;
+        assert!((page.width_mm - 2.0 * (85.0 + gutter_mm)).abs() < 1e-6);
     }
 
     #[test]
