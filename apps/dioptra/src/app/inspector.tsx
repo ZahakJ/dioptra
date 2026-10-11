@@ -1,8 +1,9 @@
 // The inspector: a column of collapsible sections, each registered with a predicate that says
 // when it applies. Phase 5B registers analysis options and graph properties sections here.
-import { useState, useSyncExternalStore, type ComponentType } from 'react';
+import { useSyncExternalStore, type ComponentType } from 'react';
 import type { Id, ProjectItem } from '../engine/types';
 import { useActiveItem } from '../store/project';
+import { useUi } from '../store/ui';
 import { ChevronIcon } from './icons';
 
 export interface InspectorContext {
@@ -66,7 +67,7 @@ export function Inspector() {
     }
   });
   return (
-    <aside className="inspector" aria-label="Inspector" data-testid="inspector">
+    <aside className="inspector scroll-area" aria-label="Inspector" data-testid="inspector">
       {shown.map((s) => (
         <Section key={s.id} section={s} ctx={ctx} />
       ))}
@@ -75,12 +76,15 @@ export function Inspector() {
 }
 
 function Section({ section, ctx }: { section: InspectorSection; ctx: InspectorContext }) {
-  const [open, setOpen] = useState(!section.collapsed);
+  // Open or closed is remembered per section across launches.
+  const key = `insp:${section.id}`;
+  const stored = useUi((s) => s.collapsed[key]);
+  const open = !(stored ?? !!section.collapsed);
   const C = section.component;
   return (
-    <section className="insp-section" data-testid={`insp-${section.id}`}>
-      <button type="button" className="insp-head" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <ChevronIcon open={open} size={10} />
+    <section className={'insp-section' + (open ? ' is-open' : '')} data-testid={`insp-${section.id}`}>
+      <button type="button" className="insp-head" aria-expanded={open} onClick={() => useUi.getState().setCollapsed(key, open)}>
+        <ChevronIcon open={open} size={14} />
         <span>{section.title}</span>
       </button>
       {open && (

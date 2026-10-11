@@ -50,3 +50,17 @@ export async function newGraphOf(page: Page, family = 'column'): Promise<void> {
   await page.getByTestId('new-graph-create').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
 }
+
+/** Run a command through the top bar's Menu button: Menu, then the group, then the item. */
+export async function menu(page: Page, group: string, id: string): Promise<void> {
+  await page.getByTestId('app-menu').click();
+  await page.getByTestId(`menubar-${group}`).click();
+  await page.getByTestId(`menu-${id}`).click();
+}
+
+/** Choose an option of one of the app's Select controls (a button and a popover list). */
+export async function choose(page: Page, testId: string, value: string): Promise<void> {
+  await page.getByTestId(testId).click();
+  await page.getByTestId(`${testId}-option-${value}`).click();
+  await expect(page.getByTestId(testId)).toHaveAttribute('data-value', value);
+}

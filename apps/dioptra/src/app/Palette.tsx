@@ -5,7 +5,7 @@ import { useProject } from '../store/project';
 import { useUi } from '../store/ui';
 import { commands } from './commands';
 import { fuzzyFilter } from './fuzzy';
-import { ITEM_ICONS, SearchIcon } from './icons';
+import { ItemIcon, MENU_ICONS, SearchIcon } from './icons';
 import { formatShortcut } from './keys';
 
 interface Entry {
@@ -63,17 +63,17 @@ function PaletteBody() {
         shortcut: c.shortcut,
         keywords: c.keywords ?? [],
         disabled: !commands.isEnabled(c),
+        icon: c.menu ? MENU_ICONS[c.menu] : undefined,
         run: () => commands.run(c.id),
       }));
     const objs: Entry[] = items.map((it) => {
-      const Icon = ITEM_ICONS[it.kind];
       return {
         key: `open:${it.id}`,
         title: `Go to ${it.title}`,
-        detail: it.kind,
+        detail: it.kind === 'table' ? 'Table' : it.kind === 'analysis' ? 'Analysis' : it.kind === 'graph' ? 'Graph' : 'Layout',
         keywords: [it.title],
         disabled: false,
-        icon: <Icon />,
+        icon: <ItemIcon item={it} />,
         run: () => useProject.getState().open(it.id),
       };
     });
@@ -104,9 +104,9 @@ function PaletteBody() {
 
   return (
     <div className="palette-scrim" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="palette popover" role="dialog" aria-label="Command palette" data-testid="palette">
+      <div className="palette" role="dialog" aria-label="Command palette" data-testid="palette">
         <div className="palette-input">
-          <SearchIcon />
+          <SearchIcon size={18} />
           <input
             ref={inputRef}
             value={q}
@@ -143,7 +143,7 @@ function PaletteBody() {
             }}
           />
         </div>
-        <div className="palette-list" role="listbox" id="palette-list" ref={listRef}>
+        <div className="palette-list scroll-area" role="listbox" id="palette-list" ref={listRef}>
           {ranked.length === 0 && <div className="palette-empty">No command matches "{q}".</div>}
           {ranked.map((r, i) => (
             <div
@@ -164,9 +164,21 @@ function PaletteBody() {
                 <Highlight text={r.item.title} positions={r.match.positions} />
               </span>
               <span className="palette-detail">{r.item.detail}</span>
-              {r.item.shortcut && <kbd className="menu-kbd">{formatShortcut(r.item.shortcut)}</kbd>}
+              {r.item.shortcut && <kbd className="kbd">{formatShortcut(r.item.shortcut)}</kbd>}
             </div>
           ))}
+        </div>
+        <div className="palette-foot" aria-hidden="true">
+          <span>
+            <kbd className="kbd">↑↓</kbd> move
+          </span>
+          <span>
+            <kbd className="kbd">Enter</kbd> run
+          </span>
+          <span>
+            <kbd className="kbd">Esc</kbd> close
+          </span>
+          <span className="palette-count">{ranked.length} {ranked.length === 1 ? 'result' : 'results'}</span>
         </div>
       </div>
     </div>

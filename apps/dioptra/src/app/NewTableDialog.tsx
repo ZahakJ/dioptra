@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { SubcolumnFormat, TableKind } from '../engine/types';
+import { Button, Field, NumberField, Select, TextInput } from '../ui';
 import { DialogHeader } from './dialogs';
+import { KIND_ICONS } from './icons';
 import { KINDS, kindInfo, type KindInfo } from './kinds';
 import { FORMAT_CHOICES } from '../grid/actions';
 
@@ -63,7 +65,12 @@ export function KindPicker({
           }}
         >
           <span className="kind-name">
-            <span className="kind-radio" aria-hidden="true">{value === k.kind ? '●' : '○'}</span>
+            <span className="kind-glyph" aria-hidden="true">
+              {(() => {
+                const G = KIND_ICONS[k.kind];
+                return <G />;
+              })()}
+            </span>
             {k.name}
             {suggested === k.kind && <span className="tag">Suggested</span>}
           </span>
@@ -105,7 +112,7 @@ export function NewTableDialog({ close }: { close: (spec: NewTableSpec | null) =
         submit();
       }}
     >
-      <DialogHeader title="New table" sub="The kind decides which analyses and graphs fit. You can paste data in any kind." />
+      <DialogHeader title="New table" sub="The kind decides which analyses and graphs fit. You can paste data in any kind." onClose={() => close(null)} />
       <KindPicker
         value={kind}
         onChange={(k) => {
@@ -116,44 +123,44 @@ export function NewTableDialog({ close }: { close: (spec: NewTableSpec | null) =
         }}
       />
       <div className="form-row">
-        <label className="field">
-          <span className="field-label">Title</span>
-          <input className="input" value={title} placeholder="Automatic" onChange={(e) => setTitle(e.target.value)} data-testid="new-table-title" />
-        </label>
-        <label className="field field-num">
-          <span className="field-label">{info.datasetWord}</span>
-          <input className="input num" inputMode="numeric" value={nDatasets} onChange={(e) => setDatasets(e.target.value)} />
-        </label>
-        <label className="field field-num">
-          <span className="field-label">Rows</span>
-          <input className="input num" inputMode="numeric" value={rows} onChange={(e) => setRows(e.target.value)} />
-        </label>
+        <Field label="Title">
+          {(lid) => <TextInput aria-labelledby={lid} value={title} placeholder="Automatic" onChange={(e) => setTitle(e.target.value)} testId="new-table-title" />}
+        </Field>
+        <Field label={info.datasetWord} className="field-num">
+          {(lid) => (
+            <NumberField key={`ds-${kind}`} size="md" labelledBy={lid} value={Number(nDatasets)} min={1} max={500} integer nullable={false} onText={(t) => setDatasets(t)} testId="new-table-datasets" />
+          )}
+        </Field>
+        <Field label="Rows" className="field-num">
+          {(lid) => <NumberField size="md" labelledBy={lid} value={Number(rows)} min={0} max={1_000_000} integer nullable={false} step={10} onText={(t) => setRows(t)} testId="new-table-rows" />}
+        </Field>
         {info.formats && (
-          <label className="field">
-            <span className="field-label">Subcolumns</span>
-            <select className="input" value={fk} onChange={(e) => setFormatKind(e.target.value as SubcolumnFormat['kind'])}>
-              {FORMAT_CHOICES.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Field label="Subcolumns">
+            {(lid) => (
+              <Select
+                size="md"
+                labelledBy={lid}
+                value={fk}
+                testId="new-table-format"
+                options={FORMAT_CHOICES.map((f) => ({ value: f.value, label: f.label }))}
+                onChange={(v) => setFormatKind(v)}
+              />
+            )}
+          </Field>
         )}
         {info.formats && fk === 'values' && (
-          <label className="field field-num">
-            <span className="field-label">Replicates</span>
-            <input className="input num" inputMode="numeric" value={reps} onChange={(e) => setReplicates(e.target.value)} />
-          </label>
+          <Field label="Replicates" className="field-num">
+            {(lid) => (
+              <NumberField key={`rep-${kind}`} size="md" labelledBy={lid} value={Number(reps)} min={1} max={100} integer nullable={false} onText={(t) => setReplicates(t)} testId="new-table-replicates" />
+            )}
+          </Field>
         )}
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!valid} data-testid="new-table-create">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!valid} testId="new-table-create">
           Create table
-        </button>
+        </Button>
       </footer>
     </form>
   );

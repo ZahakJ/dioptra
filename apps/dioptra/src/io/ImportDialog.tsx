@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { DecimalMark, PasteOptions, Separator, TableKind } from '../engine/types';
 import { DialogHeader } from '../app/dialogs';
+import { Button, Field, RadioRow, Segmented, TextArea, TextInput } from '../ui';
 import { KindPicker } from '../app/NewTableDialog';
 import { kindInfo } from '../app/kinds';
 import { parsePreview, suggestKind } from './preview';
@@ -46,49 +47,66 @@ export function PasteImportDialog({
       <DialogHeader title="Paste as new table" sub="Paste raw text from a plate reader, a lab notebook or a spreadsheet. Text cells are kept as text." />
       <div className="import-split">
         <div className="import-left">
-          <label className="field">
-            <span className="field-label">Text</span>
-            <textarea
-              className="input mono import-text"
-              value={text}
-              spellCheck={false}
-              placeholder="Paste here (Ctrl+V)"
-              onChange={(e) => setText(e.target.value)}
-              data-testid="paste-import-text"
-            />
-          </label>
-          <div className="form-row">
-            <label className="field">
-              <span className="field-label">Separator</span>
-              <select className="input" value={separator} onChange={(e) => setSeparator(e.target.value as Separator)}>
-                <option value="auto">Detect ({sepName})</option>
-                <option value="tab">Tab</option>
-                <option value="comma">Comma</option>
-                <option value="semicolon">Semicolon</option>
-                <option value="whitespace">Spaces</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="field-label">Decimal mark</span>
-              <select className="input" value={decimal} onChange={(e) => setDecimal(e.target.value as DecimalMark)}>
-                <option value="auto">Detect ({preview.decimal === 'comma' ? 'comma' : 'point'})</option>
-                <option value="point">Point (1.5)</option>
-                <option value="comma">Comma (1,5)</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="field-label">First row</span>
-              <select className="input" value={header} onChange={(e) => setHeader(e.target.value as 'auto' | 'yes' | 'no')}>
-                <option value="auto">Detect ({preview.header ? 'header' : 'data'})</option>
-                <option value="yes">Header</option>
-                <option value="no">Data</option>
-              </select>
-            </label>
+          <Field label="Text">
+            {(lid) => (
+              <TextArea
+                mono
+                aria-labelledby={lid}
+                className="import-text"
+                value={text}
+                placeholder="Paste here (Ctrl+V)"
+                onChange={(e) => setText(e.target.value)}
+                testId="paste-import-text"
+              />
+            )}
+          </Field>
+          <div className="import-opts">
+            <Field label="Separator">
+              {(lid) => (
+                <Segmented
+                  labelledBy={lid}
+                  value={separator}
+                  onChange={setSeparator}
+                  choices={[
+                    { value: 'auto' as Separator, label: 'Detect', hint: `Detected: ${sepName}` },
+                    { value: 'tab' as Separator, label: 'Tab' },
+                    { value: 'comma' as Separator, label: 'Comma' },
+                    { value: 'semicolon' as Separator, label: 'Semicolon' },
+                    { value: 'whitespace' as Separator, label: 'Spaces' },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="Decimal mark">
+              {(lid) => (
+                <Segmented
+                  labelledBy={lid}
+                  value={decimal}
+                  onChange={setDecimal}
+                  choices={[
+                    { value: 'auto' as DecimalMark, label: 'Detect', hint: `Detected: ${preview.decimal === 'comma' ? 'comma' : 'point'}` },
+                    { value: 'point' as DecimalMark, label: <span className="mono">1.5</span>, aria: 'Point' },
+                    { value: 'comma' as DecimalMark, label: <span className="mono">1,5</span>, aria: 'Comma' },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="First row">
+              {(lid) => (
+                <Segmented
+                  labelledBy={lid}
+                  value={header}
+                  onChange={setHeader}
+                  choices={[
+                    { value: 'auto' as const, label: 'Detect', hint: `Detected: ${preview.header ? 'header' : 'data'}` },
+                    { value: 'yes' as const, label: 'Header' },
+                    { value: 'no' as const, label: 'Data' },
+                  ]}
+                />
+              )}
+            </Field>
           </div>
-          <label className="field">
-            <span className="field-label">Title</span>
-            <input className="input" value={title} placeholder="Automatic" onChange={(e) => setTitle(e.target.value)} />
-          </label>
+          <Field label="Title">{(lid) => <TextInput aria-labelledby={lid} value={title} placeholder="Automatic" onChange={(e) => setTitle(e.target.value)} />}</Field>
         </div>
         <div className="preview" aria-label="Preview of the first rows">
           <div className="preview-caption">
@@ -128,12 +146,10 @@ export function PasteImportDialog({
         <KindPicker value={chosen} onChange={setKind} suggested={suggestion.kind} compact />
       </div>
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={!text.trim()} data-testid="paste-import-create">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary" disabled={!text.trim()} testId="paste-import-create">
           Create table
-        </button>
+        </Button>
       </footer>
     </form>
   );
@@ -158,21 +174,15 @@ export function FileImportDialog({ close }: { close: (spec: FileImportSpec | nul
         sub="CSV, TSV and text files, Excel (xlsx, xls), OpenDocument (ods) and Prism (pzfx). Workbooks and Prism files keep their own structure."
       />
       <div className="field-label">Table kind for delimited text</div>
-      <label className="choice">
-        <input type="radio" checked={kind === 'detect'} onChange={() => setKind('detect')} />
-        <span>
-          <span className="choice-title">Decide from the file</span>
-          <span className="choice-hint">A multiple-variables table unless the file says otherwise.</span>
-        </span>
-      </label>
+      <RadioRow checked={kind === 'detect'} onSelect={() => setKind('detect')} hint="A multiple-variables table unless the file says otherwise.">
+        Decide from the file
+      </RadioRow>
       <KindPicker value={kind === 'detect' ? ('' as TableKind) : kind} onChange={setKind} compact />
       <footer className="modal-foot">
-        <button type="button" className="btn" onClick={() => close(null)}>
-          Cancel
-        </button>
-        <button type="submit" className="btn btn-primary">
+        <Button onClick={() => close(null)}>Cancel</Button>
+        <Button type="submit" variant="primary">
           Choose file
-        </button>
+        </Button>
       </footer>
     </form>
   );

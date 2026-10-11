@@ -2,13 +2,14 @@
 // at 96 dpi), with a transparent overlay of the engine's hit-test targets. Click selects (the
 // inspector follows), double-click rewrites text in place, drag moves the legend and text.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { showContextMenu } from '../app/ContextMenu';
+import { ChevronDown, Download, Maximize, Minus, Plus } from 'lucide-react';
+import { Button, Checkbox, Menu, Segmented, Select } from '../ui';
 import type { WorkAreaProps } from '../app/workArea';
 import type { Annotation, GraphSpecT } from '../engine/objects';
 import type { Id, JsonValue, Target } from '../engine/types';
 import { useTableMeta } from '../store/table';
 import { addBracket, addReferenceLine, addText, customSize, exportGraphDialog, sourceTableId, tableMeta } from './actions';
-import { ERROR_BARS, familiesFor, familyName, PALETTES, SIZE_PRESETS, THEMES } from './families';
+import { ERROR_BARS, familiesFor, familyName, PALETTES, paletteColours, SIZE_PRESETS, THEMES } from './families';
 import { getPath } from './patch';
 import { loadGraph, listenForGraphChanges, selectTarget, setGraphValue, setZoom, useGraph, type Zoom } from './store';
 import { axisMap, moveBy, tidy } from './svgAxes';
@@ -49,91 +50,105 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
   const fam = families.includes(spec.family) ? families : [spec.family, ...families];
   const s = spec.style.size_mm;
   const preset = SIZE_PRESETS.find((p) => p.width === s.width && p.height === s.height);
-  const addMenu = (e: React.MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    showContextMenu(r.left, r.bottom + 4, [
-      { label: 'Significance bracket…', testId: 'add-bracket', run: () => addBracket(id) },
-      { label: 'Reference line…', testId: 'add-refline', run: () => addReferenceLine(id) },
-      { label: 'Text…', testId: 'add-text', run: () => addText(id) },
-    ], 'Add');
-  };
   return (
     <div className="graph-toolbar" role="toolbar" aria-label="Graph">
-      <select className="input input-compact tb-family" aria-label="Graph family" title="Graph family" value={spec.family} data-testid="tb-family" onChange={(e) => void setGraphValue(id, '/family', e.target.value)}>
-        {fam.map((f) => (
-          <option key={f} value={f}>
-            {familyName(f)}
-          </option>
-        ))}
-      </select>
-      <select
-        className="input input-compact"
-        aria-label="Size"
-        title="Size"
-        data-testid="tb-size"
+      <Select
+        className="tb-family"
+        label="Graph family"
+        tipText="Graph family"
+        value={spec.family}
+        testId="tb-family"
+        options={fam.map((f) => ({ value: f, label: familyName(f) }))}
+        onChange={(v) => void setGraphValue(id, '/family', v)}
+      />
+      <Select
+        label="Size"
+        tipText="Size"
+        testId="tb-size"
         value={preset?.id ?? 'custom'}
-        onChange={(e) => {
-          const p = SIZE_PRESETS.find((x) => x.id === e.target.value);
+        display={<span className="mono">{`${s.width} × ${s.height} mm`}</span>}
+        options={[
+          ...SIZE_PRESETS.map((p) => ({ value: p.id, label: p.label.replace(/,.*$/, ''), secondary: `${p.width} × ${p.height} mm` })),
+          { value: 'custom', label: 'Custom…', secondary: preset ? undefined : `${s.width} × ${s.height} mm` },
+        ]}
+        onChange={(v) => {
+          const p = SIZE_PRESETS.find((x) => x.id === v);
           if (p) void setGraphValue(id, '/style/size_mm', { width: p.width, height: p.height });
           else void customSize(id);
         }}
-      >
-        {SIZE_PRESETS.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.width} × {p.height} mm
-          </option>
-        ))}
-        <option value="custom">{preset ? 'Custom…' : `${s.width} × ${s.height} mm`}</option>
-      </select>
+      />
       <span className="tb-sep" />
-      <select className="input input-compact" aria-label="Theme" title="Theme" value={spec.style.theme} data-testid="tb-theme" onChange={(e) => void setGraphValue(id, '/style/theme', e.target.value)}>
-        {THEMES.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
-          </option>
-        ))}
-      </select>
-      <select
-        className="input input-compact"
-        aria-label="Palette"
-        title="Palette"
+      <Select label="Theme" tipText="Figure theme" value={spec.style.theme} testId="tb-theme" options={THEMES} onChange={(v) => void setGraphValue(id, '/style/theme', v)} />
+      <Select
+        label="Palette"
+        tipText="Palette"
         value={spec.style.palette ?? ''}
-        data-testid="tb-palette"
-        onChange={(e) => void setGraphValue(id, '/style/palette', e.target.value || null)}
-      >
-        <option value="">Okabe–Ito (default)</option>
-        {PALETTES.filter((p) => p.value !== 'okabe_ito').map((p) => (
-          <option key={p.value} value={p.value}>
-            {p.label}
-          </option>
-        ))}
-      </select>
+        className="tb-palette"
+        display={<span className="sw-strip tb-strip">{paletteColours(spec.style.palette).slice(0, 8).map((c, i) => <i key={i} style={{ background: c }} />)}</span>}
+        testId="tb-palette"
+        options={[
+          { value: '', label: 'Okabe–Ito (default)', swatches: paletteColours(undefined) },
+          ...PALETTES.filter((p) => p.value !== 'okabe_ito').map((p) => ({ value: p.value, label: p.label, swatches: p.colours })),
+        ]}
+        onChange={(v) => void setGraphValue(id, '/style/palette', v || null)}
+      />
       <span className="tb-sep" />
-      <label className="tb-labelled">
-        <span>Error bars</span>
-        <select className="input input-compact" aria-label="Error bars" value={spec.mapping.error_bars} data-testid="tb-errorbars" onChange={(e) => void setGraphValue(id, '/mapping/error_bars', e.target.value)}>
-          {ERROR_BARS.map((b) => (
-            <option key={b.value} value={b.value}>
-              {b.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="tb-check">
-        <input type="checkbox" checked={spec.mapping.points} data-testid="tb-points" onChange={(e) => void setGraphValue(id, '/mapping/points', e.target.checked)} />
+      <Select
+        label="Error bars"
+        tipText="Error bars"
+        value={spec.mapping.error_bars}
+        testId="tb-errorbars"
+        display={
+          <>
+            <span className="tb-pre">Bars</span> {ERROR_BARS.find((b) => b.value === spec.mapping.error_bars)?.label ?? spec.mapping.error_bars}
+          </>
+        }
+        options={ERROR_BARS}
+        onChange={(v) => void setGraphValue(id, '/mapping/error_bars', v)}
+      />
+      <Checkbox checked={spec.mapping.points} testId="tb-points" onChange={(on) => void setGraphValue(id, '/mapping/points', on)}>
         Points
-      </label>
+      </Checkbox>
       <span className="tb-gap" />
-      <button type="button" className="btn btn-small" onClick={addMenu} data-testid="tb-add" aria-haspopup="menu">
-        Add
-        <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
-          <path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" />
-        </svg>
-      </button>
-      <button type="button" className="btn btn-small" onClick={() => void exportGraphDialog(id)} data-testid="tb-export">
+      <AddMenu id={id} />
+      <Button size="sm" icon={<Download size={16} strokeWidth={1.5} aria-hidden="true" />} onClick={() => void exportGraphDialog(id)} testId="tb-export" aria-label="Export" tipText="Export the figure" shortcut="Mod+Alt+E">
         Export…
-      </button>
+      </Button>
     </div>
+  );
+}
+
+function AddMenu({ id }: { id: Id }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <Button
+        ref={ref}
+        size="sm"
+        icon={<Plus size={16} strokeWidth={1.5} aria-hidden="true" />}
+        trailing={<ChevronDown size={12} strokeWidth={1.5} aria-hidden="true" />}
+        onClick={() => setOpen((o) => !o)}
+        testId="tb-add"
+        aria-label="Add"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        Add
+      </Button>
+      <Menu
+        anchor={ref.current}
+        open={open}
+        onClose={() => setOpen(false)}
+        label="Add"
+        placement="bottom-end"
+        items={[
+          { label: 'Significance bracket…', testId: 'add-bracket', run: () => addBracket(id) },
+          { label: 'Reference line…', testId: 'add-refline', run: () => addReferenceLine(id) },
+          { label: 'Text…', testId: 'add-text', run: () => addText(id) },
+        ]}
+      />
+    </>
   );
 }
 
@@ -302,7 +317,8 @@ function Canvas({ id }: { id: Id }) {
                     className={'tg' + (isSel ? ' is-selected' : '') + (draggable ? ' is-draggable' : '') + (isDragged ? ' is-dragging' : '')}
                     data-testid={`target-${t.id}`}
                     data-target={t.target}
-                    title={describeTarget(t)}
+                    aria-label={describeTarget(t)}
+                    data-tip={describeTarget(t)}
                     style={{
                       left: b.x - 2,
                       top: b.y - 2,
@@ -359,21 +375,20 @@ function Canvas({ id }: { id: Id }) {
           </span>
         )}
         <div className="zoom" role="group" aria-label="Zoom">
-          <button type="button" className="icon-btn" aria-label="Zoom out" onClick={zoomOut} data-testid="zoom-out">
-            −
-          </button>
-          <span className="zoom-val" data-testid="zoom-value">
+          <Button variant="quiet" size="sm" iconOnly="Zoom out" shortcut="Mod+-" icon={<Minus size={16} strokeWidth={1.5} />} onClick={zoomOut} testId="zoom-out" />
+          <span className="zoom-val mono" data-testid="zoom-value">
             {Math.round(zoom * 100)}%
           </span>
-          <button type="button" className="icon-btn" aria-label="Zoom in" onClick={zoomIn} data-testid="zoom-in">
-            +
-          </button>
-          <button type="button" className={'btn btn-small btn-ghost' + (st.zoom === 'fit' ? ' is-on' : '')} onClick={() => setZ('fit')} data-testid="zoom-fit">
-            Fit
-          </button>
-          <button type="button" className={'btn btn-small btn-ghost' + (st.zoom === 1 ? ' is-on' : '')} onClick={() => setZ(1)} title="Actual size at 96 dpi" data-testid="zoom-actual">
-            1:1
-          </button>
+          <Button variant="quiet" size="sm" iconOnly="Zoom in" shortcut="Mod+=" icon={<Plus size={16} strokeWidth={1.5} />} onClick={zoomIn} testId="zoom-in" />
+          <Segmented
+            label="Zoom preset"
+            value={st.zoom === 'fit' ? 'fit' : st.zoom === 1 ? 'actual' : 'other'}
+            choices={[
+              { value: 'fit', label: <Maximize size={16} strokeWidth={1.5} aria-hidden="true" />, aria: 'Fit', hint: 'Fit the window (Ctrl 0)', testId: 'zoom-fit' },
+              { value: 'actual', label: '1:1', hint: 'Actual size at 96 dpi', testId: 'zoom-actual' },
+            ]}
+            onChange={(v) => setZ(v === 'fit' ? 'fit' : 1)}
+          />
         </div>
       </div>
     </div>

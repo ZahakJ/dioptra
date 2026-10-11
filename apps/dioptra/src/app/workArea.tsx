@@ -4,7 +4,7 @@ import { useSyncExternalStore, type ComponentType } from 'react';
 import type { ItemKind, ProjectItem } from '../engine/types';
 import { useProject } from '../store/project';
 import { commands } from './commands';
-import { CloseIcon, ITEM_ICONS } from './icons';
+import { CloseIcon, ITEM_ICONS, ItemIcon } from './icons';
 import { formatShortcut } from './keys';
 
 export interface WorkAreaProps {
@@ -80,11 +80,10 @@ export function WorkArea() {
   const Renderer = active ? (getWorkArea(active.kind) ?? PlaceholderWorkArea) : null;
   return (
     <main className="work">
-      <div className="tabs" role="tablist" aria-label="Open objects">
+      <div className="tabs" role="tablist" aria-label="Open objects" data-empty={tabs.length === 0 || undefined}>
         {tabs.map((id) => {
           const it = items.get(id);
           if (!it) return null;
-          const Icon = ITEM_ICONS[it.kind];
           const isActive = id === activeId;
           return (
             <div key={id} className={'tab' + (isActive ? ' is-active' : '')} role="presentation">
@@ -97,11 +96,11 @@ export function WorkArea() {
                 onAuxClick={(e) => e.button === 1 && close(id)}
                 data-testid={`tab-${it.title}`}
               >
-                <Icon size={12} />
+                <ItemIcon item={it} />
                 <span className="tab-title">{it.title}</span>
               </button>
-              <button type="button" className="tab-close" aria-label={`Close ${it.title}`} onClick={() => close(id)}>
-                <CloseIcon size={10} />
+              <button type="button" className="tab-close" aria-label={`Close ${it.title}`} data-tip="Close tab" onClick={() => close(id)}>
+                <CloseIcon size={16} />
               </button>
             </div>
           );
@@ -138,9 +137,9 @@ function EmptyActions() {
       {rows.map(([id, label]) => {
         const c = commands.get(id);
         return (
-          <button key={id} type="button" className="btn" data-testid={`empty-${id}`} onClick={() => void commands.run(id)}>
+          <button key={id} type="button" className="btn btn-secondary" data-testid={`empty-${id}`} onClick={() => void commands.run(id)}>
             {label}
-            {c?.shortcut && <kbd className="menu-kbd">{formatShortcut(c.shortcut)}</kbd>}
+            {c?.shortcut && <kbd className="kbd">{formatShortcut(c.shortcut)}</kbd>}
           </button>
         );
       })}

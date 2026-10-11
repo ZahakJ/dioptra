@@ -7,7 +7,9 @@ import { KIND_GROUPS, useProject } from '../store/project';
 import { mutate } from '../store/sync';
 import { deleteObject, newTable } from './actions';
 import { showContextMenu, type MenuEntry } from './ContextMenu';
-import { ChevronIcon, ITEM_ICONS, PlusIcon } from './icons';
+import { useUi } from '../store/ui';
+import { Button } from '../ui';
+import { ChevronIcon, ItemIcon, PlusIcon } from './icons';
 import { kindInfo } from './kinds';
 
 type RailAction = (item: ProjectItem) => MenuEntry[];
@@ -31,7 +33,8 @@ export function ProjectRail() {
   const view = useProject((s) => s.view);
   const activeId = useProject((s) => s.activeId);
   const open = useProject((s) => s.open);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const stored = useUi((s) => s.collapsed);
+  const collapsed: Record<string, boolean> = Object.fromEntries(KIND_GROUPS.map((g) => [g.kind, !!stored[`rail:${g.kind}`]]));
   const [renaming, setRenaming] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const items = view?.items ?? [];
@@ -43,23 +46,14 @@ export function ProjectRail() {
   return (
     <nav className="rail" aria-label="Project">
       <div className="rail-head">
-        <span className="rail-title" title={view?.path ?? view?.title}>
-          {view?.title ?? 'Untitled'}
-          {view?.dirty && (
-            <span className="dirty-mark" title="Unsaved changes" aria-label="unsaved changes">
-              {' '}
-              (edited)
-            </span>
-          )}
-        </span>
-        <button type="button" className="btn btn-small" onClick={() => void newTable()} data-testid="rail-new-table" title="New table">
-          <PlusIcon size={12} /> Table
-        </button>
+        <span className="rail-title">Project</span>
+        <Button variant="quiet" size="sm" icon={<PlusIcon />} onClick={() => void newTable()} testId="rail-new-table" tipText="New table" shortcut="Mod+Alt+T">
+          Table
+        </Button>
       </div>
-      <div className="rail-tree" role="tree" aria-label="Project objects" ref={listRef}>
+      <div className="rail-tree scroll-area" role="tree" aria-label={view?.title ? `Objects of ${view.title}` : 'Project objects'} ref={listRef}>
         {KIND_GROUPS.map((g) => {
           const members = items.filter((i) => i.kind === g.kind);
-          const Icon = ITEM_ICONS[g.kind];
           const isOpen = !collapsed[g.kind];
           return (
             <div key={g.kind} className="rail-group" role="group" aria-label={g.label}>
@@ -67,10 +61,9 @@ export function ProjectRail() {
                 type="button"
                 className="rail-group-head"
                 aria-expanded={isOpen}
-                onClick={() => setCollapsed((c) => ({ ...c, [g.kind]: !c[g.kind] }))}
+                onClick={() => useUi.getState().setCollapsed(`rail:${g.kind}`, isOpen)}
               >
-                <ChevronIcon open={isOpen} size={10} />
-                <Icon size={12} />
+                <ChevronIcon open={isOpen} size={14} />
                 <span>{g.label}</span>
                 <span className="count">{members.length}</span>
               </button>
@@ -122,8 +115,7 @@ function RailItem({
   onRename: () => void;
   onMove: (d: -1 | 1) => void;
 }) {
-  const Icon = ITEM_ICONS[item.kind];
-  const sub = item.kind === 'table' ? kindInfo(item.subtype)?.name : item.subtype;
+  const sub = item.kind === 'table' ? kindInfo(item.subtype)?.name : item.subtype?.replace(/_/g, ' ');
   return (
     <div
       role="treeitem"
@@ -131,6 +123,7 @@ function RailItem({
       tabIndex={active ? 0 : -1}
       data-item={item.id}
       data-testid={`rail-item-${item.title}`}
+      data-tip={item.title.length > 24 ? item.title : undefined}
       className={'rail-item' + (active ? ' is-active' : '')}
       onClick={onOpen}
       onDoubleClick={onRename}
@@ -162,13 +155,14 @@ function RailItem({
         e.stopPropagation();
       }}
     >
-      <Icon />
+      <ItemIcon item={item} />
       <span className="rail-item-title">{item.title}</span>
-      {sub && <span className="rail-item-sub">{sub}</span>}
-      {item.stale && (
-        <span className="stale-mark" title="Out of date; recomputes when shown">
+      {item.stale ? (
+        <span className="stale-mark" data-tip="Out of date; recomputes when shown">
           stale
         </span>
+      ) : (
+        sub && <span className="rail-item-sub">{sub}</span>
       )}
     </div>
   );
@@ -191,9 +185,10 @@ function RenameField({ item, done }: { item: ProjectItem; done: () => void }) {
   };
   return (
     <div className="rail-item is-renaming">
+      <ItemIcon item={item} />
       <input
         ref={ref}
-        className="input rail-rename"
+        className="input input-sm rail-rename"
         value={v}
         aria-label={`Rename ${item.title}`}
         data-testid="rail-rename"

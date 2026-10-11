@@ -73,7 +73,7 @@ test('(g) t test on two columns: the summary reports t(df) and a p value', async
   // Make graph: a column graph with the engine's one bracket.
   await page.getByTestId('sheet-make-graph').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
-  await expect(page.getByTestId('tb-family')).toHaveValue('column');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'column');
   await expect.poll(() => bracketIds(page)).toEqual(['annotation-0']);
 });
 
@@ -81,7 +81,7 @@ test('(h) one-way ANOVA with Tukey: a multiple-comparisons table and a graph wit
   await threeGroupTable(page);
   await page.getByTestId('tool-analyze').click();
   await page.getByTestId('analysis-one_way_anova').click();
-  await expect(page.getByTestId('posthoc-method')).toHaveValue('tukey');
+  await expect(page.getByTestId('posthoc-method')).toHaveAttribute('data-value', 'tukey');
   await page.getByTestId('analysis-run').click();
   await expect(page.getByTestId('results-sheet')).toBeVisible();
   await expect(page.getByTestId('sheet-summary')).toContainText('F(2, 6)');
@@ -96,7 +96,7 @@ test('(h) one-way ANOVA with Tukey: a multiple-comparisons table and a graph wit
   // Make graph: one bracket per comparison, from the engine only (no second set from the UI).
   await page.getByTestId('sheet-make-graph').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
-  await expect(page.getByTestId('tb-family')).toHaveValue('column');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'column');
   await expect.poll(async () => (await bracketIds(page)).sort()).toEqual(['annotation-0', 'annotation-1', 'annotation-2']);
   const spec = await graphSpecOfActive(page);
   expect(spec.annotations.filter((a: { kind: string }) => a.kind === 'significance_bracket')).toHaveLength(3);
@@ -139,7 +139,7 @@ test('(j) survival table: Kaplan-Meier with log-rank, step curves on the graph',
   await expect(sheet).toContainText('Median survival');
   await page.getByTestId('sheet-make-graph').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
-  await expect(page.getByTestId('tb-family')).toHaveValue('kaplan_meier');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'kaplan_meier');
   await expect
     .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="series-"] :is(path, polyline)').length))
     .toBeGreaterThan(1);
@@ -173,7 +173,7 @@ test('(l) ROC curve: the sheet reports the area and the graph draws the curve', 
   await expect(sheet).toContainText(/Area/);
   await page.getByTestId('sheet-make-graph').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
-  await expect(page.getByTestId('tb-family')).toHaveValue('roc');
+  await expect(page.getByTestId('tb-family')).toHaveAttribute('data-value', 'roc');
   await expect
     .poll(() => page.evaluate(() => document.querySelectorAll('[data-testid="graph-svg"] [id^="series-"] :is(path, polyline)').length))
     .toBeGreaterThan(0);

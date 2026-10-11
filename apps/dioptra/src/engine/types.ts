@@ -258,6 +258,7 @@ export type Command =
   | { type: 'save_project_bytes' }
   | { type: 'get_project' }
   | { type: 'set_p_value_style'; style: PValueStyle }
+  | { type: 'set_project_title'; title: string }
   | { type: 'rename_object'; id: Id; title: string }
   | { type: 'delete_object'; id: Id }
   // tables

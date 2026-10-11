@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { boot, cell, clickCell, newColumnTable } from './helpers';
+import { boot, cell, clickCell, newColumnTable, menu } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await boot(page);
 });
 
 test('imports a CSV file and exports the table as CSV', async ({ page }) => {
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.import').click();
+  await menu(page, 'File', 'file.import');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Choose file' }).click();
   await (await chooser).setFiles({
@@ -20,8 +19,7 @@ test('imports a CSV file and exports the table as CSV', async ({ page }) => {
   await expect(cell(page, 1, 1)).toHaveText('3.25');
   await expect(cell(page, 2, 1)).toHaveText('n.d.');
 
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.export').click();
+  await menu(page, 'File', 'file.export');
   await expect(page.getByTestId('export-dialog')).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download' }).click();
@@ -33,8 +31,7 @@ test('imports a CSV file and exports the table as CSV', async ({ page }) => {
 });
 
 test('pastes text as a new table with a suggested kind', async ({ page }) => {
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.pasteNew').click();
+  await menu(page, 'File', 'file.pasteNew');
   await page.getByTestId('paste-import-text').fill('Dose\tResp\n0.1\t2.5\n1\t3.9\n10\t7.2\n100\t9.9');
   await expect(page.getByTestId('kind-suggestion')).toContainText('XY');
   await page.getByTestId('paste-import-create').click();

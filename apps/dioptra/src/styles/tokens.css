@@ -1,22 +1,32 @@
-/* Dioptra design tokens (DESIGN.md §1, §7). Calm, precise, instrument-like: warm neutral greys
-   in light, graphite in dark, one verdigris accent for the thing being pointed at. Shadows only
-   on popovers. Radius 3px at most. */
+/* Dioptra design tokens: the executable form of DESIGN.md §12.1–12.3. Warm paper in light,
+   deep graphite in dark, one verdigris accent for the thing being pointed at. Every colour the
+   app paints is one of these; scripts/contrast.mjs checks the pairs that carry text.
+
+   Theme selection: the app sets data-theme="light" | "dark" on <html> (the preference
+   "system" resolves through prefers-color-scheme). Before the app has run, the media query
+   below gives the same answer, so the first paint is already right. */
 
 :root {
-  /* type */
+  /* ---- type (§12.2) ---- */
   --font-ui: 'Inter Variable', Inter, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --fs-2xs: 10.5px;
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-md: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 18px;
-  --lh: 1.45;
-  --fw-medium: 520;
-  --fw-strong: 620;
+  /* Every number the user reads: grid cells, formula bar, inspector values, status line,
+     results tables, size readouts. */
+  --font-num: var(--font-mono);
+  --fs-xs: 11px; /* captions */
+  --fs-sm: 12px; /* the grid, compact controls */
+  --fs-md: 13px; /* the interface base */
+  --fs-lg: 15px; /* heading 3 */
+  --fs-xl: 18px; /* heading 2 */
+  --fs-2xl: 22px; /* heading 1 */
+  --lh: 1.45; /* prose */
+  --lh-tight: 1.2; /* tables */
+  --tracking-head: -0.01em;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-strong: 600;
 
-  /* space */
+  /* ---- space: the 8-pt scale (§12.3) ---- */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -24,81 +34,163 @@
   --s5: 24px;
   --s6: 32px;
 
-  /* shape */
-  --radius: 3px;
-  --radius-sm: 2px;
-  --border: 1px;
+  /* ---- shape ---- */
+  --radius: 4px; /* controls */
+  --radius-lg: 6px; /* popovers, menus, dialogs; nothing is rounder */
+  --border: 1px; /* hairlines, never 2 */
 
-  /* sizes */
-  --titlebar-h: 32px;
+  /* ---- sizes ---- */
+  --topbar-h: 40px;
   --statusline-h: 24px;
-  --tabs-h: 30px;
-  --formula-h: 32px;
+  --tabs-h: 34px;
+  --formula-h: 36px;
   --row-h: 24px;
   --head-h: 22px;
-  --control-h: 26px;
-  --control-h-sm: 22px;
+  --control-h: 28px;
+  --control-h-sm: 24px;
+  --icon: 16px;
+  --icon-stroke: 1.5px;
+
+  /* ---- motion: only panel open and selection change, never waited for ---- */
+  --dur-fast: 120ms;
+  --dur-base: 150ms;
+  --dur-slow: 180ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --tooltip-delay: 400ms;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+  }
+}
+
+/* ---- light: warm paper ---------------------------------------------------------------- */
 
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f7f6f3; /* paper */
-  --panel: #ffffff;
-  --panel-2: #fbfaf8;
-  --sunken: #f1efea; /* grid headers, wells */
-  --sunken-2: #e9e6df;
-  --line: #e4e1da;
-  --line-strong: #cdc9c0;
-  --grid-line: #ebe8e2;
-  --text: #1f2324;
-  --text-2: #55595b;
-  --text-3: #868886;
-  --text-disabled: #b0b0ab;
-
-  --accent: #2e7d78; /* verdigris */
-  --accent-strong: #246661;
-  --accent-ink: #ffffff;
-  --accent-tint: rgba(46, 125, 120, 0.09);
-  --accent-tint-2: rgba(46, 125, 120, 0.16);
-  --accent-line: rgba(46, 125, 120, 0.55);
-
-  --danger: #b3261e;
-  --danger-tint: rgba(179, 38, 30, 0.08);
-  --amber: #8a5a00;
-
+  --bg-app: #f4f2ee;
+  --bg-panel: #fbfaf8;
+  --bg-sheet: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-inset: #eeebe5;
+  --bg-hover: rgb(30 34 37 / 0.045);
+  --bg-active: rgb(30 34 37 / 0.085);
+  --line: #e2ded6;
+  --line-strong: #c9c4ba;
+  --line-grid: #ebe8e2;
+  --fg: #1e2225;
+  --fg-muted: #5e6469;
+  --fg-faint: #80858a;
+  --fg-disabled: #b3b6b8;
+  --accent: #2e7d78;
+  --accent-hover: #276b67;
+  --accent-fg: #ffffff;
+  --accent-soft: #dceeec;
+  --accent-wash: rgb(46 125 120 / 0.1);
+  --accent-line: rgb(46 125 120 / 0.55);
+  --ok: #2f7d4f;
+  --caution: #a8690b;
+  --fail: #b5433b;
+  --ok-soft: rgb(47 125 79 / 0.1);
+  --caution-soft: rgb(168 105 11 / 0.1);
+  --fail-soft: rgb(181 67 59 / 0.08);
   --focus: #2e7d78;
-  --scrim: rgba(28, 30, 30, 0.28);
-  --shadow-pop: 0 1px 2px rgba(31, 35, 36, 0.08), 0 6px 20px rgba(31, 35, 36, 0.12);
+  --scrim: rgb(24 26 28 / 0.32);
+  --scrollbar: rgb(30 34 37 / 0.22);
+  --scrollbar-hover: rgb(30 34 37 / 0.38);
+  /* elevation: floating surfaces only */
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.1), 0 2px 8px rgb(0 0 0 / 0.08);
+  --elev-2: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.12);
+  --elev-3: 0 2px 4px rgb(0 0 0 / 0.08), 0 18px 48px rgb(0 0 0 / 0.18);
+  --raised-edge: var(--line-strong);
+  --tooltip-bg: #2a2f33;
+  --tooltip-fg: #f4f2ee;
+}
+
+/* ---- dark: deep graphite, designed rather than inverted --------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg-app: #15181b;
+    --bg-panel: #1c2024;
+    --bg-sheet: #202529;
+    --bg-raised: #262b30;
+    --bg-inset: #111416;
+    --bg-hover: rgb(228 225 218 / 0.05);
+    --bg-active: rgb(228 225 218 / 0.09);
+    --line: #2c3238;
+    --line-strong: #3a4148;
+    --line-grid: #2a3035;
+    --fg: #e4e1da;
+    --fg-muted: #9aa1a7;
+    --fg-faint: #6f767d;
+    --fg-disabled: #50575d;
+    --accent: #5fb3ad;
+    --accent-hover: #78c4be;
+    --accent-fg: #0f1a19;
+    --accent-soft: #1e3d3b;
+    --accent-wash: rgb(95 179 173 / 0.16);
+    --accent-line: rgb(95 179 173 / 0.6);
+    --ok: #6cc18f;
+    --caution: #e0a64a;
+    --fail: #e6776e;
+    --ok-soft: rgb(108 193 143 / 0.12);
+    --caution-soft: rgb(224 166 74 / 0.12);
+    --fail-soft: rgb(230 119 110 / 0.12);
+    --focus: #5fb3ad;
+    --scrim: rgb(0 0 0 / 0.5);
+    --scrollbar: rgb(228 225 218 / 0.18);
+    --scrollbar-hover: rgb(228 225 218 / 0.32);
+    --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+    --elev-2: 0 1px 2px rgb(0 0 0 / 0.55), 0 6px 18px rgb(0 0 0 / 0.5);
+    --elev-3: 0 2px 4px rgb(0 0 0 / 0.55), 0 14px 40px rgb(0 0 0 / 0.6);
+    --raised-edge: #3a4148;
+  --tooltip-bg: #3a4148;
+  --tooltip-fg: #e4e1da;
+  }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #16191a; /* graphite */
-  --panel: #202426;
-  --panel-2: #1c2022;
-  --sunken: #1b1e20;
-  --sunken-2: #2a2f31;
-  --line: #2e3335;
-  --line-strong: #41474a;
-  --grid-line: #2a2e30;
-  --text: #d8d4cc;
-  --text-2: #a7a39b;
-  --text-3: #7c7973;
-  --text-disabled: #5a5854;
-
+  --bg-app: #15181b;
+  --bg-panel: #1c2024;
+  --bg-sheet: #202529;
+  --bg-raised: #262b30;
+  --bg-inset: #111416;
+  --bg-hover: rgb(228 225 218 / 0.05);
+  --bg-active: rgb(228 225 218 / 0.09);
+  --line: #2c3238;
+  --line-strong: #3a4148;
+  --line-grid: #2a3035;
+  --fg: #e4e1da;
+  --fg-muted: #9aa1a7;
+  --fg-faint: #6f767d;
+  --fg-disabled: #50575d;
   --accent: #5fb3ad;
-  --accent-strong: #79c4be;
-  --accent-ink: #0f1a19;
-  --accent-tint: rgba(95, 179, 173, 0.11);
-  --accent-tint-2: rgba(95, 179, 173, 0.2);
-  --accent-line: rgba(95, 179, 173, 0.6);
-
-  --danger: #e5776d;
-  --danger-tint: rgba(229, 119, 109, 0.1);
-  --amber: #d6a24a;
-
+  --accent-hover: #78c4be;
+  --accent-fg: #0f1a19;
+  --accent-soft: #1e3d3b;
+  --accent-wash: rgb(95 179 173 / 0.16);
+  --accent-line: rgb(95 179 173 / 0.6);
+  --ok: #6cc18f;
+  --caution: #e0a64a;
+  --fail: #e6776e;
+  --ok-soft: rgb(108 193 143 / 0.12);
+  --caution-soft: rgb(224 166 74 / 0.12);
+  --fail-soft: rgb(230 119 110 / 0.12);
   --focus: #5fb3ad;
-  --scrim: rgba(0, 0, 0, 0.45);
-  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.45);
+  --scrim: rgb(0 0 0 / 0.5);
+  --scrollbar: rgb(228 225 218 / 0.18);
+  --scrollbar-hover: rgb(228 225 218 / 0.32);
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+  --elev-2: 0 1px 2px rgb(0 0 0 / 0.55), 0 6px 18px rgb(0 0 0 / 0.5);
+  --elev-3: 0 2px 4px rgb(0 0 0 / 0.55), 0 14px 40px rgb(0 0 0 / 0.6);
+  --raised-edge: #3a4148;
+  --tooltip-bg: #3a4148;
+  --tooltip-fg: #e4e1da;
 }

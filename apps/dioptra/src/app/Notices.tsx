@@ -1,4 +1,5 @@
 import { useNotices } from '../store/notices';
+import { Button } from '../ui';
 import { CloseIcon } from './icons';
 
 export function Notices() {
@@ -7,26 +8,23 @@ export function Notices() {
   return (
     <div className="notices" role="status" aria-live="polite">
       {notices.map((n) => (
-        <div key={n.id} className={`notice notice-${n.kind} popover`} data-testid={`notice-${n.kind}`}>
+        <div key={n.id} className={`notice notice-${n.kind}`} data-testid={`notice-${n.kind}`}>
           <div className="notice-main">
             {n.kind === 'error' && <span className="notice-tag">Error</span>}
             <span className="notice-text">{n.text}</span>
             {n.action && (
-              <button
-                type="button"
-                className="btn btn-small"
-                data-testid="notice-action"
+              <Button
+                size="sm"
+                testId="notice-action"
                 onClick={() => {
                   dismiss(n.id);
                   void n.action!.run();
                 }}
               >
                 {n.action.label}
-              </button>
+              </Button>
             )}
-            <button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => dismiss(n.id)}>
-              <CloseIcon size={10} />
-            </button>
+            <Button variant="quiet" size="sm" iconOnly="Dismiss" icon={<CloseIcon size={16} />} onClick={() => dismiss(n.id)} />
           </div>
           {n.detail && n.detail.length > 0 && (
             <ul className="notice-detail">

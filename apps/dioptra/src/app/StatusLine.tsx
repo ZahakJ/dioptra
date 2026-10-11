@@ -106,7 +106,7 @@ export function StatusLine() {
         )}
       </div>
       <div className="sl-right">
-        <span className="sl-item" data-testid="recompute-state">
+        <span className={'sl-item sl-state' + (busy || !status.ready ? ' is-busy' : '')} data-testid="recompute-state">
           {!status.ready ? (status.error ? 'Engine failed to load' : 'Loading the engine...') : busy ? 'Computing...' : 'Up to date'}
         </span>
         {status.ready && (

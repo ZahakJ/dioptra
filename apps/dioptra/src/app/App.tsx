@@ -1,5 +1,5 @@
-// The application shell: menu bar, project rail, work area, inspector, status line, and the
-// overlays (palette, dialogs, context menu, notices).
+// The application shell: top bar, project rail, work area, inspector, status line, and the
+// overlays (palette, dialogs, context menu, tooltips, notices).
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { TableView } from '../grid/TableView';
@@ -12,13 +12,16 @@ import { ContextMenuHost } from './ContextMenu';
 import { DialogHost } from './dialogs';
 import { Inspector } from './inspector';
 import { registerCoreInspectorSections } from './inspectorSections';
-import { MenuBar } from './MenuBar';
+import { TooltipHost } from '../ui';
+import { commands } from './commands';
+import { installNativeMenu } from './nativeMenu';
 import { Notices } from './Notices';
 import { Palette } from './Palette';
 import { ProjectRail } from './ProjectRail';
 import { Resizer } from './Resizer';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { StatusLine } from './StatusLine';
+import { TopBar } from './TopBar';
 import { useShortcuts } from './useShortcuts';
 import { registerWorkArea, WorkArea } from './workArea';
 
@@ -34,6 +37,7 @@ export function registerCore(): void {
 
 function useTheme(): void {
   const pref = useUi((s) => s.theme);
+  const backend = useEngineStatus((s) => s.backend);
   const [systemDark, setSystemDark] = useState(
     () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches,
   );
@@ -50,6 +54,23 @@ function useTheme(): void {
     root.dataset.themePref = pref;
     root.style.colorScheme = root.dataset.theme;
   }, [pref, systemDark]);
+  // The window frame follows: null hands the title bar back to the OS theme.
+  useEffect(() => {
+    if (backend !== 'tauri') return;
+    void import('@tauri-apps/api/window')
+      .then(({ getCurrentWindow }) => getCurrentWindow().setTheme(pref === 'system' ? null : pref))
+      .catch(() => undefined);
+  }, [pref, backend]);
+}
+
+function useNativeMenu(): void {
+  const backend = useEngineStatus((s) => s.backend);
+  useEffect(() => {
+    if (backend === 'tauri') void installNativeMenu();
+  }, [backend]);
+  useEffect(() => {
+    if (window.__dioptra) window.__dioptra.runCommand = (id: string) => commands.run(id);
+  }, []);
 }
 
 function useWindowTitle(): void {
@@ -80,6 +101,7 @@ export function App() {
   useTheme();
   useWindowTitle();
   useShortcuts();
+  useNativeMenu();
   const status = useEngineStatus();
   const ui = useUi(
     useShallow((s) => ({
@@ -89,7 +111,6 @@ export function App() {
       inspectorWidth: s.inspectorWidth,
       setRailWidth: s.setRailWidth,
       setInspectorWidth: s.setInspectorWidth,
-      setPaletteOpen: s.setPaletteOpen,
     })),
   );
 
@@ -105,25 +126,7 @@ export function App() {
 
   return (
     <div className="app" data-testid="app" data-ready={status.ready ? 'true' : 'false'}>
-      <header className="titlebar">
-        <span className="brand" aria-label="Dioptra">
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" className="brand-mark">
-            <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.25" />
-            <path d="M7 0.5v4M7 9.5v4M0.5 7h4M9.5 7h4" stroke="currentColor" strokeWidth="1.25" />
-          </svg>
-          Dioptra
-        </span>
-        <MenuBar />
-        <button
-          type="button"
-          className="palette-hint"
-          onClick={() => ui.setPaletteOpen(true)}
-          data-testid="open-palette"
-          title="Command palette"
-        >
-          Search commands <kbd className="menu-kbd">Ctrl+K</kbd>
-        </button>
-      </header>
+      <TopBar />
       {!status.ready ? (
         <div className="boot" data-testid="engine-loading">
           {status.error ? `The engine failed to load: ${status.error}` : 'Loading the engine...'}
@@ -162,6 +165,7 @@ export function App() {
       <DialogHost />
       <ContextMenuHost />
       <Notices />
+      <TooltipHost />
     </div>
   );
 }

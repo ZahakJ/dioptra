@@ -1,7 +1,9 @@
 // The compact options panel, generated from the spec JSON and the schema: one row per choice
 // that matters, each with one plain sentence of explanation.
-import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { JsonObject, JsonValue, TableMeta } from '../engine/types';
+import { Checkbox, Menu, NumberField, Segmented, Select, TextInput, Toggle } from '../ui';
 import type { Spec } from '../engine/objects';
 import { columnsOf, datasetsOf, formModel, getAt, setAt, type Choice, type Field, type Primitive } from './schema';
 
@@ -86,31 +88,28 @@ function Control({
 }) {
   switch (field.type) {
     case 'bool':
-      return <Switch checked={value === true} onChange={onValue} labelledBy={labelId} />;
+      return <Toggle checked={value === true} onChange={onValue} labelledBy={labelId} />;
     case 'enum':
       return field.control === 'seg' && field.choices.length <= 4 ? (
-        <Segmented choices={field.choices} value={(value ?? null) as Primitive} onChange={onValue} labelledBy={labelId} />
+        <Segmented
+          choices={(field.choices as Choice[]).map((c) => ({ value: c.value, label: c.label, hint: c.hint }))}
+          value={(value ?? null) as Primitive}
+          onChange={onValue}
+          labelledBy={labelId}
+        />
       ) : (
-        <select
-          className="input input-compact"
-          aria-labelledby={labelId}
+        <Select
+          labelledBy={labelId}
           value={keyOf((value ?? null) as Primitive)}
-          title={field.choices.find((c) => keyOf(c.value) === keyOf((value ?? null) as Primitive))?.hint}
-          onChange={(e) => onValue(JSON.parse(e.target.value) as Primitive)}
-        >
-          {field.choices.map((c) => (
-            <option key={keyOf(c.value)} value={keyOf(c.value)}>
-              {c.label}
-              {c.hint ? ` — ${c.hint}` : ''}
-            </option>
-          ))}
-        </select>
+          options={field.choices.map((c) => ({ value: keyOf(c.value), label: c.label, hint: c.hint }))}
+          onChange={(k) => onValue(JSON.parse(k) as Primitive)}
+        />
       );
     case 'number':
       return <NumberInput field={field} value={value} onValue={onValue} labelledBy={labelId} />;
     case 'text':
       return (
-        <TextInput
+        <OptionText
           value={typeof value === 'string' ? value : ''}
           placeholder={field.nullable}
           suggestions={field.suggestions}
@@ -137,19 +136,17 @@ function Control({
       return (
         <div className="opt-checks" role="group" aria-labelledby={labelId}>
           {field.choices.map((c) => (
-            <label key={String(c.value)} className="opt-check">
-              <input
-                type="checkbox"
-                checked={set.has(String(c.value))}
-                onChange={(e) => {
-                  const next = field.choices
-                    .map((x) => x.value)
-                    .filter((v) => (v === c.value ? e.target.checked : set.has(String(v))));
-                  onValue(next as JsonValue);
-                }}
-              />
+            <Checkbox
+              key={String(c.value)}
+              className="opt-check"
+              checked={set.has(String(c.value))}
+              onChange={(on) => {
+                const next = field.choices.map((x) => x.value).filter((v) => (v === c.value ? on : set.has(String(v))));
+                onValue(next as JsonValue);
+              }}
+            >
               {c.label}
-            </label>
+            </Checkbox>
           ))}
         </div>
       );
@@ -163,7 +160,7 @@ function Control({
       return (
         <div className="opt-stack">
           <Segmented
-            choices={field.variants.map((v) => ({ value: v.value, label: v.label, hint: v.hint }))}
+            choices={field.variants.map((v) => ({ value: v.value as string, label: v.label, hint: v.hint }))}
             value={tag}
             labelledBy={labelId}
             onChange={(t) => {
@@ -183,70 +180,6 @@ function Control({
   }
 }
 
-export function Switch({
-  checked,
-  onChange,
-  labelledBy,
-  label,
-  testId,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  labelledBy?: string;
-  label?: string;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-labelledby={labelledBy}
-      aria-label={label}
-      className="switch"
-      data-testid={testId}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="switch-knob" />
-      <span className="switch-text">{checked ? 'On' : 'Off'}</span>
-    </button>
-  );
-}
-
-export function Segmented<T extends Primitive>({
-  choices,
-  value,
-  onChange,
-  labelledBy,
-  label,
-  testId,
-}: {
-  choices: { value: T; label: string; hint?: string }[] | Choice[];
-  value: T;
-  onChange: (v: T) => void;
-  labelledBy?: string;
-  label?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="seg" role="radiogroup" aria-labelledby={labelledBy} aria-label={label} data-testid={testId}>
-      {(choices as { value: T; label: string; hint?: string }[]).map((c) => (
-        <button
-          key={keyOf(c.value)}
-          type="button"
-          role="radio"
-          aria-checked={keyOf(c.value) === keyOf(value)}
-          className="seg-btn"
-          title={c.hint}
-          onClick={() => onChange(c.value)}
-        >
-          {c.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function NumberInput({
   field,
   value,
@@ -258,45 +191,26 @@ function NumberInput({
   onValue: (v: JsonValue) => void;
   labelledBy: string;
 }) {
-  const show = (v: JsonValue | undefined) =>
-    typeof v === 'number' ? String(field.percent ? Math.round(v * 100 * 1e6) / 1e6 : v) : '';
-  const [text, setText] = useState(show(value));
-  useEffect(() => setText(show(value)), [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  const commit = (t: string) => {
-    const s = t.trim();
-    if (s === '') {
-      if (field.nullable) onValue(null);
-      else setText(show(value));
-      return;
-    }
-    const n = Number(s.replace(',', '.'));
-    if (!Number.isFinite(n)) return setText(show(value));
-    const v = field.integer ? Math.round(n) : n;
-    onValue(field.percent ? v / 100 : v);
-  };
+  const shown = typeof value === 'number' ? (field.percent ? Math.round(value * 100 * 1e6) / 1e6 : value) : null;
   return (
-    <span className="opt-num">
-      <input
-        className="input input-compact num"
-        inputMode="decimal"
-        aria-labelledby={labelledBy}
-        value={text}
-        placeholder={field.nullable}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            commit((e.target as HTMLInputElement).value);
-          }
-        }}
-      />
-      {field.percent && <span className="opt-unit">%</span>}
-    </span>
+    <NumberField
+      className="opt-num"
+      labelledBy={labelledBy}
+      value={shown}
+      placeholder={field.nullable}
+      nullable={!!field.nullable}
+      integer={field.integer}
+      step={field.percent ? 1 : field.integer ? 1 : 0.1}
+      unit={field.percent ? '%' : undefined}
+      onCommit={(v) => {
+        if (v === null) return onValue(null);
+        onValue(field.percent ? v / 100 : v);
+      }}
+    />
   );
 }
 
-function TextInput({
+function OptionText({
   value,
   placeholder,
   suggestions,
@@ -312,17 +226,17 @@ function TextInput({
   onValue: (v: string) => void;
 }) {
   const [text, setText] = useState(value);
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
   useEffect(() => setText(value), [value]);
-  const listId = suggestions ? `${labelledBy}-list` : undefined;
   return (
-    <>
-      <input
-        className={'input input-compact' + (mono ? ' mono' : '')}
+    <span className="opt-text">
+      <TextInput
+        size="sm"
+        mono={mono}
         aria-labelledby={labelledBy}
         value={text}
-        list={listId}
         placeholder={placeholder}
-        spellCheck={false}
         onChange={(e) => setText(e.target.value)}
         onBlur={() => text !== value && onValue(text.trim())}
         onKeyDown={(e) => {
@@ -333,13 +247,36 @@ function TextInput({
         }}
       />
       {suggestions && (
-        <datalist id={listId}>
-          {suggestions.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
+        <>
+          <button
+            ref={btn}
+            type="button"
+            className="btn btn-sm btn-icon"
+            aria-label="Suggestions"
+            data-tip="Suggestions"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <Menu
+            anchor={btn.current}
+            open={open}
+            onClose={() => setOpen(false)}
+            placement="bottom-end"
+            label="Suggestions"
+            items={suggestions.map((sug) => ({
+              label: sug,
+              run: () => {
+                setText(sug);
+                onValue(sug);
+              },
+            }))}
+          />
+        </>
       )}
-    </>
+    </span>
   );
 }
 
@@ -367,8 +304,9 @@ function NumberListInput({
     onValue(nums);
   };
   return (
-    <input
-      className="input input-compact num"
+    <TextInput
+      size="sm"
+      mono
       aria-labelledby={labelledBy}
       value={text}
       placeholder={placeholder}
@@ -397,15 +335,19 @@ export function DatasetPicker({
       {ds.map((d, i) => {
         const on = picked.includes(i);
         return (
-          <label key={i} className={'ds-chip' + (on || all ? ' is-on' : '')} title={d.name}>
-            <input
-              type="checkbox"
-              checked={on}
-              onChange={(e) => onChange(e.target.checked ? [...picked, i].sort((a, b) => a - b) : picked.filter((x) => x !== i))}
-            />
+          <button
+            key={i}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            className={'ds-chip' + (on || all ? ' is-on' : '')}
+            data-tip={d.name.length > 14 ? d.name : undefined}
+            data-testid={`ds-chip-${i}`}
+            onClick={() => onChange(on ? picked.filter((x) => x !== i) : [...picked, i].sort((a, b) => a - b))}
+          >
             <span className="ds-letter">{d.letter}</span>
             <span className="ds-name">{d.name}</span>
-          </label>
+          </button>
         );
       })}
       {all && <span className="ds-all">All data sets</span>}
@@ -465,7 +407,7 @@ function PostHoc({
   return (
     <div className="opt-stack" data-testid="posthoc">
       {field.nullable && (
-        <Switch checked={on} label="Compare groups after the overall test" testId="posthoc-on" onChange={(v) => onValue(v ? (mc as unknown as JsonValue) : null)} />
+        <Toggle checked={on} label="Compare groups after the overall test" testId="posthoc-on" onChange={(v) => onValue(v ? (mc as unknown as JsonValue) : null)} />
       )}
       {on && (
         <>
@@ -482,39 +424,27 @@ function PostHoc({
           />
           <div className="opt-sub">
             <span className="opt-sub-label">Method</span>
-            <select
-              className="input input-compact"
+            <Select
               value={mc.method.name}
-              data-testid="posthoc-method"
-              aria-label="Multiple comparisons method"
-              onChange={(e) => setMethod(e.target.value)}
-            >
-              {field.methods
+              testId="posthoc-method"
+              label="Multiple comparisons method"
+              onChange={setMethod}
+              options={field.methods
                 .filter((m) => !(m.value === 'tukey' && kind !== 'all_pairs') && !(m.value === 'dunnett' && kind === 'selected'))
-                .map((m) => (
-                  <option key={String(m.value)} value={String(m.value)}>
-                    {m.label}
-                  </option>
-                ))}
-            </select>
+                .map((m) => ({ value: String(m.value), label: m.label }))}
+            />
           </div>
           <p className="opt-help">{field.methods.find((m) => m.value === mc.method.name)?.hint}</p>
           {kind === 'vs_control' && (
             <div className="opt-sub">
               <span className="opt-sub-label">Control</span>
-              <select
-                className="input input-compact"
+              <Select
                 value={control}
-                aria-label="Control group"
-                data-testid="posthoc-control"
-                onChange={(e) => setControl(Number(e.target.value))}
-              >
-                {pool.map((i) => (
-                  <option key={i} value={i}>
-                    {name(i)}
-                  </option>
-                ))}
-              </select>
+                label="Control group"
+                testId="posthoc-control"
+                onChange={setControl}
+                options={pool.map((i) => ({ value: i, label: name(i), secondary: meta?.datasets[i]?.letter }))}
+              />
             </div>
           )}
           {kind === 'selected' && (
@@ -522,20 +452,20 @@ function PostHoc({
               {pairs.map(([a, b]) => {
                 const k = `${a}:${b}`;
                 return (
-                  <label key={k} className="opt-check">
-                    <input
-                      type="checkbox"
-                      checked={chosen.has(k)}
-                      onChange={(e) => {
-                        const next = pairs.filter(([x, y]) => {
-                          const kk = `${x}:${y}`;
-                          return kk === k ? e.target.checked : chosen.has(kk);
-                        });
-                        set({ method: mc.method, comparisons: { kind: 'selected', pairs: next } });
-                      }}
-                    />
+                  <Checkbox
+                    key={k}
+                    className="opt-check"
+                    checked={chosen.has(k)}
+                    onChange={(onPair) => {
+                      const next = pairs.filter(([x, y]) => {
+                        const kk = `${x}:${y}`;
+                        return kk === k ? onPair : chosen.has(kk);
+                      });
+                      set({ method: mc.method, comparisons: { kind: 'selected', pairs: next } });
+                    }}
+                  >
                     {name(a)} vs {name(b)}
-                  </label>
+                  </Checkbox>
                 );
               })}
             </div>

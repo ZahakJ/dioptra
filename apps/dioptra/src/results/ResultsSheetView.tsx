@@ -137,18 +137,18 @@ function SheetPane({
     <div className="sheet-wrap" data-testid="results-sheet">
       <div className="sheet-bar">
         {splitAvailable && (
-          <button type="button" className="btn btn-small btn-ghost" onClick={() => useSplit.getState().toggle(id)} data-testid="sheet-split">
+          <button type="button" className="btn btn-sm btn-quiet" onClick={() => useSplit.getState().toggle(id)} data-testid="sheet-split">
             {hidden ? 'Show table beside' : 'Hide table'}
           </button>
         )}
         <span className="sheet-bar-gap" />
-        <button type="button" className="btn btn-small" onClick={() => void editAnalysisOptions(id)} data-testid="sheet-options">
+        <button type="button" className="btn btn-sm" onClick={() => void editAnalysisOptions(id)} data-testid="sheet-options">
           Options
         </button>
-        <button type="button" className="btn btn-small" onClick={copySheet} data-testid="sheet-copy">
+        <button type="button" className="btn btn-sm" onClick={copySheet} data-testid="sheet-copy">
           Copy sheet
         </button>
-        <button type="button" className="btn btn-small btn-primary" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph">
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph">
           Make graph
         </button>
       </div>
@@ -167,7 +167,7 @@ function SheetPane({
             <span>The data changed since these results were computed.</span>
             <button
               type="button"
-              className="btn btn-small"
+              className="btn btn-sm"
               data-testid="sheet-recompute"
               onClick={() =>
                 void withEngine((e) => obj.getResults(e, id))
@@ -357,7 +357,7 @@ function ResultTableView({
                     'rt-' + cell.kind + (t.numeric[c] ? ' is-num' : '') + (inSel(r, c) ? ' is-sel' : '')
                   }
                   data-raw={cell.raw}
-                  title={cell.kind === 'number' || cell.kind === 'p' ? cell.raw : undefined}
+                  data-tip={cell.kind === "number" || cell.kind === "p" ? cell.raw : undefined}
                   onMouseDown={(e) => {
                     if (e.button !== 0) return;
                     e.preventDefault();

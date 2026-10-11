@@ -2,7 +2,7 @@
 // Legend, Annotations and Export. Every control writes one path of the spec.
 import { useEffect, useState } from 'react';
 import { registerInspectorSection, type InspectorContext } from '../app/inspector';
-import { Segmented } from '../analysis/OptionsPanel';
+import { Button, Segmented, Select, TextInput, Toggle } from '../ui';
 import type { Annotation, AxisSpec, DatasetStyle, GraphSpecT } from '../engine/objects';
 import type { Id, JsonValue, TableMeta } from '../engine/types';
 import { useTableMeta } from '../store/table';
@@ -22,6 +22,9 @@ import {
 import { CheckField, ColourField, NumField, Row, SelectField, TextField } from './fields';
 import { selectedPointer, setGraphValue, useGraph } from './store';
 import { describeTarget } from './targets';
+import { PlusIcon } from '../app/icons';
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const isGraph = (c: InspectorContext) => c.item?.kind === 'graph';
 
@@ -84,25 +87,22 @@ function GraphSection({ ctx }: { ctx: InspectorContext }) {
     <div className="g-list">
       <TextField graph={id} path="/title" value={spec.title} label="Title" placeholder="None" testId="g-title" />
       <SelectField graph={id} path="/family" value={spec.family} label="Family" options={fam.map((f) => ({ value: f, label: familyName(f) }))} testId="g-family" />
-      <NumField graph={id} path="/style/size_mm/width" value={s.width} label="Width" unit="mm" min={10} max={1000} placeholder="" />
-      <NumField graph={id} path="/style/size_mm/height" value={s.height} label="Height" unit="mm" min={10} max={1000} placeholder="" />
+      <NumField graph={id} path="/style/size_mm/width" value={s.width} label="Width" unit="mm" min={10} max={1000} placeholder="" testId="g-width" />
+      <NumField graph={id} path="/style/size_mm/height" value={s.height} label="Height" unit="mm" min={10} max={1000} placeholder="" testId="g-height" />
       <Row label="Preset">
-        <select
-          className="input input-compact"
-          aria-label="Size preset"
+        <Select
+          label="Size preset"
+          testId="g-preset"
           value={SIZE_PRESETS.find((p) => p.width === s.width && p.height === s.height)?.id ?? 'custom'}
-          onChange={(e) => {
-            const p = SIZE_PRESETS.find((x) => x.id === e.target.value);
+          options={[
+            ...SIZE_PRESETS.map((p) => ({ value: p.id, label: p.label.replace(/,.*$/, ''), secondary: `${p.width} × ${p.height}` })),
+            { value: 'custom', label: 'Custom', secondary: `${s.width} × ${s.height}` },
+          ]}
+          onChange={(v) => {
+            const p = SIZE_PRESETS.find((x) => x.id === v);
             if (p) void setGraphValue(id, '/style/size_mm', { width: p.width, height: p.height });
           }}
-        >
-          {SIZE_PRESETS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-          <option value="custom">Custom</option>
-        </select>
+        />
       </Row>
       <SelectField graph={id} path="/style/theme" value={spec.style.theme} label="Theme" options={THEMES} testId="g-theme" />
       <PaletteField graph={id} spec={spec} />
@@ -115,27 +115,16 @@ function GraphSection({ ctx }: { ctx: InspectorContext }) {
 function PaletteField({ graph, spec }: { graph: Id; spec: GraphSpecT }) {
   return (
     <Row label="Palette">
-      <span className="palette-pick">
-        <select
-          className="input input-compact"
-          aria-label="Palette"
-          data-testid="g-palette"
-          value={spec.style.palette ?? ''}
-          onChange={(e) => void setGraphValue(graph, '/style/palette', e.target.value || null)}
-        >
-          <option value="">Theme default</option>
-          {PALETTES.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <span className="palette-strip" aria-hidden="true">
-          {paletteColours(spec.style.palette).slice(0, 6).map((c) => (
-            <i key={c} style={{ background: c }} />
-          ))}
-        </span>
-      </span>
+      <Select
+        label="Palette"
+        testId="g-palette"
+        value={spec.style.palette ?? ''}
+        options={[
+          { value: '', label: 'Theme default', swatches: paletteColours(undefined) },
+          ...PALETTES.map((p) => ({ value: p.value, label: p.label, swatches: p.colours })),
+        ]}
+        onChange={(v) => void setGraphValue(graph, '/style/palette', v || null)}
+      />
     </Row>
   );
 }
@@ -151,12 +140,13 @@ function AxesSection({ ctx }: { ctx: InspectorContext }) {
     <div className="g-list">
       <Segmented
         label="Axis"
+        className="seg-full"
         choices={[
-          { value: 'x', label: 'X axis' },
-          { value: 'y', label: 'Y axis' },
+          { value: 'x' as const, label: 'X axis' },
+          { value: 'y' as const, label: 'Y axis' },
         ]}
         value={axis}
-        onChange={(a) => setAxis(a as 'x' | 'y')}
+        onChange={setAxis}
       />
       <AxisFields graph={id} axis={axis} spec={spec} />
       <FrameFields graph={id} spec={spec} />
@@ -177,9 +167,9 @@ const TICK_FORMATS = [
   { value: 'power', label: 'Powers (log)' },
 ];
 const DIRECTIONS = [
-  { value: 'out', label: 'Outside' },
-  { value: 'in', label: 'Inside' },
-  { value: 'cross', label: 'Crossing' },
+  { value: 'out', label: 'Outside', short: 'Out' },
+  { value: 'in', label: 'Inside', short: 'In' },
+  { value: 'cross', label: 'Crossing', short: 'Cross' },
 ];
 
 function breaksText(a: AxisSpec): string {
@@ -215,17 +205,28 @@ function AxisFields({ graph, axis, spec, focusTitle }: { graph: Id; axis: 'x' | 
       <NumField graph={graph} path={`${p}/max`} value={a.max} label="Maximum" testId="axis-max" />
       <NumField graph={graph} path={`${p}/ticks/major`} value={t.major} label="Tick interval" min={0} />
       <NumField graph={graph} path={`${p}/ticks/minor`} value={t.minor ?? 0} label="Minor ticks" min={0} max={20} integer placeholder="0" />
-      <SelectField graph={graph} path={`${p}/ticks/direction`} value={t.direction ?? 'out'} label="Ticks" options={DIRECTIONS} />
+      <Row label="Ticks">
+        {(lid) => (
+          <Segmented
+            labelledBy={lid}
+            className="seg-full"
+            choices={DIRECTIONS.map((d) => ({ value: d.value, label: d.short, hint: d.label }))}
+            value={t.direction ?? 'out'}
+            onChange={(v) => void setGraphValue(graph, `${p}/ticks/direction`, v)}
+          />
+        )}
+      </Row>
       <SelectField graph={graph} path={`${p}/ticks/format`} value={t.format ?? 'auto'} label="Format" options={TICK_FORMATS} />
       <NumField graph={graph} path={`${p}/ticks/decimals`} value={t.decimals} label="Decimals" min={0} max={10} integer />
       <NumField graph={graph} path={`${p}/ticks/label_angle`} value={t.label_angle} label="Label angle" unit="°" min={-90} max={90} />
       <Row label="Breaks" hint="Gaps cut out of the axis, e.g. 20 to 80; 120 to 400">
-        <input
-          className="input input-compact mono"
+        <TextInput
+          size="sm"
+          mono
           value={brk}
           placeholder="None, e.g. 20 to 80"
           aria-label="Axis breaks"
-          aria-invalid={!brkOk}
+          invalid={!brkOk}
           onChange={(e) => setBrk(e.target.value)}
           onBlur={() => {
             const b = parseBreaks(brk);
@@ -330,7 +331,7 @@ function DatasetsSection({ ctx }: { ctx: InspectorContext }) {
           return (
             <li key={d.index} className={'ds-row' + (open === d.index ? ' is-open' : '')}>
               <button type="button" className="ds-row-head" aria-expanded={open === d.index} onClick={() => setOpen(open === d.index ? null : d.index)} data-testid={`ds-row-${d.index}`}>
-                <span className="swatch" style={{ background: colour }} aria-hidden="true" />
+                <span className="sw" style={{ background: colour }} aria-hidden="true" />
                 <span className="ds-row-name">{style?.label ?? d.name}</span>
                 <span className="ds-row-meta">{style?.marker ?? ''}</span>
               </button>
@@ -365,36 +366,32 @@ function DatasetFields({ graph, spec, dataset, meta }: { graph: Id; spec: GraphS
       </Row>
       <Row label="Marker">
         <span className="g-pair">
-          <select className="input input-compact" aria-label="Marker shape" value={shape} onChange={(e) => set({ marker: e.target.value ? (fill === 'open' && e.target.value !== 'none' ? `${e.target.value}_open` : e.target.value) : undefined })}>
-            <option value="">Theme</option>
-            {MARKERS.map((m) => (
-              <option key={m} value={m}>
-                {m.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-          <select
-            className="input input-compact"
-            aria-label="Marker fill"
+          <Select
+            label="Marker shape"
+            value={shape}
+            options={[{ value: '', label: 'Theme' }, ...MARKERS.map((m) => ({ value: m, label: cap(m.replace(/_/g, ' ')) }))]}
+            onChange={(v) => set({ marker: v ? (fill === 'open' && v !== 'none' ? `${v}_open` : v) : undefined })}
+          />
+          <Segmented
+            label="Marker fill"
             value={fill}
             disabled={!shape || shape === 'none' || shape === 'plus' || shape === 'cross'}
-            onChange={(e) => set({ marker: e.target.value === 'open' ? `${shape}_open` : shape })}
-          >
-            <option value="filled">Filled</option>
-            <option value="open">Open</option>
-          </select>
+            choices={[
+              { value: 'filled', label: 'Filled' },
+              { value: 'open', label: 'Open' },
+            ]}
+            onChange={(v) => set({ marker: v === 'open' ? `${shape}_open` : shape })}
+          />
         </span>
       </Row>
       <NumField graph={graph} path="" value={style.marker_pt} label="Marker size" unit="pt" min={0.5} max={30} placeholder="Theme" onCommit={(v) => set({ marker_pt: v ?? undefined })} />
       <Row label="Line">
-        <select className="input input-compact" aria-label="Line style" value={style.line_style ?? ''} onChange={(e) => set({ line_style: (e.target.value || undefined) as DatasetStyle['line_style'] })}>
-          <option value="">Theme</option>
-          {LINE_STYLES.map((m) => (
-            <option key={m} value={m}>
-              {m.replace(/_/g, ' ')}
-            </option>
-          ))}
-        </select>
+        <Select
+          label="Line style"
+          value={style.line_style ?? ''}
+          options={[{ value: '', label: 'Theme' }, ...LINE_STYLES.map((m) => ({ value: m as string, label: cap(m.replace(/_/g, ' ')) }))]}
+          onChange={(v) => set({ line_style: (v || undefined) as DatasetStyle['line_style'] })}
+        />
       </Row>
       <NumField graph={graph} path="" value={style.line_pt} label="Line width" unit="pt" min={0.1} max={10} placeholder="Theme" onCommit={(v) => set({ line_pt: v ?? undefined })} />
       <DatasetLabel value={style.label} placeholder={names[k]?.name ?? ''} onCommit={(v) => set({ label: v || undefined })} />
@@ -407,8 +404,8 @@ function DatasetLabel({ value, placeholder, onCommit }: { value: string | undefi
   useEffect(() => setV(value ?? ''), [value]);
   return (
     <Row label="Label">
-      <input
-        className="input input-compact"
+      <TextInput
+        size="sm"
         value={v}
         placeholder={placeholder}
         aria-label="Legend label"
@@ -469,15 +466,15 @@ function AnnotationsSection({ ctx }: { ctx: InspectorContext }) {
   return (
     <div className="g-list">
       <div className="btn-row">
-        <button type="button" className="btn btn-small" onClick={() => void addBracket(id)} data-testid="insp-add-bracket">
+        <Button size="sm" icon={<PlusIcon size={16} />} onClick={() => void addBracket(id)} testId="insp-add-bracket">
           Bracket
-        </button>
-        <button type="button" className="btn btn-small" onClick={() => void addReferenceLine(id)}>
+        </Button>
+        <Button size="sm" icon={<PlusIcon size={16} />} onClick={() => void addReferenceLine(id)}>
           Line
-        </button>
-        <button type="button" className="btn btn-small" onClick={() => void addText(id)}>
+        </Button>
+        <Button size="sm" icon={<PlusIcon size={16} />} onClick={() => void addText(id)}>
           Text
-        </button>
+        </Button>
       </div>
       {list.length === 0 && <p className="muted small">No annotations.</p>}
       {list.map((_, i) => (
@@ -514,9 +511,9 @@ function AnnotationFields({ graph, spec, index, compact }: { graph: Id; spec: Gr
         <span>
           {ANN_NAME[a.kind] ?? a.kind} {index + 1}
         </span>
-        <button type="button" className="btn btn-small btn-ghost" onClick={() => void remove()} data-testid={`ann-delete-${index}`}>
+        <Button variant="quiet" size="sm" onClick={() => void remove()} testId={`ann-delete-${index}`}>
           Delete
-        </button>
+        </Button>
       </div>
       {a.kind === 'significance_bracket' && (
         <>
@@ -537,15 +534,20 @@ function AnnotationFields({ graph, spec, index, compact }: { graph: Id; spec: Gr
       {a.kind === 'reference_line' && (
         <>
           <Row label="Axis">
-            <select className="input input-compact" value={a.axis} aria-label="Axis" onChange={(e) => void write({ axis: e.target.value as 'x' | 'y' })}>
-              <option value="y">Horizontal (Y)</option>
-              <option value="x">Vertical (X)</option>
-            </select>
+            <Segmented
+              label="Axis"
+              value={a.axis}
+              choices={[
+                { value: 'y' as const, label: 'Horizontal', hint: 'At a Y value' },
+                { value: 'x' as const, label: 'Vertical', hint: 'At an X value' },
+              ]}
+              onChange={(v) => void write({ axis: v })}
+            />
           </Row>
           {num('Value', 'value', a.value)}
           <AnnText label="Label" value={a.label ?? ''} onCommit={(t) => void write({ label: t || undefined })} />
           <Row label="Dashed">
-            <input type="checkbox" checked={a.dashed !== false} aria-label="Dashed" onChange={(e) => void write({ dashed: e.target.checked })} />
+            <Toggle checked={a.dashed !== false} label="Dashed" onChange={(on) => void write({ dashed: on })} />
           </Row>
         </>
       )}
@@ -566,8 +568,8 @@ function AnnText({ value, onCommit, label = 'Text' }: { value: string; onCommit:
   useEffect(() => setV(value), [value]);
   return (
     <Row label={label}>
-      <input
-        className="input input-compact"
+      <TextInput
+        size="sm"
         value={v}
         aria-label={label}
         onChange={(e) => setV(e.target.value)}
@@ -590,16 +592,19 @@ function ExportSection({ ctx }: { ctx: InspectorContext }) {
     <div className="g-list">
       {spec && (
         <p className="muted small">
-          {spec.style.size_mm.width} × {spec.style.size_mm.height} mm. The exported file is the graph you see.
+          <span className="mono">
+            {spec.style.size_mm.width} × {spec.style.size_mm.height} mm
+          </span>
+          . The exported file is the graph you see.
         </p>
       )}
       <div className="btn-row">
-        <button type="button" className="btn btn-small" onClick={() => void exportGraphDialog(id)} data-testid="insp-export">
+        <Button size="sm" onClick={() => void exportGraphDialog(id)} testId="insp-export">
           Export…
-        </button>
-        <button type="button" className="btn btn-small" onClick={() => void copySvg(id)} data-testid="insp-copy-svg">
+        </Button>
+        <Button size="sm" onClick={() => void copySvg(id)} testId="insp-copy-svg">
           Copy SVG
-        </button>
+        </Button>
       </div>
     </div>
   );

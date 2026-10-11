@@ -203,6 +203,19 @@ export async function renameObject(id: Id | null = useProject.getState().activeI
   await mutate((e) => cmd.renameObject(e, item.id, title.trim()));
 }
 
+export async function renameProject(): Promise<void> {
+  const current = useProject.getState().view?.title ?? '';
+  const title = await promptDialog({
+    title: 'Rename project',
+    label: 'Title',
+    initial: current,
+    confirm: 'Rename',
+    validate: (v) => (v.trim() ? null : 'A title cannot be empty.'),
+  });
+  if (title === null || title.trim() === current) return;
+  await mutate((e) => cmd.setProjectTitle(e, title.trim()));
+}
+
 export async function deleteObject(id: Id | null = useProject.getState().activeId): Promise<void> {
   const item = itemById(id);
   if (!item) return;

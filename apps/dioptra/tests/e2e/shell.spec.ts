@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { boot, cell, clickCell, mod, newColumnTable, pasteIntoGrid } from './helpers';
+import { boot, cell, clickCell, mod, newColumnTable, pasteIntoGrid, menu } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await boot(page);
@@ -141,12 +141,10 @@ test('(e) saves the project as bytes and reopens it with values intact', async (
   await file.saveAs(path);
   await expect(page.getByTestId('rail-item-Table 1')).toBeVisible();
   // New project (saved, so no guard), then open the file again.
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.new').click();
+  await menu(page, 'File', 'file.new');
   await expect(page.getByTestId('rail-item-Table 1')).toHaveCount(0);
   const chooser = page.waitForEvent('filechooser');
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.open').click();
+  await menu(page, 'File', 'file.open');
   await (await chooser).setFiles(path);
   await expect(page.getByTestId('rail-item-Table 1')).toBeVisible();
   await expect(cell(page, 0, 0)).toHaveText('1.25');
@@ -156,8 +154,7 @@ test('(e) saves the project as bytes and reopens it with values intact', async (
 
 test('(e2) the unsaved-changes guard asks before New project', async ({ page }) => {
   await newColumnTable(page, 'column');
-  await page.getByTestId('menubar-File').click();
-  await page.getByTestId('menu-file.new').click();
+  await menu(page, 'File', 'file.new');
   await expect(page.getByTestId('confirm-dialog')).toBeVisible();
   await page.getByTestId('confirm-dialog').getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByTestId('rail-item-Table 1')).toBeVisible();
@@ -168,8 +165,7 @@ test('(f) the dark theme toggle changes data-theme', async ({ page }) => {
   await expect(html).toHaveAttribute('data-theme', 'light');
   await page.keyboard.press(`${mod}+Shift+l`);
   await expect(html).toHaveAttribute('data-theme', 'dark');
-  await page.getByTestId('menubar-View').click();
-  await page.getByTestId('menu-view.themeLight').click();
+  await menu(page, 'View', 'view.themeLight');
   await expect(html).toHaveAttribute('data-theme', 'light');
   // Persisted across reloads.
   await page.keyboard.press(`${mod}+Shift+l`);
@@ -197,4 +193,24 @@ test('(g) the command palette opens with Ctrl-K and runs New table', async ({ pa
   await page.keyboard.press(`${mod}+k`);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('palette')).toHaveCount(0);
+});
+
+test('(h) the top bar renames the project, switches the theme and has no native controls', async ({ page }) => {
+  await newColumnTable(page, 'column');
+  await page.getByTestId('project-title').click();
+  await page.getByTestId('project-title-input').fill('Cytokine study');
+  await page.getByTestId('project-title-input').press('Enter');
+  await expect(page.getByTestId('project-title')).toContainText('Cytokine study');
+  await expect(page).toHaveTitle(/Cytokine study/);
+  await page.getByTestId('theme-dark').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByTestId('theme-light').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  // The design system replaces every native select, checkbox and number field.
+  expect(await page.locator('select, input[type="checkbox"], input[type="radio"], input[type="number"], [title]').count()).toBe(0);
+  // Undo takes the project title back.
+  await page.keyboard.press('Escape');
+  await page.locator('[data-cell="0:0"]').click();
+  await page.keyboard.press(`${mod}+z`);
+  await expect(page.getByTestId('project-title')).not.toContainText('Cytokine study');
 });

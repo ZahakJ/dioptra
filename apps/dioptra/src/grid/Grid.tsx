@@ -490,7 +490,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
               type="button"
               className="corner-btn"
               aria-label="Select all"
-              title="Select all"
+              data-tip="Select all"
               tabIndex={-1}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -510,7 +510,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                 key={g.key}
                 className={'gh-group' + (g.xcol ? ' is-x' : '') + (ar0.col0 <= g.first && ar0.col1 > g.last ? ' is-sel' : '')}
                 style={{ left: colLeft(g.first), width: colRight(g.last) - colLeft(g.first), height: HEAD_H }}
-                title={g.name}
+                data-tip={g.name}
                 onMouseDown={(e) => selectCols(e, g.first, g.last)}
                 onContextMenu={(e) => headerMenu(e, g.first)}
                 onDoubleClick={() => !g.xcol && void actions.renameDataset(g.first)}
@@ -527,7 +527,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                   className={'gh-col' + (selected ? ' is-sel' : '') + (c.role === 'x' ? ' is-x' : '')}
                   style={{ left: vc.start - leftW, width: vc.size, top: HEAD_H, height: HEAD_H }}
                   data-testid={`col-head-${vc.index}`}
-                  title={c.formula ? `${c.header}\n=${c.formula}` : c.header}
+                  data-tip={c.formula ? `${c.header}  =${c.formula}` : c.header}
                   onMouseDown={(e) => selectCols(e, vc.index, vc.index)}
                   onContextMenu={(e) => headerMenu(e, vc.index)}
                 >
@@ -552,13 +552,13 @@ export function Grid({ meta }: { meta: TableMeta }) {
             {!meta.read_only && (
               <button
                 type="button"
-                className="btn btn-ghost btn-small"
+                className="btn btn-quiet btn-sm"
                 tabIndex={-1}
                 onClick={() => void actions.addDataset()}
                 data-testid="add-dataset"
-                title="Add a data set"
+                data-tip={meta.kind === 'variables' ? 'Add a variable' : 'Add a data set'}
               >
-                <PlusIcon size={11} /> {meta.kind === 'variables' ? 'Variable' : 'Data set'}
+                <PlusIcon size={16} /> {meta.kind === 'variables' ? 'Variable' : 'Data set'}
               </button>
             )}
           </div>
@@ -596,7 +596,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                       <div
                         className={'rh-title' + (spare ? ' is-spare' : '')}
                         style={{ width: TITLE_W }}
-                        title="Double-click to edit the row title"
+                        data-tip="Double-click to edit the row title"
                         data-testid={`row-title-${vr.index}`}
                         onDoubleClick={() => !meta.read_only && setTitleEdit(vr.index)}
                       >
@@ -721,7 +721,7 @@ const GridCells = memo(
             className={cls}
             style={{ top, left, width: vc.size }}
             data-cell={`${vr.index}:${vc.index}`}
-            title={title}
+            data-tip={title}
           >
             {text}
           </div>,
