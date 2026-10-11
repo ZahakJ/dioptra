@@ -14,7 +14,7 @@ import { mutate } from '../store/sync';
 import { cellCache, useTables, useTableVersion } from '../store/table';
 import { useUi } from '../store/ui';
 import * as actions from './actions';
-import { rawCellInput } from './formulaBar';
+import { rawCellInput } from './formulaBarState';
 import { navigate, type NavContext } from './navigation';
 import {
   activeRange,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commitOf, formulaBarReducer, INITIAL_BAR, rawCellInput, type FormulaBarState } from './formulaBar';
+import { commitOf, formulaBarReducer, INITIAL_BAR, rawCellInput, type FormulaBarState } from './formulaBarState';
 
 const sync = (s: FormulaBarState, cellText: string, columnText = '') =>
   formulaBarReducer(s, { type: 'sync', cellText, columnText });

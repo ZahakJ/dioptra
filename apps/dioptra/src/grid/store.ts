@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import type { CellInfo, Id } from '../engine/types';
 import { ORIGIN, type Selection } from './selection';
-import type { FormulaMode } from './formulaBar';
+import type { FormulaMode } from './formulaBarState';
 
 export interface GridState {
   selections: Record<Id, Selection>;
