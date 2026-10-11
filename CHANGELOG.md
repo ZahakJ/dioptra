@@ -39,6 +39,11 @@ The first public release.
   filter, sort, select rows and columns, remove baseline, fraction of total, normalise,
   average replicates and prune.
 
+### Command line
+
+- `dioptra info`, `run`, `import`, `analyze`, `render`, `export`, `bench` and `equations` drive
+  the same engine from scripts and continuous integration.
+
 ### Analyses
 
 - Twenty analyses: descriptive statistics; t tests (one-sample, Welch, Student, paired,

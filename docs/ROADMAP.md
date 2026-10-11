@@ -19,9 +19,6 @@ The theme is designs that 0.1 cannot analyse properly.
   regression**, on a shared iteratively reweighted least squares and Newton
   infrastructure. (Cox is already implemented and tested in the engine; it needs the
   regression interface.)
-- **The command-line runner**: `dioptra run project.dioptra` to recompute every analysis
-  and `dioptra render` to export every graph, for scripted pipelines and continuous
-  integration of a paper's figures.
 - **Interpolation from standard curves**, area under the curve, and row statistics.
 
 ## Version 0.3: extension and scale
