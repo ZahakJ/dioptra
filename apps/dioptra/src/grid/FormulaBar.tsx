@@ -7,7 +7,7 @@ import * as cmd from '../engine/commands';
 import type { TableMeta } from '../engine/types';
 import { mutate } from '../store/sync';
 import { cellCache, useTableVersion } from '../store/table';
-import { commitOf, formulaBarReducer, INITIAL_BAR, rawCellInput } from './formulaBar';
+import { commitOf, formulaBarReducer, INITIAL_BAR, rawCellInput } from './formulaBarState';
 import { activeRange } from './selection';
 import { useGrid, useSelection } from './store';
 
