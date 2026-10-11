@@ -1,0 +1,99 @@
+{
+ "name": "Rat43",
+ "class": "nonlinear_regression",
+ "difficulty": "Higher",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/Rat43.dat",
+ "model_text": "Exponential Class | 4 Parameters (b1 to b4) | y = b1 / ((1+exp[b2-b3*x])**(1/b4))  +  e",
+ "equation": "b1/((1+exp(b2-b3*x))^(1/b4))",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 4,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 100.0,
+   "start2": 700.0,
+   "certified": 699.6415127,
+   "certified_text": "6.9964151270E+02",
+   "std_dev": 16.302297817,
+   "std_dev_text": "1.6302297817E+01"
+  },
+  {
+   "name": "b2",
+   "start1": 10.0,
+   "start2": 5.0,
+   "certified": 5.2771253025,
+   "certified_text": "5.2771253025E+00",
+   "std_dev": 2.0828735829,
+   "std_dev_text": "2.0828735829E+00"
+  },
+  {
+   "name": "b3",
+   "start1": 1.0,
+   "start2": 0.75,
+   "certified": 0.75962938329,
+   "certified_text": "7.5962938329E-01",
+   "std_dev": 0.19566123451,
+   "std_dev_text": "1.9566123451E-01"
+  },
+  {
+   "name": "b4",
+   "start1": 1.0,
+   "start2": 1.3,
+   "certified": 1.2792483859,
+   "certified_text": "1.2792483859E+00",
+   "std_dev": 0.68761936385,
+   "std_dev_text": "6.8761936385E-01"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 8786.404908,
+  "text": "8.7864049080E+03"
+ },
+ "residual_std_dev": {
+  "value": 28.262414662,
+  "text": "2.8262414662E+01"
+ },
+ "degrees_of_freedom": 9,
+ "n_observations": 15,
+ "check_rss_at_certified_params": 8786.404907963166,
+ "data": {
+  "y": [
+   16.08,
+   33.83,
+   65.8,
+   97.2,
+   191.55,
+   326.2,
+   386.87,
+   520.53,
+   590.03,
+   651.92,
+   724.93,
+   699.56,
+   689.96,
+   637.56,
+   717.41
+  ],
+  "x": [
+   1.0,
+   2.0,
+   3.0,
+   4.0,
+   5.0,
+   6.0,
+   7.0,
+   8.0,
+   9.0,
+   10.0,
+   11.0,
+   12.0,
+   13.0,
+   14.0,
+   15.0
+  ]
+ },
+ "dat_file": "Rat43.dat"
+}

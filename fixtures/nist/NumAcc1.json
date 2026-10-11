@@ -1,0 +1,30 @@
+{
+ "name": "NumAcc1",
+ "class": "univariate",
+ "difficulty": "Lower",
+ "source_url": "https://www.itl.nist.gov/div898/strd/univ/data/NumAcc1.dat",
+ "certified": {
+  "mean": {
+   "value": 10000002.0,
+   "text": "10000002"
+  },
+  "sd_n_minus_1": {
+   "value": 1.0,
+   "text": "1"
+  },
+  "lag1_autocorrelation": {
+   "value": -0.5,
+   "text": "-0.5"
+  }
+ },
+ "exact_note": "(exact)",
+ "n_observations": 3,
+ "data": {
+  "y": [
+   10000001.0,
+   10000003.0,
+   10000002.0
+  ]
+ },
+ "dat_file": "NumAcc1.dat"
+}

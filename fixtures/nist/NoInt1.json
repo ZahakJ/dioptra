@@ -1,0 +1,88 @@
+{
+ "name": "NoInt1",
+ "class": "linear_regression",
+ "difficulty": "Average",
+ "source_url": "https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat",
+ "model_text": "Linear Class | 1 Parameter (B1) | y = B1*x + e",
+ "model": {
+  "kind": "polynomial",
+  "degree": 1,
+  "intercept": false
+ },
+ "parameters": [
+  {
+   "name": "B1",
+   "certified": 2.07438016528926,
+   "certified_text": "2.07438016528926",
+   "std_dev": 0.0165289256198347,
+   "std_dev_text": "0.165289256198347E-01"
+  }
+ ],
+ "residual_std_dev": {
+  "value": 3.56753034006338,
+  "text": "3.56753034006338"
+ },
+ "r_squared": {
+  "value": 0.999365492298663,
+  "text": "0.999365492298663"
+ },
+ "anova": {
+  "regression": {
+   "df": 1,
+   "ss": {
+    "value": 200457.727272727,
+    "text": "200457.727272727"
+   },
+   "ms": {
+    "value": 200457.727272727,
+    "text": "200457.727272727"
+   },
+   "f": {
+    "value": 15750.25,
+    "text": "15750.2500000000"
+   },
+   "note": "f value null when NIST prints Infinity"
+  },
+  "residual": {
+   "df": 10,
+   "ss": {
+    "value": 127.272727272727,
+    "text": "127.272727272727"
+   },
+   "ms": {
+    "value": 12.7272727272727,
+    "text": "12.7272727272727"
+   }
+  }
+ },
+ "n_observations": 11,
+ "data": {
+  "y": [
+   130.0,
+   131.0,
+   132.0,
+   133.0,
+   134.0,
+   135.0,
+   136.0,
+   137.0,
+   138.0,
+   139.0,
+   140.0
+  ],
+  "x": [
+   60.0,
+   61.0,
+   62.0,
+   63.0,
+   64.0,
+   65.0,
+   66.0,
+   67.0,
+   68.0,
+   69.0,
+   70.0
+  ]
+ },
+ "dat_file": "NoInt1.dat"
+}

@@ -1,0 +1,63 @@
+{
+ "name": "DanWood",
+ "class": "nonlinear_regression",
+ "difficulty": "Lower",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/DanWood.dat",
+ "model_text": "Miscellaneous Class | 2 Parameters (b1 and b2) | y  = b1*x**b2  +  e",
+ "equation": "b1*x^b2",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 2,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 1.0,
+   "start2": 0.7,
+   "certified": 0.76886226176,
+   "certified_text": "7.6886226176E-01",
+   "std_dev": 0.01828197386,
+   "std_dev_text": "1.8281973860E-02"
+  },
+  {
+   "name": "b2",
+   "start1": 5.0,
+   "start2": 4.0,
+   "certified": 3.8604055871,
+   "certified_text": "3.8604055871E+00",
+   "std_dev": 0.051726610913,
+   "std_dev_text": "5.1726610913E-02"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 0.0043173084083,
+  "text": "4.3173084083E-03"
+ },
+ "residual_std_dev": {
+  "value": 0.032853114039,
+  "text": "3.2853114039E-02"
+ },
+ "degrees_of_freedom": 4,
+ "n_observations": 6,
+ "check_rss_at_certified_params": 0.004317308408291061,
+ "data": {
+  "y": [
+   2.138,
+   3.421,
+   3.597,
+   4.34,
+   4.882,
+   5.66
+  ],
+  "x": [
+   1.309,
+   1.471,
+   1.49,
+   1.565,
+   1.611,
+   1.68
+  ]
+ },
+ "dat_file": "DanWood.dat"
+}

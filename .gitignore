@@ -1,0 +1,11 @@
+/target
+/.scratch
+node_modules
+dist
+/apps/dioptra/src/engine/wasm/pkg
+/apps/dioptra/test-results
+/apps/dioptra/playwright-report
+/apps/dioptra/src-tauri/gen/schemas
+*.log
+.DS_Store
+__pycache__

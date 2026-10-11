@@ -1,0 +1,16 @@
+[package]
+name = "dioptra-stats"
+description = "Dioptra's numerical and statistical engine: no I/O, f64 throughout, tested against NIST StRD and scipy/statsmodels/lifelines oracles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+libm.workspace = true
+nalgebra.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

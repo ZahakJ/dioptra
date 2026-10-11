@@ -1,0 +1,544 @@
+{
+ "test": "outliers",
+ "reference": "Grubbs (two-sided, iterative) and ROUT (Motulsky & Brown 2006, fit-a-constant case) implemented here",
+ "notes": [
+  "Grubbs: G = max|x - mean|/sd (n-1); G_crit = (n-1)/sqrt(n) sqrt(t^2/(n-2+t^2)), t = t(1-alpha/(2n), n-2); p_approx = min(1, 2n P(T_{n-2} > t_obs)), t_obs = sqrt(n(n-2)G^2/((n-1)^2-nG^2)); alpha = 0.05; iterate removing the suspect while significant. Indices refer to the input order.",
+  "ROUT steps documented in rout_constant() docstring and research/04-algorithms.md section 16. The robust centre is the minimizer of the Lorentzian merit with adaptive RSDR; flagged indices come from the P68-based RSDR; rsdr_alt_1p4826_mad is recorded for comparison only.",
+  "Q is a fraction (0.01 = Prism's default Q = 1%)."
+ ],
+ "generator": {
+  "script": "scripts/oracle/gen_fixtures.py",
+  "seed": 20261011,
+  "versions": {
+   "numpy": "2.5.4",
+   "scipy": "1.18.1",
+   "statsmodels": "0.15.0",
+   "lifelines": "0.30.3",
+   "sklearn": "1.9.1",
+   "pandas": "2.3.3",
+   "mpmath": "1.4.1",
+   "python": "3.14.7"
+  }
+ },
+ "cases": [
+  {
+   "name": "one_planted_n20",
+   "input": {
+    "x": [
+     51.485,
+     49.428,
+     53.714,
+     50.023,
+     51.624,
+     50.117,
+     51.722,
+     44.432,
+     46.066,
+     45.214,
+     54.678,
+     48.285,
+     53.016,
+     44.669,
+     51.239,
+     41.164,
+     56.42,
+     53.428,
+     52.627,
+     85.0
+    ]
+   },
+   "expected": {
+    "grubbs": {
+     "steps": [
+      {
+       "n": 20,
+       "mean": 51.717549999999996,
+       "sd": 8.76340403385159,
+       "suspect_index": 19,
+       "suspect_value": 85.0,
+       "G": 3.7978906223466784,
+       "G_critical": 2.7082456458057584,
+       "p_approx": 2.184098221032708e-06,
+       "significant": true
+      },
+      {
+       "n": 19,
+       "mean": 49.96584210526315,
+       "sd": 4.035434346210219,
+       "suspect_index": 15,
+       "suspect_value": 41.164,
+       "G": 2.1811387201799444,
+       "G_critical": 2.680931096775402,
+       "p_approx": 0.38174344095565116,
+       "significant": false
+      }
+     ],
+     "outlier_indices": [
+      19
+     ]
+    },
+    "rout_Q1pct": {
+     "robust_center": 50.75501757840391,
+     "p68_abs_residual": 4.667032369403521,
+     "rsdr": 4.912665652003707,
+     "rsdr_alt_1p4826_mad": 3.4474351578947418,
+     "outlier_indices": [
+      19
+     ],
+     "mean_after_removal": 49.96584210526315,
+     "sd_after_removal": 4.035434346210219,
+     "Q": 0.01
+    },
+    "rout_Q0p1pct": {
+     "robust_center": 50.75501757840391,
+     "p68_abs_residual": 4.667032369403521,
+     "rsdr": 4.912665652003707,
+     "rsdr_alt_1p4826_mad": 3.4474351578947418,
+     "outlier_indices": [
+      19
+     ],
+     "mean_after_removal": 49.96584210526315,
+     "sd_after_removal": 4.035434346210219,
+     "Q": 0.001
+    },
+    "rout_Q5pct": {
+     "robust_center": 50.75501757840391,
+     "p68_abs_residual": 4.667032369403521,
+     "rsdr": 4.912665652003707,
+     "rsdr_alt_1p4826_mad": 3.4474351578947418,
+     "outlier_indices": [
+      19
+     ],
+     "mean_after_removal": 49.96584210526315,
+     "sd_after_removal": 4.035434346210219,
+     "Q": 0.05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10,
+    "fields": {
+     "robust_center": {
+      "rel": 1e-09,
+      "abs": 1e-09
+     }
+    }
+   }
+  },
+  {
+   "name": "two_planted_masking_n20",
+   "input": {
+    "x": [
+     51.485,
+     49.428,
+     53.714,
+     50.023,
+     51.624,
+     50.117,
+     51.722,
+     44.432,
+     46.066,
+     45.214,
+     54.678,
+     48.285,
+     53.016,
+     44.669,
+     51.239,
+     41.164,
+     56.42,
+     53.428,
+     80.0,
+     82.0
+    ]
+   },
+   "expected": {
+    "grubbs": {
+     "steps": [
+      {
+       "n": 20,
+       "mean": 52.9362,
+       "sd": 10.35633743732742,
+       "suspect_index": 19,
+       "suspect_value": 82.0,
+       "G": 2.806378237082652,
+       "G_critical": 2.7082456458057584,
+       "p_approx": 0.030466055185754078,
+       "significant": true
+      },
+      {
+       "n": 19,
+       "mean": 51.40652631578947,
+       "sd": 7.9883880196224055,
+       "suspect_index": 18,
+       "suspect_value": 80.0,
+       "G": 3.579379671339761,
+       "G_critical": 2.680931096775402,
+       "p_approx": 2.9981278817599298e-05,
+       "significant": true
+      },
+      {
+       "n": 18,
+       "mean": 49.818,
+       "sd": 4.099138747418564,
+       "suspect_index": 15,
+       "suspect_value": 41.164,
+       "G": 2.111175184165176,
+       "G_critical": 2.651599120129793,
+       "p_approx": 0.44396104835584654,
+       "significant": false
+      }
+     ],
+     "outlier_indices": [
+      19,
+      18
+     ]
+    },
+    "rout_Q1pct": {
+     "robust_center": 50.593249566668895,
+     "p68_abs_residual": 5.354797166668896,
+     "rsdr": 5.6366285964935745,
+     "rsdr_alt_1p4826_mad": 4.236334421052633,
+     "outlier_indices": [
+      18,
+      19
+     ],
+     "mean_after_removal": 49.818,
+     "sd_after_removal": 4.099138747418564,
+     "Q": 0.01
+    },
+    "rout_Q0p1pct": {
+     "robust_center": 50.593249566668895,
+     "p68_abs_residual": 5.354797166668896,
+     "rsdr": 5.6366285964935745,
+     "rsdr_alt_1p4826_mad": 4.236334421052633,
+     "outlier_indices": [
+      18,
+      19
+     ],
+     "mean_after_removal": 49.818,
+     "sd_after_removal": 4.099138747418564,
+     "Q": 0.001
+    },
+    "rout_Q5pct": {
+     "robust_center": 50.593249566668895,
+     "p68_abs_residual": 5.354797166668896,
+     "rsdr": 5.6366285964935745,
+     "rsdr_alt_1p4826_mad": 4.236334421052633,
+     "outlier_indices": [
+      18,
+      19
+     ],
+     "mean_after_removal": 49.818,
+     "sd_after_removal": 4.099138747418564,
+     "Q": 0.05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10,
+    "fields": {
+     "robust_center": {
+      "rel": 1e-09,
+      "abs": 1e-09
+     }
+    }
+   }
+  },
+  {
+   "name": "clean_n15",
+   "input": {
+    "x": [
+     8.802,
+     10.116,
+     9.62,
+     9.673,
+     9.308,
+     9.562,
+     10.962,
+     11.294,
+     8.729,
+     9.559,
+     10.556,
+     10.912,
+     9.919,
+     8.622,
+     10.193
+    ]
+   },
+   "expected": {
+    "grubbs": {
+     "steps": [
+      {
+       "n": 15,
+       "mean": 9.855133333333335,
+       "sd": 0.825888168377939,
+       "suspect_index": 7,
+       "suspect_value": 11.294,
+       "G": 1.7422052061753457,
+       "G_critical": 2.54830777174334,
+       "p_approx": 1.0,
+       "significant": false
+      }
+     ],
+     "outlier_indices": []
+    },
+    "rout_Q1pct": {
+     "robust_center": 9.813588672642094,
+     "p68_abs_residual": 1.0523080726420948,
+     "rsdr": 1.127472934973673,
+     "rsdr_alt_1p4826_mad": 0.8260199999999992,
+     "outlier_indices": [],
+     "mean_after_removal": 9.855133333333335,
+     "sd_after_removal": 0.825888168377939,
+     "Q": 0.01
+    },
+    "rout_Q0p1pct": {
+     "robust_center": 9.813588672642094,
+     "p68_abs_residual": 1.0523080726420948,
+     "rsdr": 1.127472934973673,
+     "rsdr_alt_1p4826_mad": 0.8260199999999992,
+     "outlier_indices": [],
+     "mean_after_removal": 9.855133333333335,
+     "sd_after_removal": 0.825888168377939,
+     "Q": 0.001
+    },
+    "rout_Q5pct": {
+     "robust_center": 9.813588672642094,
+     "p68_abs_residual": 1.0523080726420948,
+     "rsdr": 1.127472934973673,
+     "rsdr_alt_1p4826_mad": 0.8260199999999992,
+     "outlier_indices": [],
+     "mean_after_removal": 9.855133333333335,
+     "sd_after_removal": 0.825888168377939,
+     "Q": 0.05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10,
+    "fields": {
+     "robust_center": {
+      "rel": 1e-09,
+      "abs": 1e-09
+     }
+    }
+   }
+  },
+  {
+   "name": "low_and_high_n25",
+   "input": {
+    "x": [
+     90.95,
+     98.402,
+     87.411,
+     98.092,
+     91.779,
+     101.73,
+     104.497,
+     93.685,
+     92.021,
+     103.04,
+     89.13,
+     104.406,
+     102.573,
+     101.573,
+     100.765,
+     105.616,
+     104.934,
+     104.107,
+     97.3,
+     95.282,
+     97.627,
+     98.845,
+     103.918,
+     60.0,
+     141.0
+    ]
+   },
+   "expected": {
+    "grubbs": {
+     "steps": [
+      {
+       "n": 25,
+       "mean": 98.74732,
+       "sd": 12.851396823302906,
+       "suspect_index": 24,
+       "suspect_value": 141.0,
+       "G": 3.2877889136054814,
+       "G_critical": 2.8216812378051954,
+       "p_approx": 0.00396036057161754,
+       "significant": true
+      },
+      {
+       "n": 24,
+       "mean": 96.98679166666666,
+       "sd": 9.564712318586423,
+       "suspect_index": 23,
+       "suspect_value": 60.0,
+       "G": 3.8670051366618594,
+       "G_critical": 2.8015511615503152,
+       "p_approx": 1.8283653611573604e-05,
+       "significant": true
+      },
+      {
+       "n": 23,
+       "mean": 98.59491304347826,
+       "sd": 5.545774770965432,
+       "suspect_index": 2,
+       "suspect_value": 87.411,
+       "G": 2.0166547516554325,
+       "G_critical": 2.7802768214498643,
+       "p_approx": 0.8238277870830745,
+       "significant": false
+      }
+     ],
+     "outlier_indices": [
+      24,
+      23
+     ]
+    },
+    "rout_Q1pct": {
+     "robust_center": 99.6627613344556,
+     "p68_abs_residual": 5.96267498854143,
+     "rsdr": 6.211119779730656,
+     "rsdr_alt_1p4826_mad": 7.968974999999994,
+     "outlier_indices": [
+      23,
+      24
+     ],
+     "mean_after_removal": 98.59491304347826,
+     "sd_after_removal": 5.545774770965432,
+     "Q": 0.01
+    },
+    "rout_Q0p1pct": {
+     "robust_center": 99.6627613344556,
+     "p68_abs_residual": 5.96267498854143,
+     "rsdr": 6.211119779730656,
+     "rsdr_alt_1p4826_mad": 7.968974999999994,
+     "outlier_indices": [
+      23,
+      24
+     ],
+     "mean_after_removal": 98.59491304347826,
+     "sd_after_removal": 5.545774770965432,
+     "Q": 0.001
+    },
+    "rout_Q5pct": {
+     "robust_center": 99.6627613344556,
+     "p68_abs_residual": 5.96267498854143,
+     "rsdr": 6.211119779730656,
+     "rsdr_alt_1p4826_mad": 7.968974999999994,
+     "outlier_indices": [
+      23,
+      24
+     ],
+     "mean_after_removal": 98.59491304347826,
+     "sd_after_removal": 5.545774770965432,
+     "Q": 0.05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10,
+    "fields": {
+     "robust_center": {
+      "rel": 1e-09,
+      "abs": 1e-09
+     }
+    }
+   }
+  },
+  {
+   "name": "textbook_small_n8",
+   "input": {
+    "x": [
+     2.1,
+     2.4,
+     2.2,
+     2.3,
+     2.5,
+     2.2,
+     2.4,
+     5.9
+    ]
+   },
+   "expected": {
+    "grubbs": {
+     "steps": [
+      {
+       "n": 8,
+       "mean": 2.75,
+       "sd": 1.2795088343356047,
+       "suspect_index": 7,
+       "suspect_value": 5.9,
+       "G": 2.461882181247825,
+       "G_critical": 2.1266450871954667,
+       "p_approx": 2.88165941293262e-06,
+       "significant": true
+      },
+      {
+       "n": 7,
+       "mean": 2.3,
+       "sd": 0.14142135623730942,
+       "suspect_index": 4,
+       "suspect_value": 2.5,
+       "G": 1.4142135623730971,
+       "G_critical": 2.0199685076795975,
+       "p_approx": 0.9417864400994259,
+       "significant": false
+      }
+     ],
+     "outlier_indices": [
+      7
+     ]
+    },
+    "rout_Q1pct": {
+     "robust_center": 2.303808825110478,
+     "p68_abs_residual": 0.17576543735337546,
+     "rsdr": 0.2008747855467148,
+     "rsdr_alt_1p4826_mad": 0.2541599999999991,
+     "outlier_indices": [
+      7
+     ],
+     "mean_after_removal": 2.3,
+     "sd_after_removal": 0.14142135623730942,
+     "Q": 0.01
+    },
+    "rout_Q0p1pct": {
+     "robust_center": 2.303808825110478,
+     "p68_abs_residual": 0.17576543735337546,
+     "rsdr": 0.2008747855467148,
+     "rsdr_alt_1p4826_mad": 0.2541599999999991,
+     "outlier_indices": [
+      7
+     ],
+     "mean_after_removal": 2.3,
+     "sd_after_removal": 0.14142135623730942,
+     "Q": 0.001
+    },
+    "rout_Q5pct": {
+     "robust_center": 2.303808825110478,
+     "p68_abs_residual": 0.17576543735337546,
+     "rsdr": 0.2008747855467148,
+     "rsdr_alt_1p4826_mad": 0.2541599999999991,
+     "outlier_indices": [
+      7
+     ],
+     "mean_after_removal": 2.3,
+     "sd_after_removal": 0.14142135623730942,
+     "Q": 0.05
+    }
+   },
+   "tolerance": {
+    "rel": 1e-08,
+    "abs": 1e-10,
+    "fields": {
+     "robust_center": {
+      "rel": 1e-09,
+      "abs": 1e-09
+     }
+    }
+   }
+  }
+ ]
+}

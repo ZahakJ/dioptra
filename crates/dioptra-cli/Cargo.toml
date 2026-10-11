@@ -1,0 +1,18 @@
+[package]
+name = "dioptra-cli"
+description = "Dioptra command line: run analyses, render graphs and inspect project files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "dioptra"
+path = "src/main.rs"
+
+[dependencies]
+dioptra-core.workspace = true
+dioptra-plot.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true

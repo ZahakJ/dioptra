@@ -1,0 +1,79 @@
+{
+ "name": "Misra1d",
+ "class": "nonlinear_regression",
+ "difficulty": "Average",
+ "source_url": "https://www.itl.nist.gov/div898/strd/nls/data/LINKS/DATA/Misra1d.dat",
+ "model_text": "Miscellaneous Class | 2 Parameters (b1 and b2) | y = b1*b2*x*((1+b2*x)**(-1))  +  e",
+ "equation": "b1*b2*x*((1+b2*x)^(-1))",
+ "response_transform": null,
+ "predictors": [
+  "x"
+ ],
+ "n_params": 2,
+ "parameters": [
+  {
+   "name": "b1",
+   "start1": 500.0,
+   "start2": 450.0,
+   "certified": 437.36970754,
+   "certified_text": "4.3736970754E+02",
+   "std_dev": 3.6489174345,
+   "std_dev_text": "3.6489174345E+00"
+  },
+  {
+   "name": "b2",
+   "start1": 0.0001,
+   "start2": 0.0003,
+   "certified": 0.00030227324449,
+   "certified_text": "3.0227324449E-04",
+   "std_dev": 2.9334354479e-06,
+   "std_dev_text": "2.9334354479E-06"
+  }
+ ],
+ "residual_sum_of_squares": {
+  "value": 0.056419295283,
+  "text": "5.6419295283E-02"
+ },
+ "residual_std_dev": {
+  "value": 0.068568272111,
+  "text": "6.8568272111E-02"
+ },
+ "degrees_of_freedom": 12,
+ "n_observations": 14,
+ "check_rss_at_certified_params": 0.05641929528264662,
+ "data": {
+  "y": [
+   10.07,
+   14.73,
+   17.94,
+   23.93,
+   29.61,
+   35.18,
+   40.02,
+   44.82,
+   50.76,
+   55.05,
+   61.01,
+   66.4,
+   75.47,
+   81.78
+  ],
+  "x": [
+   77.6,
+   114.9,
+   141.1,
+   190.8,
+   239.9,
+   289.0,
+   332.8,
+   378.4,
+   434.8,
+   477.3,
+   536.8,
+   593.1,
+   689.1,
+   760.0
+  ]
+ },
+ "dat_file": "Misra1d.dat"
+}
