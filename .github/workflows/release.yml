@@ -67,6 +67,17 @@ jobs:
         working-directory: apps/dioptra
         run: pnpm install --frozen-lockfile
 
+      - name: wasm-bindgen-cli
+        shell: bash
+        run: |
+          if ! command -v wasm-bindgen >/dev/null || [[ "$(wasm-bindgen --version)" != "wasm-bindgen 0.2.129" ]]; then
+            cargo install wasm-bindgen-cli --version 0.2.129 --locked
+          fi
+
+      - name: Build the wasm engine (the frontend bundle imports it)
+        shell: bash
+        run: ./scripts/build-wasm.sh
+
       - name: Build and upload bundles
         uses: tauri-apps/tauri-action@v0
         env:

@@ -71,7 +71,7 @@ shows points on every column graph, and handles a million cells interactively.
 | P17 | Methods under-reported | Every results sheet has a methods sentence (test, variant, sidedness, correction, version) |
 | P18 | Estimation came late and only for t tests | Estimation plots with bootstrap CIs of the difference |
 | P19 | Hierarchical data analysed as independent | Nested tables analyse unit means and say so; the default graph is a SuperPlot |
-| P20 | No scripted record of the analysis | Formulas, specifications and the history in JSON; recompute reproduces every number; a command-line runner is planned |
+| P20 | No scripted record of the analysis | Formulas, specifications and the history in JSON; recompute reproduces every number; the `dioptra` command line re-runs a project file and renders its graphs |
 | P21 | Opaque file format | `.dioptra` is documented JSON in a zip ([File format](file-format.md)) |
 | P22 | Version lock-in | Versioned format; newer readers open every older file; CSV and XLSX export always |
 | P23 | No version control | Stable-ordered, pretty-printed JSON that diffs after unzip; line-oriented history |

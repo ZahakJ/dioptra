@@ -451,7 +451,7 @@ pub fn risk_measures(table: [[u64; 2]; 2], ci_level: f64) -> Result<RiskMeasures
         relative_risk: rr,
         relative_risk_katz_ci: katz,
         risk_difference: rd,
-        risk_difference_wald_ci: (rd - z * se_rd, rd + z * se_rd),
+        risk_difference_wald_ci: ((rd - z * se_rd).max(-1.0), (rd + z * se_rd).min(1.0)),
         ci_level,
     })
 }

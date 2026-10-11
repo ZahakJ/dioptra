@@ -65,7 +65,7 @@ says what to click.
 
 <!-- screenshots: replace with final captures before tagging -->
 
-![The grid holding a million pasted plate-reader values, with the inspector showing where the selected cell came from](docs/manual/src/images/grid-light.png)
+![The grid holding a cytokine study, with the inspector showing where the selected cell came from](docs/manual/src/images/grid-light.png)
 
 ![A results sheet: assumption checks, APA-style sentences, the statistics table and a reporting checklist](docs/manual/src/images/results-light.png)
 
@@ -84,6 +84,7 @@ says what to click.
 | Export | SVG with real text, PDF with embedded fonts, PNG at any resolution; sizes in mm and points; identical bytes on every platform; tables to CSV, TSV and XLSX |
 | Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS and Prism `.pzfx` data |
 | File format | `.dioptra`: a zip of documented JSON with data, formulas, specifications and the command history ([format](docs/FILE-FORMAT.md)) |
+| Command line | `dioptra analyze data.csv --kind column --test one_way_anova`; `run`, `render`, `export` and `bench` on a project file, for scripted pipelines |
 | Platforms | Linux (AppImage, deb, rpm), Windows (msi, exe), macOS (Apple silicon and Intel) |
 
 ## Correctness
