@@ -1,0 +1,104 @@
+/* Dioptra design tokens (DESIGN.md §1, §7). Calm, precise, instrument-like: warm neutral greys
+   in light, graphite in dark, one verdigris accent for the thing being pointed at. Shadows only
+   on popovers. Radius 3px at most. */
+
+:root {
+  /* type */
+  --font-ui: 'Inter Variable', Inter, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-2xs: 10.5px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 18px;
+  --lh: 1.45;
+  --fw-medium: 520;
+  --fw-strong: 620;
+
+  /* space */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* shape */
+  --radius: 3px;
+  --radius-sm: 2px;
+  --border: 1px;
+
+  /* sizes */
+  --titlebar-h: 32px;
+  --statusline-h: 24px;
+  --tabs-h: 30px;
+  --formula-h: 32px;
+  --row-h: 24px;
+  --head-h: 22px;
+  --control-h: 26px;
+  --control-h-sm: 22px;
+}
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f7f6f3; /* paper */
+  --panel: #ffffff;
+  --panel-2: #fbfaf8;
+  --sunken: #f1efea; /* grid headers, wells */
+  --sunken-2: #e9e6df;
+  --line: #e4e1da;
+  --line-strong: #cdc9c0;
+  --grid-line: #ebe8e2;
+  --text: #1f2324;
+  --text-2: #55595b;
+  --text-3: #868886;
+  --text-disabled: #b0b0ab;
+
+  --accent: #2e7d78; /* verdigris */
+  --accent-strong: #246661;
+  --accent-ink: #ffffff;
+  --accent-tint: rgba(46, 125, 120, 0.09);
+  --accent-tint-2: rgba(46, 125, 120, 0.16);
+  --accent-line: rgba(46, 125, 120, 0.55);
+
+  --danger: #b3261e;
+  --danger-tint: rgba(179, 38, 30, 0.08);
+  --amber: #8a5a00;
+
+  --focus: #2e7d78;
+  --scrim: rgba(28, 30, 30, 0.28);
+  --shadow-pop: 0 1px 2px rgba(31, 35, 36, 0.08), 0 6px 20px rgba(31, 35, 36, 0.12);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #16191a; /* graphite */
+  --panel: #202426;
+  --panel-2: #1c2022;
+  --sunken: #1b1e20;
+  --sunken-2: #2a2f31;
+  --line: #2e3335;
+  --line-strong: #41474a;
+  --grid-line: #2a2e30;
+  --text: #d8d4cc;
+  --text-2: #a7a39b;
+  --text-3: #7c7973;
+  --text-disabled: #5a5854;
+
+  --accent: #5fb3ad;
+  --accent-strong: #79c4be;
+  --accent-ink: #0f1a19;
+  --accent-tint: rgba(95, 179, 173, 0.11);
+  --accent-tint-2: rgba(95, 179, 173, 0.2);
+  --accent-line: rgba(95, 179, 173, 0.6);
+
+  --danger: #e5776d;
+  --danger-tint: rgba(229, 119, 109, 0.1);
+  --amber: #d6a24a;
+
+  --focus: #5fb3ad;
+  --scrim: rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.45);
+}

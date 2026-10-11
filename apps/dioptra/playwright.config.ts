@@ -16,15 +16,18 @@ export default defineConfig({
   use: {
     channel: 'chrome',
     headless: true,
-    baseURL: 'http://127.0.0.1:5762',
+    // E2E_BASE_URL=http://localhost:5760 runs against `pnpm dev` while developing.
+    baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5762',
     colorScheme: 'light',
     viewport: { width: 1440, height: 900 },
     trace: 'retain-on-failure',
   },
-  webServer: {
-    command: 'pnpm preview',
-    url: 'http://127.0.0.1:5762',
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'pnpm preview',
+        url: 'http://127.0.0.1:5762',
+        reuseExistingServer: true,
+        timeout: 60_000,
+      },
 });
