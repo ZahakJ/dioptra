@@ -4,8 +4,8 @@
 //! It runs the same comparisons as the integration tests (tests/common/families.rs) and
 //! reports, per fixture family, the number of cases and comparisons, failures against the
 //! fixture tolerances, the worst relative error and the minimum number of correct digits
-//! (-log10 of the relative error, capped at 17), and the NIST StRD univariate LREs.
-//! Later families (ANOVA, regression, ...) are added by appending to `all_families()`.
+//! (-log10 of the relative error, capped at 17), and the NIST StRD univariate, linear
+//! regression and one-way ANOVA LREs.
 
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -74,6 +74,51 @@ fn main() {
     );
     println!("which caps any double-precision SD at 9.5 and 8.3 digits against the certified 0.1.");
     println!("Minimum LRE: {worst:.2} against certified values, {worst_exact:.2} against the exact statistics of the double inputs.");
+
+    println!("\n## NIST StRD linear regression (LRE)\n");
+    println!("| Dataset | Difficulty | Parameters | SDs | R^2 | Residual SD | ANOVA table | Min | Min* |");
+    println!("|---|---|---:|---:|---:|---:|---:|---:|---:|");
+    for r in families::nist_linear() {
+        println!(
+            "| {} | {} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} |",
+            r.name,
+            r.difficulty,
+            r.params,
+            r.sds,
+            r.r_squared,
+            r.residual_sd,
+            r.anova,
+            r.min,
+            r.min_exact_on_doubles
+        );
+    }
+    println!("\nParameters and SDs: minimum over the coefficients. ANOVA table: minimum over the");
+    println!("regression and residual SS and MS and F (Wampler1's F is infinite and not scored).");
+    println!("Min*: minimum LRE against the exact least-squares solution for the inputs as parsed");
+    println!("into doubles (rational arithmetic; values below 1e-12 scored by absolute error).");
+
+    println!("\n## NIST StRD one-way ANOVA (LRE)\n");
+    println!("| Dataset | Difficulty | SS between | SS within | MS between | MS within | F | R^2 | Residual SD | Min | Min* |");
+    println!("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+    for r in families::nist_anova() {
+        println!(
+            "| {} | {} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} |",
+            r.name,
+            r.difficulty,
+            r.ss_between,
+            r.ss_within,
+            r.ms_between,
+            r.ms_within,
+            r.f,
+            r.r_squared,
+            r.residual_sd,
+            r.min,
+            r.min_exact_on_doubles
+        );
+    }
+    println!(
+        "\nMin*: minimum LRE against the exact statistics of the inputs as parsed into doubles."
+    );
     if total_fail > 0 {
         eprintln!("{total_fail} comparison(s) outside tolerance");
         std::process::exit(1);

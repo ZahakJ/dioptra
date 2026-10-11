@@ -139,3 +139,76 @@ has a `cdf_sf` or `quantile_pq` method taking both tails.
 | `integrate_pair` | QUADPACK QAG/QK15 with QUADPACK's error scaling | Two integrands sharing nodes (a cdf and its complement). |
 | `halley_bracketed` | Numerical Recipes 3rd ed. §9.4 `rtsafe` with Halley correction | Bisection (geometric across decades) when a step leaves the bracket. |
 | `brent`, `expand_bracket` | Brent (1973), `zeroin` | |
+
+## anova
+
+Sums of squares are computed on data shifted by the first observation (exact by Sterbenz's
+lemma when values share leading digits) with two-pass means and compensated sums.
+
+| Function | Reference | Notes |
+|---|---|---|
+| `one_way_anova(groups)` | Fisher (1925); omega^2 Hays (1963) | SS/df/MS/F/p, R^2 = eta^2, omega^2, residual SD, group n/mean/SD/SEM, plus the five tests below as `Option`s (None when a group has n < 2 or zero variance). |
+| `welch_anova(groups)` | Welch (1951), doi:10.2307/2332579 | w_i = n_i/s_i^2; df2 = (k^2-1)/(3 Lambda). statsmodels `anova_oneway(use_var='unequal')`, R `oneway.test`. |
+| `brown_forsythe_anova(groups)` | Brown & Forsythe (1974), doi:10.2307/1267501; Mehrotra (1997), doi:10.1080/03610919708813431 | Test of means: F* = SS_b / sum (1 - n_i/N) s_i^2, Satterthwaite df2. `p` uses k - 1 numerator df (the 1974 test, Prism's "Brown-Forsythe ANOVA"); `mehrotra_p` uses Mehrotra's df (statsmodels default). |
+| `bartlett(groups)` | Bartlett (1937); Snedecor & Cochran (1989) §13.9 | SciPy `bartlett`. |
+| `levene(groups, center)` | Levene (1960); Brown & Forsythe (1974), doi:10.1080/01621459.1974.10482955 | `Median` = Brown–Forsythe test of variances (Prism's variance check), `Mean` = Levene. SciPy `levene`. |
+| `cells_from_long(a, b, y)` | | Long format (level indices) to the `[row][col] -> values` cell array. |
+| `two_way_anova(cells, opts)` | Searle (1987); Langsrud (2003), doi:10.1023/A:1023260610025 | Sum-to-zero coded GLM, refined Householder QR; type I/II/III SS as nested-model RSS differences = statsmodels `anova_lm(typ=1/2/3)` with `C(., Sum)`. Type III (default) is Prism's; treatment-coded type III is wrong and not offered. Empty cells allowed where estimable (df = rank added). No replicates: interaction dropped (additive model). Partial eta^2 per term. |
+| `rm_anova(m)` | statsmodels `AnovaRM`; Box (1954); Greenhouse & Geisser (1959), doi:10.1007/BF02289823; Huynh & Feldt (1976) with Lecoutre (1991), doi:10.3102/10769986016004371; Mauchly (1940), doi:10.1214/aoms/1177731915 | Subjects x conditions; listwise deletion (count reported). GG epsilon from orthonormal Helmert contrasts (and Box's formula as a cross-check), HF capped at 1 (uncapped also reported), lower bound; corrected df and p; Mauchly W, chi-square, df, p; F for subjects. Prism reports GG only. |
+| `kruskal_wallis(groups)` | Kruskal & Wallis (1952), doi:10.1080/01621459.1952.10483441 | Tie-corrected H, chi-square p (SciPy `kruskal`); mean ranks; epsilon^2. Prism's small-sample exact p is not implemented. |
+| `friedman(m)` | Friedman (1937), doi:10.1080/01621459.1937.10503522; Kendall & Babington Smith (1939) | Within-subject midranks, tie-corrected statistic (SciPy `friedmanchisquare`), Kendall's W = chi2/(n(k-1)); listwise deletion. |
+
+## posthoc
+
+Comparison (i, j) estimates value_i - value_j; all-pairs lists i < j; many-to-one lists
+(treatment, control). statsmodels' Tukey reports mean_j - mean_i (opposite sign).
+
+| Function | Reference | Notes |
+|---|---|---|
+| `p_adjust(p, method)` | Bonferroni; Šidák (1967); Holm (1979); Hochberg (1988); Hommel (1988); Benjamini & Hochberg (1995); Benjamini & Yekutieli (2001); Benjamini, Krieger & Yekutieli (2006) | statsmodels `multipletests` (`holm-sidak` is step-down Šidák; `TwoStageBky{alpha}` = `fdr_tsbky`, one iteration, depends on alpha). Šidák via expm1/log1p (exact for tiny p). NaNs pass through and do not count. |
+| `Adjust::name()` | | Display name. |
+| `tukey_kramer(groups, alpha)` | Tukey (1953); Kramer (1956), doi:10.2307/3001469 | q = |diff|/sqrt(MS_w/2 (1/n_i + 1/n_j)) (Prism's q, with the sqrt 2); p from the studentized range; CI half-width q_crit/sqrt 2 sqrt(MS_w(1/n_i+1/n_j)). `p_raw` = LSD p. |
+| `dunnett(groups, control, alternative, alpha)` | Dunnett (1955), doi:10.1080/01621459.1955.10501294 | Exact multivariate-t p and critical value (`dist::Dunnett`, deterministic double integral), two- or one-sided, simultaneous CIs. |
+| `pairwise_t(groups, pairs, adjust, alpha)` | Fisher (1935) LSD; Šidák (1967); Holm (1979) | Pooled-variance t tests on chosen pairs (all if None); CIs for none/Bonferroni/Šidák only (as Prism). |
+| `dunn_kruskal(groups, control, adjust, alpha)` | Dunn (1964), doi:10.1080/00401706.1964.10490181; Daniel, *Applied Nonparametric Statistics* | Pooled midranks, tie-corrected SE; all pairs or vs control. |
+| `dunn_friedman(m, control, adjust, alpha)` | Prism's documented post test after Friedman | z = (Rbar_i - Rbar_j)/sqrt(k(k+1)/(6n)), no tie correction. |
+| `compact_letters(k, comparisons)` | Piepho (2004), J. Comput. Graph. Stat. 13:456 | Insert-absorb letter display from the `significant` flags. |
+
+## contingency
+
+2 x 2 layout `[[a, b], [c, d]]`: rows = groups, columns = outcome (event, no event).
+
+| Function | Reference | Notes |
+|---|---|---|
+| `chi_square_independence(table)` | Pearson (1900); Yates (1934); Wilks (1938) G; Haberman (1973) residuals; Cochran (1954) rule | Pearson, Yates (2 x 2 only, |O-E| reduced by min(0.5, |O-E|) as SciPy), G test; expected counts, Pearson and adjusted residuals, Cramér's V, signed phi (2 x 2), expected < 5 count and warning flag. SciPy applies Yates by default; Prism asks. |
+| `chi_square_gof(observed, proportions, ddof)` | Pearson (1900) | SciPy `chisquare`; proportions normalised; df = k - 1 - ddof. |
+| `fisher_exact_2x2(table, ci_level)` | Fisher (1935); Cornfield (1956) | Two-sided = sum of P <= P_obs (1 + 1e-7) (R, SciPy, Prism); one-sided tails; conditional MLE odds ratio and exact CI by Brent on ln(OR) (R `fisher.test`, SciPy `odds_ratio(kind='conditional')`). |
+| `risk_measures(table, ci_level)` | Woolf (1955), doi:10.1111/j.1469-1809.1955.tb01285.x; Katz et al. (1978), doi:10.2307/2530610 | OR with Woolf CI, RR with Katz log CI (None with zero cells), risk difference with Wald CI. Prism's Koopman (RR) and Baptista–Pike (OR) intervals are not implemented: no oracle yet. |
+| `fisher_exact_rxc(table)` | Freeman & Halton (1951); Mehta & Patel (1983), doi:10.1080/01621459.1983.10477989 | Network algorithm: column stages, nodes = multisets of remaining row totals, merged path values, closed-form node mass, relaxation bounds; exact p, observed-table P, table count. Limits `FISHER_RXC_WORK_LIMIT`, `FISHER_RXC_PATH_LIMIT` (NoConvergence beyond; see CORRECTNESS.md). |
+| `mcnemar(table)` | McNemar (1947), doi:10.1007/BF02295996; Edwards (1948) | Chi-square with and without continuity correction (Prism uses the corrected one), exact binomial p (statsmodels). |
+| `cochran_armitage(successes, totals, scores)` | Cochran (1954), doi:10.2307/3001616; Armitage (1955), doi:10.2307/3001775 | z without the N/(N-1) factor (chi2 = z^2 = R `prop.trend.test`, Prism's "chi-square for trend"); the N/(N-1) variant reported too. |
+| `wilson_ci(successes, n, level)` | Wilson (1927) | Score interval, no continuity correction. |
+| `diagnostic(table, ci_level)` | Wilson (1927); Simel, Samsa & Matchar (1991) | `[[TP, FP], [FN, TN]]`: sensitivity, specificity, PPV, NPV with Wilson CIs; LR+/LR- with log CIs. |
+
+## correlation
+
+| Function | Reference | Notes |
+|---|---|---|
+| `pearson(x, y, ci_level)` | Pearson (1896); Fisher (1921) z | Two-pass centred sums; t test on n - 2 df; Fisher-z CI (Prism). |
+| `spearman(x, y, ci_level)` | Spearman (1904); Bonett & Wright (2000) CI | Pearson on midranks (correct with ties); t-approximation p (SciPy); exact permutation p for n <= 9 (`SPEARMAN_EXACT_MAX_N`), ties kept. R uses AS 89 for larger n without ties: not implemented. |
+| `kendall(x, y)` | Kendall (1945); Knight (1966), doi:10.1080/01621459.1966.10480879 | tau-b and tau-c in O(n log n); tie-corrected asymptotic p (SciPy); exact p without ties for n <= 170 from the inversion distribution; `p_auto` = SciPy `method='auto'`. |
+| `kendall_exact_two_sided(n, d)` | Kendall (1970) ch. 4 | 2 P(D <= min(d, n0 - d)), Mahonian recurrence in probabilities. |
+| `correlation_matrix(columns, method, adjust)` | | Pairwise deletion; p adjusted over the k(k-1)/2 pairs. |
+| `partial_correlation(x, y, z, ci_level)` | Fisher (1924) | Correlation of residuals on z (refined QR), t on n - 2 - q df. |
+
+## regression
+
+| Function | Reference | Notes |
+|---|---|---|
+| `simple_linear_regression(x, y, opts)` | least squares; Cook (1977); Durbin & Watson (1950); Swed & Eisenhart (1943), doi:10.1214/aoms/1177731178; Draper & Smith (1998) §2.1 | Coefficients and SEs from the refined QR; R^2 (uncentred through the origin, as R/statsmodels/NIST; `r_squared_centered` is Prism's), F, Sy.x, x-intercept, slope vs hypothesised value, leverage, studentised residuals, Cook's D, Durbin–Watson (input order), runs test (x order, exact zeros dropped), replicates (lack-of-fit) F. |
+| `SimpleRegression::bands(x0)` | | Confidence and prediction bands at x0. |
+| `runs_test_by_x(x, resid)`, `runs_test(signs)` | Wald & Wolfowitz (1940); Swed & Eisenhart (1943) | Runs, E[R], z (no continuity), exact P(R <= runs) (Prism's one-sided p). |
+| `runs_cdf(r, n1, n2)` | Swed & Eisenhart (1943) | Exact cdf of the number of runs. |
+| `multiple_regression(x_rows, y, opts)` | Golub (1965); Björck (1967), BIT 7:257; Marquardt (1970) VIF | Equilibrated pivoted Householder QR with double-double augmented-system refinement; aliased columns reported (R `lm` convention, in column order); SEs from refined (X'X)^{-1}; ANOVA table; adj R^2; VIFs; covariance. statsmodels OLS. |
+| `polynomial_regression(x, y, degree, opts)` | as above | Powers x^k formed in double-double so the refinement sees the exact design of the double inputs (NIST Filip LRE 14.0). |
+| `deming_regression(x, y, lambda, ci_level)` | Deming (1943); Linnet (1993), doi:10.1093/clinchem/39.3.424 | lambda = sigma_y^2/sigma_x^2 (Prism input: (SD_y/SD_x)^2); jackknife SEs (NCSS, R `mcr`); t(n-2) CIs. Prism's SE method is undocumented. |
