@@ -74,7 +74,8 @@ fn layouts_compose_with_letters_and_export() {
         scene(&c.0, &c.1).unwrap(),
     ];
     let page = compose_layout(&scenes, 2, true);
-    assert!((page.width_mm() - 170.0).abs() < 1e-9);
+    let gutter_mm = dioptra_plot::compose::letter_gutter(3, true) * 25.4 / 72.0;
+    assert!((page.width_mm() - 2.0 * (85.0 + gutter_mm)).abs() < 1e-9);
     assert!((page.height_mm() - 140.0).abs() < 1e-9);
     let svg = dioptra_plot::to_svg(&page);
     for l in ["A", "B", "C"] {

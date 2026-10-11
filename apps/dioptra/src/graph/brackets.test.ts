@@ -71,6 +71,20 @@ describe('brackets from an analysis', () => {
     const ann = bracketsFromSheet([], s, ['Control', 'Low', 'High'], 'gp');
     expect(ann.map((a) => (a as { text: string }).text)).toEqual(['*', '****', 'ns']);
   });
+  it('uses the adjusted p of an engine comparisons table, not the unadjusted one', () => {
+    const s = sheet(
+      'one_way_anova',
+      [
+        [{ text: 'Vehicle vs. Low dose' }, { number: { v: -0.8 } }, { p_value: { p: 0.04 } }, { p_value: { p: 0.21 } }],
+        [{ text: 'Vehicle vs. High dose' }, { number: { v: -18 } }, { p_value: { p: 1e-9 } }, { p_value: { p: 4e-9 } }],
+      ],
+      ['Comparison', 'Mean diff.', 'P (unadjusted)', 'Adjusted P'],
+    );
+    expect(comparisonsFromSheet(s, ['Vehicle', 'Low dose', 'High dose'])).toEqual([
+      { from: 0, to: 1, p: 0.21 },
+      { from: 0, to: 2, p: 4e-9 },
+    ]);
+  });
   it('reads two group-name columns', () => {
     const s = sheet('one_way_anova', [[{ text: 'High' }, { text: 'Control' }, { p_value: { p: 0.01 } }]], ['Group 1', 'Group 2', 'P']);
     expect(comparisonsFromSheet(s, ['Control', 'Low', 'High'])).toEqual([{ from: 0, to: 2, p: 0.01 }]);

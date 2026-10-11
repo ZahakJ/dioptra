@@ -516,6 +516,11 @@ pub enum Command {
         id: Id,
         /// RFC 7396 merge patch.
         patch: serde_json::Value,
+        /// Merge into the previous undo step when that step was also a coalescing patch
+        /// of this graph touching the same fields (typing in a text field sends one patch
+        /// per pause; undo should take back the whole edit). Default false.
+        #[serde(default)]
+        coalesce: bool,
     },
     /// Render a graph to SVG for display; element ids map to spec paths for hit-testing.
     RenderGraph {
@@ -564,6 +569,29 @@ pub enum Command {
         id: Id,
         /// Format.
         format: GraphFormat,
+    },
+    /// A layout's graphs and column count; returns `Response::Layout`.
+    GetLayout {
+        /// Layout id.
+        id: Id,
+    },
+    /// Replace a layout's graphs (reading order) and column count.
+    UpdateLayout {
+        /// Layout id.
+        id: Id,
+        /// Graph ids in reading order.
+        graphs: Vec<Id>,
+        /// Columns in the grid (at least 1).
+        columns: usize,
+    },
+    /// Export a layout to a path (desktop).
+    ExportLayoutPath {
+        /// Layout id.
+        id: Id,
+        /// Format.
+        format: GraphFormat,
+        /// Absolute path.
+        path: String,
     },
 
     // ---- history ----
@@ -688,6 +716,17 @@ pub enum Response {
     Text {
         /// Content.
         text: String,
+    },
+    /// A layout.
+    Layout {
+        /// Layout id.
+        id: Id,
+        /// Title.
+        title: String,
+        /// Graph ids in reading order.
+        graphs: Vec<Id>,
+        /// Columns in the grid.
+        columns: usize,
     },
     /// History entries, newest first. (A struct variant: serde cannot tag a bare list.)
     History {

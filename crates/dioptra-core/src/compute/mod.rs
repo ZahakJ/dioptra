@@ -21,6 +21,7 @@ mod correlation;
 pub mod extract;
 mod multivariate;
 mod nonlinear;
+pub use nonlinear::{builtin_equation, EQUATION_KEYS};
 mod nonparametric;
 mod normality;
 mod outliers;
@@ -383,10 +384,11 @@ pub(crate) fn family_sentence(
     if sig.len() > 1 {
         s = format!("{title}: these differ: {}", sig.join("; "));
     }
-    if rest > 0 {
+    if rest == 1 {
+        s.push_str("; the remaining comparison did not reach adjusted p < .05");
+    } else if rest > 1 {
         s.push_str(&format!(
-            "; the other {rest} comparison{} did not reach adjusted p < .05",
-            if rest == 1 { "" } else { "s" }
+            "; the other {rest} comparisons did not reach adjusted p < .05"
         ));
     }
     s.push('.');

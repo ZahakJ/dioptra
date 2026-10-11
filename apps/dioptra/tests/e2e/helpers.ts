@@ -50,15 +50,3 @@ export async function newGraphOf(page: Page, family = 'column'): Promise<void> {
   await page.getByTestId('new-graph-create').click();
   await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
 }
-
-/** Whether the engine computes an analysis kind yet (the statistics glue may be pending). */
-export async function analysisImplemented(page: Page, kind: string): Promise<boolean> {
-  return page.evaluate(async (k) => {
-    const d = window.__dioptra!;
-    const p = (await d.dispatch({ type: 'get_project' })) as { items: { id: string; kind: string }[] };
-    const t = p.items.find((i) => i.kind === 'table');
-    if (!t) return false;
-    const r = (await d.dispatch({ type: 'list_analyses', table: t.id, range: null })) as { analyses: { kind: string; implemented: boolean }[] };
-    return !!r.analyses.find((a) => a.kind === k)?.implemented;
-  }, kind);
-}

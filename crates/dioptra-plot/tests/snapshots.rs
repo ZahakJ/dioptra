@@ -132,3 +132,31 @@ fn rendering_is_deterministic() {
         assert_eq!(a, b, "{f}");
     }
 }
+
+/// A two-panel layout: panel letters in their gutters, clear of the tick labels.
+#[test]
+fn two_panel_layout_matches_its_snapshot() {
+    let a = sample("column").unwrap();
+    let b = sample("scatter").unwrap();
+    let page = dioptra_plot::compose_layout(
+        &[
+            dioptra_plot::scene(&a.0, &a.1).unwrap(),
+            dioptra_plot::scene(&b.0, &b.1).unwrap(),
+        ],
+        2,
+        true,
+    );
+    let svg = dioptra_plot::to_svg(&page);
+    let path = dir().join("layout-two-panel.svg");
+    if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
+        std::fs::write(&path, &svg).expect("write snapshot");
+        return;
+    }
+    let old = std::fs::read_to_string(&path).unwrap_or_else(|_| {
+        panic!(
+            "no snapshot at {} (run with UPDATE_SNAPSHOTS=1)",
+            path.display()
+        )
+    });
+    assert!(old == svg, "layout differs from {}", path.display());
+}

@@ -92,6 +92,7 @@ pub fn sample(family: &str) -> Option<(GraphSpec, GraphData)> {
                         .collect(),
                     x: fx,
                     step: false,
+                    censor: vec![],
                 }]
             } else {
                 vec![]

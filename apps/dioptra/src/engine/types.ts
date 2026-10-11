@@ -307,7 +307,7 @@ export type Command =
   | { type: 'create_graph'; source: Id; family: string; title: string | null }
   | { type: 'get_graph_spec'; id: Id }
   | { type: 'update_graph'; id: Id; spec: GraphSpec }
-  | { type: 'patch_graph'; id: Id; patch: JsonValue }
+  | { type: 'patch_graph'; id: Id; patch: JsonValue; coalesce?: boolean }
   | { type: 'render_graph'; id: Id }
   | { type: 'export_graph'; id: Id; format: GraphFormat; size: SizeMm | null }
   | { type: 'export_graph_path'; id: Id; format: GraphFormat; size: SizeMm | null; path: string }
@@ -315,6 +315,9 @@ export type Command =
   | { type: 'create_layout'; title: string | null; graphs: Id[]; columns: number }
   | { type: 'render_layout'; id: Id }
   | { type: 'export_layout'; id: Id; format: GraphFormat }
+  | { type: 'get_layout'; id: Id }
+  | { type: 'update_layout'; id: Id; graphs: Id[]; columns: number }
+  | { type: 'export_layout_path'; id: Id; format: GraphFormat; path: string }
   // history
   | { type: 'undo' }
   | { type: 'redo' }
@@ -341,6 +344,7 @@ export type Response =
   | { type: 'svg'; svg: string; width_mm: number; height_mm: number; targets: Target[] }
   | { type: 'bytes'; name: string; mime: string; base64: string }
   | { type: 'text'; text: string }
+  | { type: 'layout'; id: Id; title: string; graphs: Id[]; columns: number }
   | { type: 'history'; entries: HistoryEntry[] };
 
 export type ResponseType = Response['type'];

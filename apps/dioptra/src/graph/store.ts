@@ -74,12 +74,16 @@ export function listenForGraphChanges(): void {
   });
 }
 
-/** Send a merge patch now. The local spec updates at once so controls do not flicker. */
-export async function patchGraph(id: Id, patch: JsonObject): Promise<boolean> {
+/**
+ * Send a merge patch now. The local spec updates at once so controls do not flicker.
+ * `coalesce` folds the edit into the previous undo step when that patched the same fields
+ * (debounced typing: one undo step per text edit, not one per pause).
+ */
+export async function patchGraph(id: Id, patch: JsonObject, coalesce = false): Promise<boolean> {
   const st = graphState(id);
   if (st.spec) useGraphs.getState().set(id, { spec: applyMergePatch(st.spec as unknown as JsonValue, patch) as unknown as GraphSpecT });
   try {
-    const changed = await withEngine((e) => obj.patchGraph(e, id, patch));
+    const changed = await withEngine((e) => obj.patchGraph(e, id, patch, coalesce));
     await applyChanged(changed);
     return true;
   } catch (err) {
@@ -108,7 +112,7 @@ export function setGraphValueDebounced(id: Id, path: string, value: JsonValue | 
     patch,
     timer: setTimeout(() => {
       delete pending[id];
-      void patchGraph(id, patch);
+      void patchGraph(id, patch, true);
     }, ms),
   };
 }
@@ -119,7 +123,7 @@ export async function flushGraph(id: Id): Promise<void> {
   if (!p) return;
   clearTimeout(p.timer);
   delete pending[id];
-  await patchGraph(id, p.patch);
+  await patchGraph(id, p.patch, true);
 }
 
 export function selectTarget(id: Id, target: string | null): void {

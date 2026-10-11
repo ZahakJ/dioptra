@@ -69,6 +69,18 @@ fn file_stem(title: &str) -> String {
     }
 }
 
+/// An untitled project takes the name of the file it is opened from or saved to.
+fn name_untitled(p: &mut Project, path: &str) {
+    if !(p.title.trim().is_empty() || p.title == "Untitled") {
+        return;
+    }
+    let name = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    let stem = name.strip_suffix(".dioptra").unwrap_or(name).trim();
+    if !stem.is_empty() {
+        p.title = stem.to_string();
+    }
+}
+
 /// The command as JSON for the audit log, with bulky payloads summarised.
 fn summarise(cmd: &Command) -> Json {
     let mut j = serde_json::to_value(cmd).unwrap_or(Json::Null);
@@ -184,6 +196,7 @@ impl Session {
 
     /// Record a finished mutation.
     fn commit(&mut self, label: String, command: Json, snapshots: Vec<Snapshot>) {
+        self.history.coalesce = None;
         self.history.log.push(HistoryEntry {
             at: now(),
             label: label.clone(),
@@ -575,6 +588,7 @@ impl Session {
                 "nothing to undo".into()
             });
         };
+        self.history.coalesce = None;
         let label = entry.label.clone();
         let mut touched = Touched::default();
         let back = History::apply(&mut self.project, entry, &mut touched);
@@ -626,6 +640,7 @@ impl Session {
             Command::OpenProjectPath { path } => {
                 let bytes = file::read_path(&path)?;
                 let (mut p, log) = file::open_bytes(&bytes)?;
+                name_untitled(&mut p, &path);
                 p.path = Some(path);
                 self.project = p;
                 self.history = History {
@@ -637,10 +652,8 @@ impl Session {
             Command::OpenProjectBytes { base64, name } => {
                 let bytes = base64_decode(&base64)?;
                 let (mut p, log) = file::open_bytes(&bytes)?;
-                if p.title.is_empty() {
-                    if let Some(n) = name {
-                        p.title = n.trim_end_matches(".dioptra").to_string();
-                    }
+                if let Some(n) = name {
+                    name_untitled(&mut p, &n);
                 }
                 self.project = p;
                 self.history = History {
@@ -651,6 +664,7 @@ impl Session {
             }
             Command::SaveProjectPath { path } => {
                 deps::recompute_all_tables(&mut self.project);
+                name_untitled(&mut self.project, &path);
                 file::save_path(&self.project, &self.history.log, &path)?;
                 self.project.path = Some(path);
                 self.project.dirty = false;
@@ -1449,7 +1463,11 @@ impl Session {
                 Ok(Response::GraphSpec(Box::new(g.spec.clone())))
             }
             Command::UpdateGraph { id, spec } => self.set_graph_spec(id, spec, log),
-            Command::PatchGraph { id, patch } => {
+            Command::PatchGraph {
+                id,
+                patch,
+                coalesce,
+            } => {
                 let g = self
                     .project
                     .graphs
@@ -1459,7 +1477,33 @@ impl Session {
                 merge_patch(&mut v, &patch);
                 let spec: GraphSpec = serde_json::from_value(v)
                     .map_err(|e| format!("the patched graph is not valid: {e}"))?;
-                self.set_graph_spec(id, spec, log)
+                if !coalesce {
+                    return self.set_graph_spec(id, spec, log);
+                }
+                let mut paths = Vec::new();
+                patch_paths(&patch, String::new(), &mut paths);
+                paths.sort();
+                let key = format!("{id} {}", paths.join(" "));
+                if self.history.coalesce.as_deref() == Some(key.as_str())
+                    && !self.history.undo.is_empty()
+                {
+                    // The open undo step already holds the graph as it was before this
+                    // run of edits: apply without a new step.
+                    self.check_graph_source(&spec)?;
+                    let g = self.project.graphs.get_mut(&id).expect("graph");
+                    g.spec = spec;
+                    g.stale = true;
+                    self.history.redo.clear();
+                    if let Some(last) = self.history.log.last_mut() {
+                        last.at = now();
+                        last.command = log;
+                    }
+                    self.project.dirty = true;
+                    return Ok(changed(vec![id], false, None));
+                }
+                let r = self.set_graph_spec(id, spec, log)?;
+                self.history.coalesce = Some(key);
+                Ok(r)
             }
             Command::RenderGraph { id } => {
                 let r = self.render(&id)?;
@@ -1525,6 +1569,51 @@ impl Session {
                 self.commit(format!("Create layout \"{title}\""), log, snaps);
                 Ok(changed(vec![id.clone()], true, Some(id)))
             }
+            Command::GetLayout { id } => {
+                let l = self
+                    .project
+                    .layouts
+                    .get(&id)
+                    .ok_or_else(|| format!("no layout with id {id}"))?;
+                Ok(Response::Layout {
+                    id: l.id.clone(),
+                    title: l.title.clone(),
+                    graphs: l.graphs.clone(),
+                    columns: l.columns,
+                })
+            }
+            Command::UpdateLayout {
+                id,
+                graphs,
+                columns,
+            } => {
+                let l = self
+                    .project
+                    .layouts
+                    .get(&id)
+                    .ok_or_else(|| format!("no layout with id {id}"))?;
+                for g in &graphs {
+                    if !self.project.graphs.contains_key(g) {
+                        return Err(format!("no graph with id {g}"));
+                    }
+                }
+                let snaps = vec![Snapshot::Layout {
+                    id: id.clone(),
+                    layout: Some(l.clone()),
+                }];
+                let title = l.title.clone();
+                let l = self.project.layouts.get_mut(&id).expect("layout");
+                l.graphs = graphs;
+                l.columns = columns.max(1);
+                self.commit(format!("Edit layout \"{title}\""), log, snaps);
+                Ok(changed(vec![id], false, None))
+            }
+            Command::ExportLayoutPath { id, format, path } => {
+                let (panels, columns) = self.layout_panels(&id)?;
+                let (bytes, _, _) = self.renderer.export_layout(&panels, columns, format)?;
+                file::write_path(&path, &bytes)?;
+                Ok(changed(vec![], false, None))
+            }
             Command::RenderLayout { id } => {
                 let (panels, columns) = self.layout_panels(&id)?;
                 let r = self.renderer.render_layout(&panels, columns)?;
@@ -1563,17 +1652,23 @@ impl Session {
         }
     }
 
+    fn check_graph_source(&self, spec: &GraphSpec) -> R<()> {
+        if self.project.tables.contains_key(&spec.source)
+            || self.project.analyses.contains_key(&spec.source)
+        {
+            Ok(())
+        } else {
+            Err("a graph's source must be a table or an analysis".into())
+        }
+    }
+
     fn set_graph_spec(&mut self, id: Id, spec: GraphSpec, log: Json) -> R<Response> {
+        self.check_graph_source(&spec)?;
         let g = self
             .project
             .graphs
             .get(&id)
             .ok_or_else(|| format!("no graph with id {id}"))?;
-        if !(self.project.tables.contains_key(&spec.source)
-            || self.project.analyses.contains_key(&spec.source))
-        {
-            return Err("a graph's source must be a table or an analysis".into());
-        }
         let snaps = vec![Snapshot::Graph {
             id: id.clone(),
             graph: Some(Box::new(g.clone())),
@@ -1610,6 +1705,18 @@ impl Session {
             panels.push((spec, data));
         }
         Ok((panels, l.columns))
+    }
+}
+
+/// The JSON pointers of the leaves a merge patch sets or removes.
+fn patch_paths(patch: &Json, prefix: String, out: &mut Vec<String>) {
+    match patch {
+        Json::Object(o) if !o.is_empty() => {
+            for (k, v) in o {
+                patch_paths(v, format!("{prefix}/{k}"), out);
+            }
+        }
+        _ => out.push(prefix),
     }
 }
 

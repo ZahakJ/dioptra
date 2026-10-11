@@ -71,8 +71,11 @@ export function comparisonsFromSheet(sheet: Sheet, names: string[]): BracketSour
   const index = (n: string) => names.findIndex((x) => x.trim().toLowerCase() === n.trim().toLowerCase());
   const out: BracketSource[] = [];
   for (const s of sheet.sections) {
+    // A multiple-comparisons table carries both p values: the bracket shows the adjusted one.
+    const adjCol = s.table.columns.findIndex((c) => /adjusted/i.test(c) && !/unadjusted/i.test(c));
     for (const row of s.table.rows) {
-      const p = row.find(isP);
+      const adj = adjCol >= 0 ? row[adjCol] : undefined;
+      const p = isP(adj) ? adj : row.find(isP);
       if (!p) continue;
       const labels = row.map(textOf).filter((t): t is string => !!t);
       let pair: [number, number] | null = null;

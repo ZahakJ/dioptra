@@ -57,6 +57,7 @@ fn curves(r: &SimpleRegression, name: &str, ds: usize, xs: &[f64], bands: Bands)
             lo: b.pi_lower,
             hi: b.pi_upper,
             step: false,
+            censor: vec![],
         });
     }
     out

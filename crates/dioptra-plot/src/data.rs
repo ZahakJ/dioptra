@@ -142,6 +142,23 @@ pub struct Curve {
     pub hi: Vec<f64>,
     /// Draw as steps (survival).
     pub step: bool,
+    /// Censoring times, drawn as ticks on a step curve at the curve's value there
+    /// (survival curves supplied by an analysis).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub censor: Vec<f64>,
+}
+
+impl Curve {
+    /// The value of a step curve at `t`: the Y of the last point at or before `t` (the
+    /// first Y before the curve starts).
+    pub fn step_value(&self, t: f64) -> f64 {
+        let i = self.x.partition_point(|x| *x <= t);
+        if i == 0 {
+            self.y.first().copied().unwrap_or(f64::NAN)
+        } else {
+            self.y.get(i - 1).copied().unwrap_or(f64::NAN)
+        }
+    }
 }
 
 /// Numbers at risk under a survival graph.

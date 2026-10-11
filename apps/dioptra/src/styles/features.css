@@ -391,6 +391,14 @@
   font-size: var(--fs-sm);
 }
 
+.sheet-methods {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  max-width: 80ch;
+}
+
 .sheet-error {
   padding: var(--s5);
 }
@@ -501,6 +509,14 @@
   margin: 3px 0 0;
   color: var(--text-2);
   line-height: 1.55;
+  max-width: 72ch;
+}
+
+.check-alt {
+  margin: 2px 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
   max-width: 72ch;
 }
 
