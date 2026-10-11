@@ -318,7 +318,7 @@ def main():
             d = fn(n)
             d["dat_file"] = n + ".dat"
             with open(os.path.join(NIST, n + ".json"), "w") as fh:
-                json.dump(d, fh, indent=1)
+                json.dump(d, fh, separators=(",", ":"))  # compact: SmLs09 has 18009 rows
             with open(os.path.join(NIST, n + ".json")) as fh:
                 json.load(fh)
             index.append({"name": n, "class": kind, "difficulty": d["difficulty"]})

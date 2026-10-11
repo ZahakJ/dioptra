@@ -1116,23 +1116,33 @@ def aicc(ss, n, nparam):
 
 
 def nl_fit(f, x, y, p0, sigma=None):
+    """curve_fit(method='lm') from p0, then polish with least_squares using 3-point
+    (central) Jacobians, so the reported optimum is not limited by MINPACK's
+    forward differences. Covariance = inv(J'WJ) * SS/(n-p) from the central-difference J."""
     x, y = np.asarray(x, float), np.asarray(y, float)
-    popt, pcov = opt.curve_fit(f, x, y, p0=p0, sigma=sigma, absolute_sigma=False, method="lm",
-                               ftol=1e-15, xtol=1e-15, gtol=1e-15, maxfev=200000)
-    # polish and confirm convergence from a perturbed start
-    popt2, _ = opt.curve_fit(f, x, y, p0=np.asarray(popt) * 1.05, sigma=sigma, method="lm", ftol=1e-15, xtol=1e-15, gtol=1e-15, maxfev=200000)
-    assert np.allclose(popt, popt2, rtol=1e-6, atol=1e-10), (popt, popt2)
-    w = 1.0 if sigma is None else 1 / np.asarray(sigma) ** 2
-    resid = y - f(x, *popt)
-    ss = float((w * resid ** 2).sum())
+    sw = 1.0 if sigma is None else 1 / np.asarray(sigma, float)
+    popt, _ = opt.curve_fit(f, x, y, p0=p0, sigma=sigma, absolute_sigma=False, method="lm",
+                            ftol=1e-15, xtol=1e-15, gtol=1e-15, maxfev=200000)
+    resfun = lambda p: sw * (y - f(x, *p))
+
+    def polish(start):
+        return opt.least_squares(resfun, start, method="trf", jac="3-point", x_scale="jac",
+                                 ftol=1e-15, xtol=1e-15, gtol=1e-15, max_nfev=100000)
+    ls = polish(popt)
+    ls2 = polish(np.asarray(popt) * 1.02)
+    assert np.allclose(ls.x, ls2.x, rtol=1e-7, atol=1e-12), (ls.x, ls2.x)
+    popt = ls.x
+    J = ls.jac
+    ss = float((ls.fun ** 2).sum())
     n, p = len(x), len(popt)
-    se = np.sqrt(np.diag(pcov))
+    cov = np.linalg.inv(J.T @ J) * ss / (n - p)
+    se = np.sqrt(np.diag(cov))
     tc = st.t.ppf(0.975, n - p)
-    out = {"params": popt, "se": se, "ci95": [[a - tc * b, a + tc * b] for a, b in zip(popt, se)],
+    out = {"params": popt, "se": se, "ci95": [[a_ - tc * b_, a_ + tc * b_] for a_, b_ in zip(popt, se)],
            "ss": ss, "df": n - p, "sy_x": math.sqrt(ss / (n - p)), "aicc": aicc(ss, n, p)}
     if sigma is None:
         out["r_squared"] = 1 - ss / float(((y - y.mean()) ** 2).sum())
-    out["cov_scaled"] = pcov
+    out["cov_scaled"] = cov
     return out
 
 
@@ -1230,7 +1240,7 @@ def gen_nonlinear():
               "aicc = N ln(SS/N) + 2K + 2K(K+1)/(N-K-1) with K = number of fitted parameters + 1 (Prism convention).",
               "compare: F = ((SS_s - SS_c)/(df_s - df_c))/(SS_c/df_c); prob_complex_correct = exp(-0.5 D)/(1+exp(-0.5 D)), D = AICc_complex - AICc_simple.",
               "r_squared = 1 - SS/SS_total (unweighted fits only).",
-              "Parameter tolerance 1e-6 rel: MINPACK uses forward-difference Jacobians; analytic Jacobians reach the same minimum to about that level.",
+              "Optimum: curve_fit(method='lm') then polished by least_squares with central-difference Jacobians and confirmed from a perturbed start to 1e-7 rel. se from the central-difference Jacobian (rel ~1e-7 vs analytic). Recommended tolerance 1e-6 rel on params/se, 1e-9 rel on ss.",
           ])
 
 
@@ -1609,7 +1619,7 @@ def gen_pca():
 
 # ================================================================= distribution functions
 mp = mpmath.mp
-mp.dps = 40
+mp.dps = 32
 PGRID = [1e-12, 1e-10, 1e-8, 1e-6, 1e-4, 1e-3, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.975, 0.99, 0.999]
 SMALL_Q = [1e-12, 1e-8, 1e-4, 0.025]
 
@@ -1621,13 +1631,50 @@ def mpf(x):
 def mp_root(fn, target, guess):
     """Solve fn(q) = target at 40 digits starting from a double-precision guess."""
     g = mpf(guess)
-    h = abs(g) * mpf("1e-6") + mpf("1e-12")
-    return mpmath.findroot(lambda q: fn(q) - target, (g - h, g + h), solver="secant", tol=mpf("1e-35"), maxsteps=200)
+    h = abs(g) * mpf("1e-6") if g != 0 else mpf("1e-12")
+    return mpmath.findroot(lambda q: fn(q) - target, (g - h, g + h), solver="secant", tol=mpf("1e-60"), maxsteps=60, verify=False)
+
+
+def _ibeta_series(a, b, x):
+    """I_x(a,b) = x^a (1-x)^b / (a B(a,b)) * 2F1(a+b, 1; a+1; x): all terms positive, so no
+    cancellation. Used only for x <= (a+1)/(a+b+2), where it converges geometrically."""
+    lpre = a * mpmath.log(x) + b * mpmath.log1p(-x) - mpmath.log(a) - (mpmath.loggamma(a) + mpmath.loggamma(b) - mpmath.loggamma(a + b))
+    term = mpmath.mpf(1)
+    tot = term
+    n = 0
+    eps = mpmath.mpf(10) ** -75
+    while True:
+        term *= (a + b + n) / (a + 1 + n) * x
+        n += 1
+        tot += term
+        if term < tot * eps:
+            break
+    return mpmath.exp(lpre) * tot
+
+
+def mp_betainc(a, b, x, complement=False):
+    """Regularized incomplete beta I_x(a,b) (or 1 - I_x(a,b)) at 80 working digits,
+    choosing the side that is computed without cancellation."""
+    with mpmath.workdps(80):
+        a, b, x = (v if isinstance(v, mpmath.mpf) else mpmath.mpf(float(v)) for v in (a, b, x))
+        if x <= 0:
+            v = mpmath.mpf(0)
+            return 1 - v if complement else v
+        if x >= 1:
+            v = mpmath.mpf(1)
+            return 1 - v if complement else v
+        if x <= (a + 1) / (a + b + 2):
+            v = _ibeta_series(a, b, x)
+            res = 1 - v if complement else v
+        else:
+            w = _ibeta_series(b, a, 1 - x)     # = 1 - I_x(a,b)
+            res = w if complement else 1 - w
+        return +res
 
 
 def mp_t_cdf(x, df):
     x, df = mpf(x) if not isinstance(x, mpmath.mpf) else x, mpf(df)
-    tail = mpmath.betainc(df / 2, mpf(0.5), 0, df / (df + x * x), regularized=True) / 2
+    tail = mp_betainc(df / 2, mpf(0.5), df / (df + x * x)) / 2
     return tail if x < 0 else 1 - tail
 
 
@@ -1637,12 +1684,12 @@ def mp_t_sf(x, df):
 
 def mp_f_cdf(x, a, b):
     x, a, b = (v if isinstance(v, mpmath.mpf) else mpf(v) for v in (x, a, b))
-    return mpmath.betainc(a / 2, b / 2, 0, a * x / (a * x + b), regularized=True)
+    return mp_betainc(a / 2, b / 2, a * x / (a * x + b))
 
 
 def mp_f_sf(x, a, b):
     x, a, b = (v if isinstance(v, mpmath.mpf) else mpf(v) for v in (x, a, b))
-    return mpmath.betainc(b / 2, a / 2, 0, b / (b + a * x), regularized=True)
+    return mp_betainc(b / 2, a / 2, b / (b + a * x))
 
 
 def mp_chi2_cdf(x, k):
@@ -1665,9 +1712,53 @@ def mp_nct_cdf(x, df, nc):
     return mpmath.quad(f, pts)
 
 
+def mp_gamma_pq(a, x):
+    """Regularized incomplete gamma (P, Q) at high precision: power series for x < a+1,
+    Lentz continued fraction for Q otherwise (Numerical Recipes 6.2 forms), at 80 digits."""
+    with mpmath.workdps(80):
+        a, x = mpmath.mpf(a), mpmath.mpf(x)
+        if x == 0:
+            return mpmath.mpf(0), mpmath.mpf(1)
+        lpre = a * mpmath.log(x) - x - mpmath.loggamma(a)
+        if x < a + 1:
+            term = 1 / a
+            tot = term
+            n = 0
+            while True:
+                n += 1
+                term *= x / (a + n)
+                tot += term
+                if abs(term) < abs(tot) * mpmath.mpf(10) ** -75:
+                    break
+            P = tot * mpmath.exp(lpre)
+            return +P, 1 - P
+        tiny = mpmath.mpf(10) ** -300
+        b = x + 1 - a
+        c = 1 / tiny
+        d = 1 / b
+        h = d
+        i = 0
+        while True:
+            i += 1
+            an = -i * (i - a)
+            b += 2
+            d = an * d + b
+            d = tiny if abs(d) < tiny else d
+            c = b + an / c
+            c = tiny if abs(c) < tiny else c
+            d = 1 / d
+            de = d * c
+            h *= de
+            if abs(de - 1) < mpmath.mpf(10) ** -75:
+                break
+        Q = mpmath.exp(lpre) * h
+        return 1 - Q, +Q
+
+
 class Tracker:
     def __init__(self):
         self.worst = {}
+        self.bad = []
 
     def rec(self, table, ref, got):
         ref = float(ref)
@@ -1677,6 +1768,8 @@ class Tracker:
         else:
             e = abs(got - ref) / abs(ref)
         self.worst[table] = max(self.worst.get(table, 0.0), e)
+        if e > 1e-9:
+            self.bad.append((table, ref, got, e))
         return ref
 
 
@@ -1689,7 +1782,7 @@ def gen_distributions():
              "pdf": T.rec("normal", mpmath.npdf(mpf(x)), st.norm.pdf(x)), "logcdf": T.rec("normal", mpmath.log(mpmath.ncdf(mpf(x))), st.norm.logcdf(x))} for x in xs]
     q = [{"p": p, "ppf": T.rec("normal_ppf", mp_root(mpmath.ncdf, mpf(p), st.norm.ppf(p)), st.norm.ppf(p))} for p in PGRID]
     qi = [{"q": p, "isf": T.rec("normal_ppf", -mp_root(mpmath.ncdf, mpf(p), st.norm.ppf(p)), st.norm.isf(p))} for p in SMALL_Q]
-    cases.append(case("normal", {"x": xs, "p": PGRID, "q_upper": SMALL_Q}, {"values": rows, "ppf": q, "isf": qi}, {"rel": 1e-13, "abs": 0.0}))
+    cases.append(case("normal", {"x": xs, "p": PGRID, "q_upper": SMALL_Q}, {"values": rows, "ppf": q, "isf": qi}, {"rel": 1e-13, "abs": 1e-300}))
     # Student t
     dfs = [1, 2, 3, 5, 10, 17.776473516178488, 30, 100, 1000, 0.5]
     xs = [-1e3, -40, -10, -4, -2, -1, -0.1, 0, 0.5, 1.5, 2.5, 6, 30]
@@ -1698,7 +1791,7 @@ def gen_distributions():
         rows.append({"df": df, "x": xs, "cdf": [T.rec("t", mp_t_cdf(x, df), st.t.cdf(x, df)) for x in xs],
                      "sf": [T.rec("t", mp_t_sf(x, df), st.t.sf(x, df)) for x in xs]})
         pp = [p for p in PGRID if not (df < 1 and p < 1e-8)]
-        qs.append({"df": df, "p": pp, "ppf": [T.rec("t_ppf", mp_root(lambda v: mp_t_cdf(v, df), mpf(p), st.t.ppf(p, df)), st.t.ppf(p, df)) for p in pp],
+        qs.append({"df": df, "p": pp, "ppf": [T.rec("t_ppf", 0 if p == 0.5 else mp_root(lambda v: mp_t_cdf(v, df), mpf(p), st.t.ppf(p, df)), st.t.ppf(p, df)) for p in pp],
                    "q_upper": SMALL_Q, "isf": [T.rec("t_ppf", mp_root(lambda v: mp_t_sf(v, df), mpf(p), st.t.isf(p, df)), st.t.isf(p, df)) for p in SMALL_Q]})
     cases.append(case("student_t", {"df": dfs}, {"cdf_sf": rows, "quantiles": qs}, {"rel": 1e-12, "abs": 0.0}))
     # F
@@ -1728,24 +1821,30 @@ def gen_distributions():
     rows = []
     for a, b in bpairs:
         rows.append({"a": a, "b": b, "x": xs,
-                     "I": [T.rec("betainc", mpmath.betainc(mpf(a), mpf(b), 0, mpf(x), regularized=True), sp.betainc(a, b, x)) for x in xs],
-                     "I_complement": [T.rec("betainc", mpmath.betainc(mpf(a), mpf(b), mpf(x), 1, regularized=True), sp.betaincc(a, b, x)) for x in xs]})
+                     "I": [T.rec("betainc", mp_betainc(a, b, x), sp.betainc(a, b, x)) for x in xs],
+                     "I_complement": [T.rec("betainc", mp_betainc(a, b, x, complement=True), sp.betaincc(a, b, x)) for x in xs]})
+        for x in xs[6:10]:   # independent check against mpmath's hypergeometric betainc in the body
+            assert abs(mp_betainc(a, b, x) - mpmath.betainc(mpf(a), mpf(b), 0, mpf(x), regularized=True)) < mpf("1e-25")
     binv = []
     for a, b in bpairs[:7]:
         pp = [1e-10, 1e-4, 0.05, 0.5, 0.95]
-        binv.append({"a": a, "b": b, "p": pp, "x": [T.rec("betaincinv", mp_root(lambda v: mpmath.betainc(mpf(a), mpf(b), 0, v, regularized=True), mpf(p), sp.betaincinv(a, b, p)), sp.betaincinv(a, b, p)) for p in pp]})
+        binv.append({"a": a, "b": b, "p": pp, "x": [T.rec("betaincinv", mp_root(lambda v: mp_betainc(a, b, v), mpf(p), sp.betaincinv(a, b, p)), sp.betaincinv(a, b, p)) for p in pp]})
     cases.append(case("incomplete_beta", {"pairs": bpairs}, {"rows": rows, "inverse": binv}, {"rel": 1e-12, "abs": 1e-300}))
     # regularized incomplete gamma P(a,x), Q(a,x)
     avals = [1e-3, 0.5, 1, 5, 30, 100, 1000, 1e5]
     rows = []
     for a in avals:
         xs = [1e-8, a * 1e-3, a * 0.5, a * 0.9, a, a * 1.1, a * 2, a * 10 + 10]
-        rows.append({"a": a, "x": xs, "P": [T.rec("gammainc", mpmath.gammainc(mpf(a), 0, mpf(x), regularized=True), sp.gammainc(a, x)) for x in xs],
-                     "Q": [T.rec("gammainc", mpmath.gammainc(mpf(a), mpf(x), mpmath.inf, regularized=True), sp.gammaincc(a, x)) for x in xs]})
+        pq = [mp_gamma_pq(a, x) for x in xs]
+        for (P_, Q_), x in zip(pq, xs):
+            if a <= 1000 and x < 1e4:   # independent check against mpmath's own gammainc
+                assert abs(P_ - mpmath.gammainc(mpf(a), 0, mpf(x), regularized=True)) <= abs(P_) * mpf("1e-25") + mpf("1e-300")
+        rows.append({"a": a, "x": xs, "P": [T.rec("gammainc", P_, sp.gammainc(a, x)) for (P_, Q_), x in zip(pq, xs)],
+                     "Q": [T.rec("gammainc", Q_, sp.gammaincc(a, x)) for (P_, Q_), x in zip(pq, xs)]})
     ginv = []
     for a in avals[1:7]:
         pp = [1e-10, 1e-4, 0.05, 0.5, 0.95, 0.999999]
-        ginv.append({"a": a, "p": pp, "x": [T.rec("gammaincinv", mp_root(lambda v: mpmath.gammainc(mpf(a), 0, v, regularized=True), mpf(p), sp.gammaincinv(a, p)), sp.gammaincinv(a, p)) for p in pp]})
+        ginv.append({"a": a, "p": pp, "x": [T.rec("gammaincinv", mp_root(lambda v: mp_gamma_pq(a, v)[0], mpf(p), sp.gammaincinv(a, p)), sp.gammaincinv(a, p)) for p in pp]})
     lg = [{"x": x, "lgamma": T.rec("lgamma", mpmath.loggamma(mpf(x)), sp.gammaln(x)), "digamma": T.rec("digamma", mpmath.digamma(mpf(x)), sp.digamma(x))}
           for x in (1e-8, 0.5, 1, 1.5, 2, 2.5, 10, 100.5, 1e5, 1e10)]
     cases.append(case("incomplete_gamma", {"a": avals}, {"rows": rows, "inverse": ginv, "lgamma_digamma": lg}, {"rel": 1e-12, "abs": 1e-300}))
@@ -1780,12 +1879,39 @@ def gen_distributions():
         xs = [-3, -1, 0, 1, 2, 4, 8, 15]
         ppv = [0.025, 0.5, 0.975]
         rows.append({"df": df, "nc": nc, "x": xs, "cdf": [T.rec("nct", mp_nct_cdf(x, df, nc), st.nct.cdf(x, df, nc)) for x in xs],
-                     "p": ppv, "ppf": [T.rec("nct_ppf", mp_root(lambda v: mp_nct_cdf(v, df, nc), mpf(p), st.nct.ppf(p, df, nc)), st.nct.ppf(p, df, nc)) for p in ppv]})
+                     "p": ppv, "ppf": [T.rec("nct_ppf", 0 if (p == 0.5 and nc == 0) else mp_root(lambda v: mp_nct_cdf(v, df, nc), mpf(p), st.nct.ppf(p, df, nc)), st.nct.ppf(p, df, nc)) for p in ppv]})
     cases.append(case("noncentral_t", {}, {"rows": rows}, {"rel": 1e-10, "abs": 1e-15},
-                      note="Reference by 40-digit quadrature of int_0^inf Phi(x u - nc) f(u) du, u = sqrt(chi2_df/df). Note the mpmath quadrature grid; values agree with scipy (Boost) to the scipy_max_rel_err shown."))
-    notes = ["Expected values are 40-digit mpmath references rounded to double, not scipy output. scipy's worst relative error per table is recorded in scipy_max_rel_err (for orientation only).",
+                      note="Reference by 32-digit quadrature of int_0^inf Phi(x u - nc) f(u) du, u = sqrt(chi2_df/df). Note the mpmath quadrature grid; values agree with scipy (Boost) to the scipy_max_rel_err shown."))
+    for b in T.bad:
+        print("  scipy deviates:", b, file=sys.stderr)
+    notes = ["Expected values are 32-digit mpmath references rounded to double, not scipy output. scipy's worst relative error per table is recorded in scipy_max_rel_err (for orientation only).",
              "t cdf via 0.5*I_{df/(df+x^2)}(df/2, 1/2); F via I_{d1 x/(d1 x + d2)}(d1/2, d2/2); chi2 via regularized gamma P(k/2, x/2); sf computed directly (never 1-cdf).",
-             "ppf/isf found by 40-digit secant root of cdf/sf. p down to 1e-12 is covered by isf on the small upper-tail grid.",
-             "Studentized range lives in studentized_range.json."]
-    write("distributions", "mpmath 40-digit references (betainc, gammainc, ncdf, loggamma, quad), cross-checked against scipy.special/scipy.stats",
+             "ppf/isf found by 32-digit secant root of cdf/sf. p down to 1e-12 is covered by isf on the small upper-tail grid.",
+             "Studentized range lives in studentized_range.json.",
+             "Known scipy weaknesses found here: scipy.stats.f.isf in the far upper tail (sf(isf(q)) off by ~5e-9 relative at q=1e-8, ~1e-4 at q=1e-12 for small df2); scipy.stats.nct.cdf far lower tail (x=-3, df=5, nc=8: scipy 8.0e-20 vs true 1.90e-20, confirmed by a second integral representation). Do not copy scipy there."]
+    write("distributions", "mpmath 32-digit references (betainc, gammainc, ncdf, loggamma, quad), cross-checked against scipy.special/scipy.stats",
           cases + [case("scipy_max_rel_err", {}, {k: v for k, v in T.worst.items()}, {"rel": 1.0, "abs": 1.0}, note="informational, not a test")], notes=notes)
+
+
+# ================================================================= main
+FAMILIES = [gen_descriptive, gen_ttests, gen_mann_whitney, gen_wilcoxon, gen_anova_oneway, gen_anova_twoway,
+            gen_anova_rm, gen_nonparam_ksample, gen_multiple_comparisons, gen_studentized_range, gen_contingency,
+            gen_correlation, gen_linear_regression, gen_nonlinear, gen_normality, gen_outliers, gen_survival,
+            gen_roc, gen_bland_altman, gen_pca, gen_distributions]
+
+
+def main():
+    """Always runs every family in order, because all synthetic data share one RNG stream:
+    skipping a family would change the data of every later one."""
+    os.makedirs(OUT, exist_ok=True)
+    for fam in FAMILIES:
+        fam()
+        t, n, size = WRITTEN[-1]
+        print("%-24s %3d cases %8d bytes" % (t, n, size))
+    total = sum(w[2] for w in WRITTEN)
+    assert total < 6_000_000, total
+    print("total %d bytes in %d files" % (total, len(WRITTEN)))
+
+
+if __name__ == "__main__":
+    main()
