@@ -5,7 +5,7 @@
 //! reports, per fixture family, the number of cases and comparisons, failures against the
 //! fixture tolerances, the worst relative error and the minimum number of correct digits
 //! (-log10 of the relative error, capped at 17), and the NIST StRD univariate, linear
-//! regression and one-way ANOVA LREs.
+//! regression, one-way ANOVA and nonlinear regression LREs.
 
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -119,6 +119,41 @@ fn main() {
     println!(
         "\nMin*: minimum LRE against the exact statistics of the inputs as parsed into doubles."
     );
+
+    println!("\n## NIST StRD nonlinear regression (LRE, both starting points)\n");
+    println!("| Dataset | Difficulty | Start | Status | Iterations | Parameters | SDs | Residual SS | Residual SD | Min |");
+    println!("|---|---|---:|---|---:|---:|---:|---:|---:|---:|");
+    let mut worst_param = f64::INFINITY;
+    let mut not_conv = 0;
+    for r in families::nist_nonlinear() {
+        for (k, s) in r.starts.iter().enumerate() {
+            worst_param = worst_param.min(s.params);
+            if !s.converged {
+                not_conv += 1;
+            }
+            println!(
+                "| {} | {} | {} | {} | {} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} |",
+                r.name,
+                r.difficulty,
+                k + 1,
+                s.status,
+                s.iterations,
+                s.params,
+                s.sds,
+                s.ss,
+                s.residual_sd,
+                s.min()
+            );
+        }
+    }
+    println!("\nLRE capped at 11 (NIST certifies 11 digits). Parameters and SDs: minimum over the");
+    println!(
+        "parameters. Status \"Ambiguous\" is Prism's flag for a parameter with dependency > 0.9999"
+    );
+    println!(
+        "(the fit converged; the parameters are nearly redundant). Starts that did not converge:"
+    );
+    println!("{not_conv}. Worst parameter LRE over all 54 fits: {worst_param:.2}.");
     if total_fail > 0 {
         eprintln!("{total_fail} comparison(s) outside tolerance");
         std::process::exit(1);

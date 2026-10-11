@@ -1050,6 +1050,11 @@ pub fn all_families() -> Vec<Checker> {
         contingency_family(),
         correlation_family(),
         linear_regression_family(),
+        nonlinear_family(),
+        survival_family(),
+        roc_family(),
+        bland_altman_family(),
+        pca_family(),
     ]
 }
 
@@ -2423,3 +2428,683 @@ pub const NIST_ANOVA_EXACT_ON_DOUBLES: &[(&str, [f64; 5])] = &[
         ],
     ),
 ];
+
+// ------------------------------------------------------------------ nonlinear regression
+
+use dioptra_stats::equations::{self, Equation};
+use dioptra_stats::nonlinear::{self as nl, Dataset, FitOptions, ParamConstraint};
+
+fn names_of(v: &Value) -> Vec<String> {
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect()
+}
+
+fn custom_eq(expr: &str, names: &[String]) -> Equation {
+    let n: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+    Equation::custom_with(expr, &["x"], Some(&n)).unwrap()
+}
+
+/// Compare a fit's free parameters (`vals`, `ses`, `cov` over them) with an expected fit
+/// block (params, se, ci95, ss, df, sy_x, aicc, r_squared, cov_scaled), whichever exist.
+fn check_fit_block(ck: &mut Checker, c: &Value, ctx: &str, e: &Value, fit: &nl::CurveFit) {
+    let t = tol(c, "params");
+    let d0 = &fit.datasets[0];
+    let free: Vec<&nl::ParamEstimate> = d0
+        .params
+        .iter()
+        .filter(|p| p.status != nl::ParamStatus::Fixed)
+        .collect();
+    if let Some(ps) = e.get("params") {
+        let exp = nums(ps);
+        let got: Vec<f64> = free.iter().map(|p| p.value).collect();
+        ck.check_vec(ctx, "params", &exp, &got, t);
+    }
+    if let Some(ps) = e.get("se") {
+        let got: Vec<f64> = free.iter().map(|p| p.se).collect();
+        ck.check_vec(ctx, "se", &nums(ps), &got, tol(c, "se"));
+    }
+    if let Some(ci) = e.get("ci95") {
+        for (k, row) in ci.as_array().unwrap().iter().enumerate() {
+            let r = nums(row);
+            ck.check(
+                ctx,
+                &format!("ci95[{k}].lo"),
+                r[0],
+                free[k].ci_low,
+                tol(c, "ci95"),
+            );
+            ck.check(
+                ctx,
+                &format!("ci95[{k}].hi"),
+                r[1],
+                free[k].ci_high,
+                tol(c, "ci95"),
+            );
+        }
+    }
+    for (key, got) in [
+        ("ss", fit.ss),
+        ("df", fit.df),
+        ("sy_x", fit.sy_x),
+        ("aicc", fit.aicc),
+        ("r_squared", fit.r_squared),
+    ] {
+        if let Some(v) = e.get(key) {
+            ck.check_value(ctx, key, v, got, tol(c, key));
+        }
+    }
+    if let Some(cv) = e.get("cov_scaled") {
+        let k = fit.k;
+        for (a, row) in cv.as_array().unwrap().iter().enumerate() {
+            for (b, v) in nums(row).iter().enumerate() {
+                ck.check(
+                    ctx,
+                    &format!("cov_scaled[{a}][{b}]"),
+                    *v,
+                    fit.covariance[a * k + b],
+                    tol(c, "cov_scaled"),
+                );
+            }
+        }
+    }
+}
+
+fn opts_with_initial(p0: Vec<f64>) -> FitOptions {
+    FitOptions {
+        initial: Some(vec![p0]),
+        ..FitOptions::default()
+    }
+}
+
+pub fn nonlinear_family() -> Checker {
+    let mut ck = Checker::new("nonlinear regression (fits, comparison, weighting, robust)");
+    let cases = cases("nonlinear_regression");
+    let fx =
+        |c: &Value| -> (Vec<f64>, Vec<f64>) { (nums(&c["input"]["x"]), nums(&c["input"]["y"])) };
+    for c in &cases {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap();
+        let inp = &c["input"];
+        let e = &c["expected"];
+        let (x, y) = fx(c);
+        let data = Dataset::new(&x, &y);
+        if let Some(stripped) = name.strip_prefix("fit/") {
+            let names = names_of(&inp["param_names"]);
+            let eq = custom_eq(inp["equation"].as_str().unwrap(), &names);
+            let p0 = nums(&inp["p0"]);
+            let fit = nl::fit(&eq, &data, &opts_with_initial(p0.clone())).unwrap();
+            check_fit_block(&mut ck, c, &format!("{name} (parsed)"), e, &fit);
+            let builtin = match stripped {
+                "4pl_dose_response" => Some(equations::log_agonist_variable_slope()),
+                "one_phase_decay" => Some(equations::one_phase_decay()),
+                "michaelis_menten" => Some(equations::michaelis_menten()),
+                "hill" => Some(equations::specific_binding_hill()),
+                "gaussian" => Some(equations::gaussian()),
+                _ => None,
+            };
+            if let Some(b) = builtin {
+                // From the Prism-style initial-value rules, not the fixture's start.
+                let fit = nl::fit(&b, &data, &FitOptions::default()).unwrap();
+                check_fit_block(
+                    &mut ck,
+                    c,
+                    &format!("{name} (built-in, rule starts)"),
+                    e,
+                    &fit,
+                );
+            }
+        } else if name == "compare/3pl_vs_4pl" {
+            let four = equations::log_agonist_variable_slope();
+            let mut ps = nums(&inp["p0_simple"]);
+            ps.push(1.0);
+            let mut o = opts_with_initial(ps);
+            o.constraints = Some(vec![
+                ParamConstraint::free(),
+                ParamConstraint::free(),
+                ParamConstraint::free(),
+                ParamConstraint::fixed(1.0),
+            ]);
+            let simple = nl::fit(&four, &data, &o).unwrap();
+            let complex =
+                nl::fit(&four, &data, &opts_with_initial(nums(&inp["p0_complex"]))).unwrap();
+            check_compare(&mut ck, c, &simple, &complex);
+        } else if name == "compare/one_vs_two_phase_decay" {
+            let two = cases
+                .iter()
+                .find(|c| c["name"] == "fit/two_phase_decay")
+                .unwrap();
+            let eq2 = custom_eq(
+                two["input"]["equation"].as_str().unwrap(),
+                &names_of(&two["input"]["param_names"]),
+            );
+            let simple = nl::fit(
+                &equations::one_phase_decay(),
+                &data,
+                &opts_with_initial(nums(&inp["p0_simple"])),
+            )
+            .unwrap();
+            let complex =
+                nl::fit(&eq2, &data, &opts_with_initial(nums(&inp["p0_complex"]))).unwrap();
+            check_compare(&mut ck, c, &simple, &complex);
+        } else if let Some(kind) = name.strip_prefix("weighted/") {
+            let mut o = opts_with_initial(nums(&inp["p0"]));
+            o.weighting = nl::Weighting::InverseY2;
+            o.weight_base = if kind.ends_with("_data") {
+                nl::WeightBase::Data
+            } else {
+                nl::WeightBase::Curve
+            };
+            let fit = nl::fit(&equations::michaelis_menten(), &data, &o).unwrap();
+            check_fit_block(&mut ck, c, name, e, &fit);
+            if let Some(v) = e.get("ss_weighted") {
+                ck.check_value(name, "ss_weighted", v, fit.ss, tol(c, "ss_weighted"));
+            }
+        } else if name.starts_with("robust/") {
+            let loss = match inp["loss"].as_str().unwrap() {
+                "cauchy" => nl::RobustLoss::Cauchy,
+                _ => nl::RobustLoss::SoftL1,
+            };
+            let mut o = opts_with_initial(nums(&inp["p0"]));
+            o.method = nl::FitMethod::RobustFixedScale {
+                loss,
+                scale: num(&inp["f_scale"]).unwrap(),
+            };
+            let fit = nl::fit(&equations::log_agonist_variable_slope(), &data, &o).unwrap();
+            let got = fit.params();
+            ck.check_vec(name, "params", &nums(&e["params"]), &got, tol(c, "params"));
+            ck.check_value(
+                name,
+                "objective_sum_rho",
+                &e["objective_sum_rho"],
+                fit.robust_objective.unwrap(),
+                tol(c, "objective_sum_rho"),
+            );
+        } else {
+            ck.fail(format!("{name}: case not handled"));
+        }
+    }
+    ck
+}
+
+fn check_compare(ck: &mut Checker, c: &Value, simple: &nl::CurveFit, complex: &nl::CurveFit) {
+    let name = c["name"].as_str().unwrap();
+    let e = &c["expected"];
+    check_fit_block(ck, c, &format!("{name} simple"), &e["simple_fit"], simple);
+    check_fit_block(
+        ck,
+        c,
+        &format!("{name} complex"),
+        &e["complex_fit"],
+        complex,
+    );
+    let cmp = nl::compare_models(simple, complex).unwrap();
+    for (key, got) in [
+        ("F", cmp.f),
+        ("df_num", cmp.df_num),
+        ("df_den", cmp.df_den),
+        ("p", cmp.p),
+        ("aicc_simple", cmp.aicc_simple),
+        ("aicc_complex", cmp.aicc_complex),
+        ("delta_aicc_simple_minus_complex", cmp.delta_aicc),
+        ("prob_complex_correct", cmp.prob_complex),
+    ] {
+        chk(ck, c, e, key, got);
+    }
+}
+
+// ------------------------------------------------------------------ NIST nonlinear
+
+/// NIST StRD nonlinear sets, in the order of the NIST table (lower, average, higher).
+pub const NIST_NONLINEAR: [&str; 27] = [
+    "Misra1a", "Chwirut2", "Chwirut1", "Lanczos3", "Gauss1", "Gauss2", "DanWood", "Misra1b",
+    "Kirby2", "Hahn1", "Nelson", "MGH17", "Lanczos1", "Lanczos2", "Gauss3", "Misra1c", "Misra1d",
+    "Roszman1", "ENSO", "MGH09", "Thurber", "BoxBOD", "Rat42", "MGH10", "Eckerle4", "Rat43",
+    "Bennett5",
+];
+
+/// One start of one NIST nonlinear set, scored (LRE capped at 11, the certified digits).
+#[derive(Debug, Clone)]
+pub struct NistNlStart {
+    pub converged: bool,
+    pub status: String,
+    pub iterations: usize,
+    pub params: f64,
+    pub sds: f64,
+    pub ss: f64,
+    pub residual_sd: f64,
+}
+
+impl NistNlStart {
+    pub fn min(&self) -> f64 {
+        self.params.min(self.sds).min(self.ss).min(self.residual_sd)
+    }
+}
+
+pub struct NistNlRow {
+    pub name: String,
+    pub difficulty: String,
+    pub starts: [NistNlStart; 2],
+}
+
+/// Load a NIST nonlinear set as (equation, data).
+pub fn nist_nonlinear_problem(j: &Value) -> (Equation, Dataset) {
+    let preds = names_of(&j["predictors"]);
+    let pv: Vec<&str> = preds.iter().map(|s| s.as_str()).collect();
+    let pn: Vec<String> = j["parameters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["name"].as_str().unwrap().to_string())
+        .collect();
+    let pr: Vec<&str> = pn.iter().map(|s| s.as_str()).collect();
+    let eq = Equation::custom_with(j["equation"].as_str().unwrap(), &pv, Some(&pr)).unwrap();
+    let mut y = nums(&j["data"]["y"]);
+    if j["response_transform"] == "log" {
+        for v in y.iter_mut() {
+            *v = v.ln();
+        }
+    }
+    let x = nums(&j["data"][preds[0].as_str()]);
+    let mut d = Dataset::new(&x, &y);
+    for p in &preds[1..] {
+        d.extra_x.push(nums(&j["data"][p.as_str()]));
+    }
+    (eq, d)
+}
+
+pub fn nist_nonlinear() -> Vec<NistNlRow> {
+    let l = |g: f64, c: f64| lre(g, c).clamp(0.0, 11.0);
+    NIST_NONLINEAR
+        .iter()
+        .map(|&name| {
+            let j = load(&format!("nist/{name}.json"));
+            let (eq, data) = nist_nonlinear_problem(&j);
+            let ps = j["parameters"].as_array().unwrap();
+            let score = |start: &str| -> NistNlStart {
+                let p0: Vec<f64> = ps.iter().map(|p| num(&p[start]).unwrap()).collect();
+                let r = nl::fit(&eq, &data, &opts_with_initial(p0)).unwrap();
+                let st = r.convergence.status;
+                let converged = matches!(st, nl::FitStatus::Converged | nl::FitStatus::Ambiguous);
+                let v = r.params();
+                let se = r.se();
+                NistNlStart {
+                    converged,
+                    status: format!("{st:?}"),
+                    iterations: r.convergence.iterations,
+                    params: ps
+                        .iter()
+                        .enumerate()
+                        .map(|(k, p)| l(v[k], num(&p["certified"]).unwrap()))
+                        .fold(f64::INFINITY, f64::min),
+                    sds: ps
+                        .iter()
+                        .enumerate()
+                        .map(|(k, p)| l(se[k], num(&p["std_dev"]).unwrap()))
+                        .fold(f64::INFINITY, f64::min),
+                    ss: l(r.ss, cert(&j["residual_sum_of_squares"]).unwrap()),
+                    residual_sd: l(r.sy_x, cert(&j["residual_std_dev"]).unwrap()),
+                }
+            };
+            NistNlRow {
+                name: name.to_string(),
+                difficulty: j["difficulty"].as_str().unwrap().to_string(),
+                starts: [score("start1"), score("start2")],
+            }
+        })
+        .collect()
+}
+
+// ------------------------------------------------------------------ survival
+
+use dioptra_stats::survival::{self as sv, CoxTies, KmOptions, LogRankWeight};
+
+fn surv_group(v: &Value) -> (Vec<f64>, Vec<bool>) {
+    let t = nums(&v["time"]);
+    let e = nums(&v["event"]).iter().map(|x| *x != 0.0).collect();
+    (t, e)
+}
+
+/// Efron-ties Cox MLE (coef, SE, log-likelihood) for the survival fixture cases, from
+/// Newton iterations in 50-digit decimal arithmetic (Python `decimal`, the score and
+/// information written out for one binary covariate).
+#[allow(clippy::excessive_precision)]
+const COX_EXACT: [(&str, f64, f64, f64); 3] = [
+    (
+        "gehan_leukemia_classic",
+        -1.5721251488290670,
+        0.41239671770945558,
+        -85.008424577371627,
+    ),
+    (
+        "synthetic_ties_censoring_30_25",
+        -0.56973776095324207,
+        0.36345729490491777,
+        -100.21568119293005,
+    ),
+    (
+        "small_censor_at_end",
+        -0.84574684893160798,
+        0.71332884209670770,
+        -17.930671038121084,
+    ),
+];
+
+pub fn survival_family() -> Checker {
+    let mut ck = Checker::new("survival (KM, log-rank family, hazard ratios, Cox)");
+    for c in cases("survival") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap();
+        let e = &c["expected"];
+        let (t1, e1) = surv_group(&c["input"]["group1"]);
+        let (t2, e2) = surv_group(&c["input"]["group2"]);
+        for (g, (t, ev)) in [(1, (&t1, &e1)), (2, (&t2, &e2))] {
+            let km = sv::kaplan_meier(t, ev, KmOptions::default()).unwrap();
+            let rows = e[format!("km_group{g}")].as_array().unwrap();
+            if rows.len() != km.rows.len() {
+                ck.fail(format!(
+                    "{name} group {g}: {} KM rows, expected {}",
+                    km.rows.len(),
+                    rows.len()
+                ));
+                continue;
+            }
+            for (k, (er, r)) in rows.iter().zip(&km.rows).enumerate() {
+                let ctx = format!("{name} km_group{g}[{k}]");
+                let tl = tol(&c, "km");
+                for (key, got) in [
+                    ("time", r.time),
+                    ("n_at_risk", r.n_at_risk as f64),
+                    ("events", r.events as f64),
+                    ("censored_at_time", r.censored as f64),
+                    ("survival", r.survival),
+                    ("greenwood_var", r.greenwood_var),
+                    ("se", r.se),
+                ] {
+                    ck.check_value(&ctx, key, &er[key], got, tl);
+                }
+                for (key, got) in [
+                    ("ci95_loglog", r.ci_loglog),
+                    ("ci95_linear_clipped", r.ci_linear),
+                ] {
+                    let pair = er[key].as_array().unwrap();
+                    ck.check_value(&ctx, &format!("{key}.lo"), &pair[0], got.0, tl);
+                    ck.check_value(&ctx, &format!("{key}.hi"), &pair[1], got.1, tl);
+                }
+            }
+            chk(&mut ck, &c, e, &format!("median_group{g}"), km.median);
+        }
+        let groups: [(&[f64], &[bool]); 2] = [(&t1, &e1), (&t2, &e2)];
+        for (key, w) in [
+            ("logrank", LogRankWeight::LogRank),
+            ("gehan_breslow_wilcoxon", LogRankWeight::Wilcoxon),
+            ("tarone_ware", LogRankWeight::TaroneWare),
+        ] {
+            let lr = sv::logrank(&groups, w, None).unwrap();
+            let t = tol(&c, key);
+            ck.check_value(name, &format!("{key}.chi2"), &e[key]["chi2"], lr.chi2, t);
+            ck.check_value(name, &format!("{key}.p"), &e[key]["p"], lr.p, t);
+        }
+        let hr = sv::hazard_ratio(groups[0], groups[1], 0.95).unwrap();
+        let comp = &e["logrank_components"];
+        let t = tol(&c, "logrank_components");
+        for (key, got) in [
+            ("O1", hr.o1),
+            ("E1", hr.e1),
+            ("O2", hr.o2),
+            ("E2", hr.e2),
+            ("V", hr.v),
+            ("chi2_mantel_haenszel", hr.chi2),
+            ("hr_logrank_OE", hr.hr_logrank),
+            ("hr_mantel_haenszel", hr.hr_mantel_haenszel),
+        ] {
+            ck.check_value(name, key, &comp[key], got, t);
+        }
+        for (key, got) in [
+            ("hr_logrank_OE_ci95", hr.hr_logrank_ci),
+            ("hr_mantel_haenszel_ci95", hr.hr_mantel_haenszel_ci),
+        ] {
+            let pr = comp[key].as_array().unwrap();
+            ck.check_value(name, &format!("{key}.lo"), &pr[0], got.0, t);
+            ck.check_value(name, &format!("{key}.hi"), &pr[1], got.1, t);
+        }
+        // Cox with covariate group1 = 1
+        let mut time = t1.clone();
+        time.extend(&t2);
+        let mut ev = e1.clone();
+        ev.extend(&e2);
+        let x: Vec<Vec<f64>> = (0..time.len())
+            .map(|i| vec![if i < t1.len() { 1.0 } else { 0.0 }])
+            .collect();
+        let cox = sv::cox_ph(&time, &ev, &x, CoxTies::Efron, 0.95).unwrap();
+        let cx = &e["cox_efron"];
+        let cc = &cox.coefficients[0];
+        // lifelines stops its Newton iterations early (its score at its own estimate is
+        // -1.6e-6, -2.1e-7 and -4.6e-6 for the three cases), so the coefficient is checked
+        // against the maximum found by Newton in 50-digit decimal arithmetic, and against
+        // lifelines by the likelihood: ours must be at least as high.
+        let exact = COX_EXACT.iter().find(|r| r.0 == name).unwrap();
+        let te = Tol::new(1e-11, 1e-14);
+        ck.check(name, "cox.coef (50-digit MLE)", exact.1, cc.coef, te);
+        ck.check(name, "cox.se (50-digit MLE)", exact.2, cc.se, te);
+        ck.check(
+            name,
+            "cox.log_likelihood (50-digit)",
+            exact.3,
+            cox.log_likelihood,
+            te,
+        );
+        let t = tol(&c, "cox_efron");
+        ck.check_value(
+            name,
+            "cox.log_likelihood",
+            &cx["log_likelihood"],
+            cox.log_likelihood,
+            t,
+        );
+        let ll_lifelines =
+            sv::cox_log_likelihood(&time, &ev, &x, &[num(&cx["coef"]).unwrap()], CoxTies::Efron)
+                .unwrap();
+        ck.count += 1;
+        if cox.log_likelihood < ll_lifelines {
+            ck.fail(format!(
+                "{name}: our Cox log-likelihood {} below lifelines' {}",
+                cox.log_likelihood, ll_lifelines
+            ));
+        }
+        // The derived quantities follow from coef and se; compared with lifelines'
+        // values at 1e-5 (its convergence error), the fixture asks 1e-6.
+        let tl = Tol::new(1e-5, 1e-8);
+        for (key, got) in [
+            ("coef", cc.coef),
+            ("se", cc.se),
+            ("hr", cc.hr),
+            ("p_wald", cc.p),
+        ] {
+            ck.check_value(name, &format!("cox.{key} (lifelines)"), &cx[key], got, tl);
+        }
+        let pr = cx["hr_ci95"].as_array().unwrap();
+        ck.check_value(name, "cox.hr_ci95.lo (lifelines)", &pr[0], cc.hr_ci.0, tl);
+        ck.check_value(name, "cox.hr_ci95.hi (lifelines)", &pr[1], cc.hr_ci.1, tl);
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ ROC
+
+use dioptra_stats::roc::{self as rocm, RocOptions};
+
+pub fn roc_family() -> Checker {
+    let mut ck = Checker::new("ROC (curve, Wilson CIs, AUC, DeLong, Hanley-McNeil, Youden)");
+    for c in cases("roc") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap();
+        let e = &c["expected"];
+        let r = rocm::roc(
+            &nums(&c["input"]["scores_positive"]),
+            &nums(&c["input"]["scores_negative"]),
+            RocOptions::default(),
+        )
+        .unwrap();
+        chk(&mut ck, &c, e, "auc", r.auc);
+        chk(&mut ck, &c, e, "delong_se", r.se_delong);
+        chk(&mut ck, &c, e, "hanley_mcneil_se", r.se_hanley_mcneil);
+        chk(&mut ck, &c, e, "p_auc_vs_0p5_delong_z", r.p);
+        chk(
+            &mut ck,
+            &c,
+            e,
+            "youden_best_index",
+            r.youden_best_index as f64,
+        );
+        chk(
+            &mut ck,
+            &c,
+            e,
+            "youden_best_threshold",
+            r.youden_best_threshold,
+        );
+        chk(&mut ck, &c, e, "youden_best_J", r.youden_best_j);
+        for (key, got) in [
+            ("delong_ci95", r.ci_delong),
+            ("hanley_mcneil_ci95", r.ci_hanley_mcneil),
+        ] {
+            let p = nums(&e[key]);
+            ck.check(name, &format!("{key}.lo"), p[0], got.0, tol(&c, key));
+            ck.check(name, &format!("{key}.hi"), p[1], got.1, tol(&c, key));
+        }
+        chk_vec(&mut ck, &c, e, "delong_v10", &r.v10);
+        chk_vec(&mut ck, &c, e, "delong_v01", &r.v01);
+        let col =
+            |f: &dyn Fn(&rocm::RocPoint) -> f64| -> Vec<f64> { r.points.iter().map(f).collect() };
+        chk_vec(&mut ck, &c, e, "thresholds", &col(&|p| p.threshold));
+        chk_vec(&mut ck, &c, e, "tpr", &col(&|p| p.sensitivity));
+        chk_vec(&mut ck, &c, e, "fpr", &col(&|p| p.fpr));
+        chk_vec(&mut ck, &c, e, "sensitivity", &col(&|p| p.sensitivity));
+        chk_vec(&mut ck, &c, e, "specificity", &col(&|p| p.specificity));
+        chk_vec(&mut ck, &c, e, "youden_J", &col(&|p| p.youden));
+        for (key, f) in [
+            (
+                "sensitivity_wilson_ci95",
+                &(|p: &rocm::RocPoint| p.sensitivity_ci) as &dyn Fn(&rocm::RocPoint) -> (f64, f64),
+            ),
+            ("specificity_wilson_ci95", &|p: &rocm::RocPoint| {
+                p.specificity_ci
+            }),
+        ] {
+            let rows = e[key].as_array().unwrap();
+            if rows.len() != r.points.len() {
+                ck.fail(format!("{name}: {key} length"));
+                continue;
+            }
+            for (k, (row, p)) in rows.iter().zip(&r.points).enumerate() {
+                let v = nums(row);
+                let g = f(p);
+                ck.check(name, &format!("{key}[{k}].lo"), v[0], g.0, tol(&c, key));
+                ck.check(name, &format!("{key}[{k}].hi"), v[1], g.1, tol(&c, key));
+            }
+        }
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ Bland-Altman
+
+use dioptra_stats::agreement::{self as agr, BaKind};
+
+pub fn bland_altman_family() -> Checker {
+    let mut ck = Checker::new("Bland-Altman (bias, limits, CIs, proportional bias)");
+    for c in cases("bland_altman") {
+        ck.cases += 1;
+        let name = c["name"].as_str().unwrap();
+        let e = &c["expected"];
+        let r = agr::bland_altman(
+            &nums(&c["input"]["a"]),
+            &nums(&c["input"]["b"]),
+            BaKind::Difference,
+            0.95,
+        )
+        .unwrap();
+        let pb = r.proportional_bias.as_ref().unwrap();
+        for (key, got) in [
+            ("bias", r.bias),
+            ("sd_diff", r.sd),
+            ("loa_lower", r.loa_lower),
+            ("loa_upper", r.loa_upper),
+            ("loa_se", r.loa_se),
+            ("loa_lower_exact_z", r.loa_lower_exact_z),
+            ("loa_upper_exact_z", r.loa_upper_exact_z),
+            ("proportional_bias_slope", pb.slope),
+            ("proportional_bias_intercept", pb.intercept),
+            ("proportional_bias_p", pb.p),
+            ("proportional_bias_slope_se", pb.slope_se),
+        ] {
+            chk(&mut ck, &c, e, key, got);
+        }
+        for (key, got) in [
+            ("bias_ci95", r.bias_ci),
+            ("loa_lower_ci95", r.loa_lower_ci),
+            ("loa_upper_ci95", r.loa_upper_ci),
+        ] {
+            let p = nums(&e[key]);
+            ck.check(name, &format!("{key}.lo"), p[0], got.0, tol(&c, key));
+            ck.check(name, &format!("{key}.hi"), p[1], got.1, tol(&c, key));
+        }
+        chk_vec(&mut ck, &c, e, "differences", &r.differences);
+        chk_vec(&mut ck, &c, e, "averages", &r.averages);
+    }
+    ck
+}
+
+// ------------------------------------------------------------------ PCA
+
+use dioptra_stats::multivariate::{self as mv, PcaScaling};
+
+pub fn pca_family() -> Checker {
+    let mut ck = Checker::new("PCA (eigenvalues, eigenvectors, loadings, scores)");
+    for c in cases("pca") {
+        ck.cases += 1;
+        let e = &c["expected"];
+        let rows = matrix_of(&c["input"]["X"]);
+        let r = mv::pca(&rows, PcaScaling::Standardize).unwrap();
+        chk_vec(&mut ck, &c, e, "eigenvalues", &r.eigenvalues);
+        chk_vec(
+            &mut ck,
+            &c,
+            e,
+            "explained_variance_ratio",
+            &r.explained_variance_ratio,
+        );
+        chk_vec(&mut ck, &c, e, "cumulative_ratio", &r.cumulative_ratio);
+        chk_vec(&mut ck, &c, e, "column_means", &r.column_means);
+        chk_vec(&mut ck, &c, e, "column_sds", &r.column_sds);
+        for (key, got) in [
+            ("eigenvectors", &r.eigenvectors),
+            ("loadings_scaled", &r.loadings),
+            ("scores", &r.scores),
+        ] {
+            let rows_e = matrix_of(&e[key]);
+            if rows_e.len() != got.len() {
+                ck.fail(format!(
+                    "{} :: {key}: {} rows vs {}",
+                    c["name"],
+                    got.len(),
+                    rows_e.len()
+                ));
+                continue;
+            }
+            for (k, (re, rg)) in rows_e.iter().zip(got.iter()).enumerate() {
+                ck.check_vec(
+                    c["name"].as_str().unwrap(),
+                    &format!("{key}[{k}]"),
+                    re,
+                    rg,
+                    tol(&c, key),
+                );
+            }
+        }
+    }
+    ck
+}
