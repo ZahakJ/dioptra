@@ -23,3 +23,7 @@ log.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+# rust_xlsxwriter stamps workbooks with the current time; on wasm that must come from JS.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+rust_xlsxwriter = { workspace = true, features = ["wasm"] }
