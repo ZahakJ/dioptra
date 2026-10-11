@@ -15,7 +15,13 @@ impl Engine {
     /// Create a new session.
     #[wasm_bindgen(constructor)]
     pub fn new() -> Engine {
-        Engine { session: Session::new() }
+        let mut session = Session::new();
+        // `SystemTime` is unavailable on wasm32; stamp history and provenance with the
+        // browser clock instead.
+        session.set_clock(Some(Box::new(|| {
+            String::from(js_sys::Date::new_0().to_iso_string())
+        })));
+        Engine { session }
     }
 
     /// JSON command in, JSON response out.
