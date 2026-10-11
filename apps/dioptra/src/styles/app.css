@@ -549,7 +549,7 @@ h3 {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-sheet);
+  background: var(--bg-app);
 }
 
 .placeholder {
@@ -592,31 +592,209 @@ h3 {
   padding: 0 12px;
 }
 
+/* ---- welcome: the first launch and nothing-open state (DESIGN.md §12.8) ---------------------- */
+
+.tabs[data-empty] {
+  border-bottom-color: transparent;
+}
+
+.welcome {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  container: welcome / inline-size;
+  display: grid;
+  place-items: center;
+  padding: var(--s6) var(--s5);
+}
+
+.welcome-inner {
+  width: min(760px, 100%);
+  display: grid;
+  justify-items: center;
+  margin-top: -40px;
+}
+
+.welcome-mark {
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.welcome-title {
+  margin: var(--s4) 0 var(--s5);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--tracking-head);
+  color: var(--fg);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.welcome-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+  width: 100%;
+}
+
+.welcome-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  align-content: start;
+  gap: 6px;
+  min-height: 168px;
+  padding: var(--s4) var(--s4) var(--s5);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-sheet);
+  color: var(--fg);
+  text-align: left;
+  cursor: default;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.welcome-card:hover {
+  border-color: var(--accent-line);
+}
+
+.welcome-card:active {
+  background: var(--bg-hover);
+}
+
+.welcome-card-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 6px;
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.welcome-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--tracking-head);
+}
+
+.welcome-card-title svg {
+  color: var(--fg-faint);
+}
+
+.welcome-card-text {
+  color: var(--fg-muted);
+  font-size: var(--fs-md);
+  line-height: var(--lh);
+}
+
+.welcome-card-kbd {
+  position: absolute;
+  top: var(--s4);
+  right: var(--s4);
+}
+
+.welcome-keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px var(--s4);
+  margin-top: var(--s5);
+}
+
+.welcome-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+  cursor: default;
+}
+
+.welcome-key:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+@container welcome (max-width: 720px) {
+  .welcome-cards {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 440px;
+  }
+
+  .welcome-card {
+    min-height: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: var(--s3);
+    padding: var(--s3) var(--s4);
+  }
+
+  .welcome-card-icon {
+    grid-row: span 2;
+    margin: 0;
+  }
+
+  .welcome-card-kbd {
+    top: var(--s3);
+  }
+}
+
 /* ---- formula bar ------------------------------------------------------------------------- */
 
 .formula-bar {
+  position: relative;
+  z-index: 7;
   display: flex;
   align-items: center;
   gap: var(--s2);
   height: var(--formula-h);
-  padding: 0 var(--s2);
+  padding: 0 var(--s2) 0 var(--s3);
   border-bottom: var(--border) solid var(--line);
   background: var(--bg-panel);
   flex: none;
+  container: formula / inline-size;
+}
+
+/* A narrow pane keeps the reference and the expression; the mode and tools step aside. */
+@container formula (max-width: 520px) {
+  .formula-bar .table-tools .btn-text {
+    display: none;
+  }
+}
+
+@container formula (max-width: 400px) {
+  .formula-bar > .seg,
+  .formula-bar .table-tools {
+    display: none;
+  }
 }
 
 .fb-address {
   flex: none;
-  min-width: 84px;
-  max-width: 240px;
-  height: var(--control-h-sm);
-  line-height: calc(var(--control-h-sm) - 2px);
-  padding: 0 8px;
+  min-width: 72px;
+  max-width: 220px;
+  height: 26px;
+  line-height: 24px;
+  padding: 0 10px;
   border: var(--border) solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-inset);
   font-size: var(--fs-sm);
   color: var(--fg);
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -627,19 +805,27 @@ h3 {
   color: var(--accent);
 }
 
-.fb-well {
+/* The expression: a mono well that grows to two lines while it has the keyboard. It floats
+   over the grid when it grows, so the sheet never jumps. */
+.fb-slot {
+  position: relative;
   flex: 1;
   min-width: 0;
+  height: 26px;
+}
+
+.fb-well {
+  position: absolute;
+  inset: 0 0 auto 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  height: var(--control-h-sm);
-  padding: 0 0 0 6px;
+  align-items: flex-start;
+  height: 26px;
   border: var(--border) solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-inset);
-  color: var(--fg-faint);
-  transition: border-color var(--dur-fast) var(--ease-out);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    height var(--dur-fast) var(--ease-out);
 }
 
 .fb-well:hover {
@@ -647,7 +833,27 @@ h3 {
 }
 
 .fb-well:focus-within {
+  z-index: 8;
+  height: 46px;
   border-color: var(--accent);
+  box-shadow: var(--elev-2);
+}
+
+.fb-fx {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  color: var(--fg-faint);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 14px;
+  border-right: var(--border) solid var(--line);
+  user-select: none;
+}
+
+.fb-well:focus-within .fb-fx {
   color: var(--accent);
 }
 
@@ -655,16 +861,31 @@ h3 {
   flex: 1;
   min-width: 0;
   height: 100%;
-  padding: 0 6px 0 0;
+  margin: 0;
+  padding: 4px 8px 0;
   border: 0;
+  resize: none;
+  overflow: hidden;
   background: transparent;
   color: var(--fg);
   font-size: var(--fs-sm);
+  line-height: 18px;
+  white-space: pre;
+}
+
+.fb-well:focus-within .fb-input {
+  white-space: pre-wrap;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .fb-input:focus,
 .fb-input:focus-visible {
   outline: none;
+}
+
+.fb-input:disabled {
+  color: var(--fg-muted);
 }
 
 .fb-input::placeholder {
@@ -677,7 +898,7 @@ h3 {
   color: var(--fg-muted);
 }
 
-/* ---- grid ------------------------------------------------------------------ */
+/* ---- grid: a bounded sheet on the desk (DESIGN.md §12.6) ------------------------------------ */
 
 .grid {
   flex: 1;
@@ -699,18 +920,19 @@ h3 {
   position: relative;
 }
 
-/* Focus frame for the grid, drawn above the sticky headers. */
-.table-view:has(> .grid:focus)::after {
-  content: '';
-  position: absolute;
-  inset: var(--formula-h) 0 0 0;
-  border: 1px solid var(--accent-line);
-  pointer-events: none;
-  z-index: 6;
-}
-
 .grid-canvas {
   position: relative;
+}
+
+/* The sheet's edge where it meets the desk (right and bottom; the other two are the window's). */
+.grid-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-right: var(--border) solid var(--line-strong);
+  border-bottom: var(--border) solid var(--line-strong);
+  pointer-events: none;
+  z-index: 5;
 }
 
 .grid-head {
@@ -725,7 +947,7 @@ h3 {
   left: 0;
   z-index: 4;
   flex: none;
-  background: var(--bg-inset);
+  background: var(--bg-head);
   border-right: var(--border) solid var(--line-strong);
   border-bottom: var(--border) solid var(--line-strong);
 }
@@ -733,7 +955,6 @@ h3 {
 .corner-btn {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 52px;
   border: 0;
   background: transparent;
   cursor: default;
@@ -742,10 +963,10 @@ h3 {
 .corner-btn::after {
   content: '';
   position: absolute;
-  right: 5px;
-  bottom: 5px;
-  border-left: 7px solid transparent;
-  border-bottom: 7px solid var(--line-strong);
+  right: 6px;
+  bottom: 6px;
+  border-left: 6px solid transparent;
+  border-bottom: 6px solid var(--line-strong);
 }
 
 .corner-btn:hover::after {
@@ -754,12 +975,13 @@ h3 {
 
 .corner-titles {
   position: absolute;
-  top: 22px;
   bottom: 0;
   display: flex;
   align-items: center;
-  padding: 0 6px;
+  padding: 0 8px;
   border-left: var(--border) solid var(--line);
+  border-top: var(--border) solid var(--line);
+  background: var(--bg-col-tint);
   color: var(--fg-muted);
   font-size: var(--fs-xs);
 }
@@ -767,6 +989,7 @@ h3 {
 .grid-head-cols {
   position: relative;
   flex: none;
+  background: var(--bg-head);
 }
 
 .gh-group,
@@ -774,29 +997,45 @@ h3 {
   position: absolute;
   display: flex;
   align-items: center;
-  padding: 0 6px;
   border-right: var(--border) solid var(--line);
   white-space: nowrap;
   overflow: hidden;
   cursor: default;
   user-select: none;
+  background: var(--bg-head);
 }
 
+/* Data set row: glyph, colour swatch, name. */
 .gh-group {
   top: 0;
-  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
   color: var(--fg);
   font-weight: var(--fw-medium);
   border-bottom: var(--border) solid var(--line);
-  background: var(--bg-inset);
 }
 
+.gh-group .glyph12 {
+  flex: none;
+  color: var(--fg-faint);
+}
+
+.gh-swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  /* A hairline keeps black and yellow swatches visible on either theme. */
+  box-shadow: inset 0 0 0 1px var(--swatch-edge);
+}
+
+/* Subcolumn row: quiet. */
 .gh-col {
-  justify-content: center;
+  justify-content: flex-end;
+  padding: 0 8px;
   color: var(--fg-muted);
   font-size: var(--fs-xs);
   border-bottom: var(--border) solid var(--line-strong);
-  background: var(--bg-inset);
 }
 
 .gh-text {
@@ -806,19 +1045,23 @@ h3 {
 
 .gh-group.is-x,
 .gh-col.is-x {
-  background: var(--bg-active);
+  background: var(--bg-col-tint);
+  color: var(--fg-muted);
+}
+
+.gh-group.is-x {
+  color: var(--fg);
 }
 
 .gh-group.is-sel,
 .gh-col.is-sel {
-  /* The tint is translucent; layer it over the opaque header colour so scrolled cells never
-     show through the sticky header. */
-  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg-inset);
+  /* Layer the tint over the opaque header colour so scrolled cells never show through. */
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg-head);
   color: var(--fg);
 }
 
 .gh-col.is-sel {
-  font-weight: var(--fw-strong);
+  font-weight: var(--fw-medium);
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -844,12 +1087,35 @@ h3 {
   background: linear-gradient(to right, transparent 3px, var(--accent) 3px, var(--accent) 4px, transparent 4px);
 }
 
+/* Right of the sheet, on the desk: "+ Data set". */
 .grid-tail {
   flex: none;
   display: flex;
-  align-items: flex-end;
-  padding: 0 0 1px 6px;
-  background: var(--bg-app);
+  align-items: flex-start;
+  padding: calc((var(--head-h) - var(--control-h-sm)) / 2) 0 0 10px;
+}
+
+.grid-add {
+  color: var(--fg-muted);
+  font-weight: var(--fw-regular);
+  gap: 4px;
+}
+
+.grid-add:hover {
+  color: var(--fg);
+}
+
+/* Under the sheet, on the desk: "+ 20 rows". */
+.grid-foot {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+}
+
+.grid-add-rows {
+  position: sticky;
+  left: 0;
 }
 
 .grid-body {
@@ -862,7 +1128,7 @@ h3 {
   left: 0;
   z-index: 2;
   flex: none;
-  background: var(--bg-inset);
+  background: var(--bg-head);
   border-right: var(--border) solid var(--line-strong);
 }
 
@@ -890,30 +1156,33 @@ h3 {
   color: var(--fg-faint);
   font-family: var(--font-num);
   font-size: var(--fs-xs);
+  background: var(--bg-head);
 }
 
 .rh-num.is-spare {
-  color: var(--fg-disabled);
+  color: var(--fg-faint);
+  opacity: 0.7;
 }
 
 .rh-num.is-sel {
-  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg-inset);
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg-head);
   color: var(--fg);
-  font-weight: var(--fw-strong);
+  opacity: 1;
   box-shadow: inset -2px 0 0 var(--accent);
 }
 
+/* The row-title column: tinted like the X column, text in the interface face. */
 .rh-title {
   flex: none;
-  padding: 0 6px;
+  padding: 0 8px;
   border-left: var(--border) solid var(--line);
-  background: var(--bg-panel);
+  background: var(--bg-col-tint);
   color: var(--fg);
   text-overflow: ellipsis;
 }
 
-.rh-title.is-spare {
-  background: transparent;
+.rh-title.is-sel {
+  background: linear-gradient(var(--accent-wash), var(--accent-wash)), var(--bg-col-tint);
 }
 
 .grid-cells {
@@ -926,7 +1195,7 @@ h3 {
   position: absolute;
   height: var(--row-h);
   line-height: calc(var(--row-h) - 1px);
-  padding: 0 6px;
+  padding: 0 8px;
   border-right: var(--border) solid var(--line-grid);
   border-bottom: var(--border) solid var(--line-grid);
   text-align: right;
@@ -939,13 +1208,19 @@ h3 {
   font-variant-ligatures: none;
 }
 
+/* Alternate rows differ by 2% luminance. */
+.gc-alt {
+  background: var(--bg-sheet-alt);
+}
+
+/* The X column: slightly tinted, so the values it is plotted against read as the axis. */
+.gc-xcol {
+  background: var(--bg-col-tint);
+}
+
 .gc-text {
   text-align: left;
   font-family: var(--font-ui);
-}
-
-.gc-spare {
-  background: var(--bg-panel);
 }
 
 .gc-x {
@@ -959,7 +1234,7 @@ h3 {
   position: absolute;
   top: 0;
   right: 0;
-  border-top: 5px solid var(--fg-muted);
+  border-top: 5px solid var(--accent-line);
   border-left: 5px solid transparent;
 }
 
@@ -969,34 +1244,65 @@ h3 {
   font-family: var(--font-ui);
 }
 
+/* Selection: a soft accent fill, a 1.5 px accent edge and square handles at the corners. */
 .sel-range {
   position: absolute;
   pointer-events: none;
-  background: var(--accent-wash);
-  outline: 1px solid var(--accent-line);
-  outline-offset: -1px;
+  background: var(--sel-fill);
+  /* Tint the cells without washing out their text: multiply on paper, screen on graphite. */
+  mix-blend-mode: var(--sel-blend);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  z-index: 1;
 }
 
+.sel-handle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--bg-sheet);
+}
+
+.sel-handle.is-tl {
+  left: -2px;
+  top: -2px;
+}
+
+.sel-handle.is-tr {
+  right: -2px;
+  top: -2px;
+}
+
+.sel-handle.is-bl {
+  left: -2px;
+  bottom: -2px;
+}
+
+.sel-handle.is-br {
+  right: -2px;
+  bottom: -2px;
+}
+
+/* The active cell: a 2 px ring, accent while the grid has the keyboard. */
 .sel-active {
   position: absolute;
   pointer-events: none;
-  outline: 2px solid var(--fg-muted);
-  outline-offset: -1px;
-  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--fg-faint);
+  z-index: 2;
 }
 
 .grid:focus .sel-active,
 .grid:focus-within .sel-active {
-  outline-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .cell-editor {
   position: absolute;
-  z-index: 2;
-  padding: 0 5px;
+  z-index: 3;
+  padding: 0 7px;
   border: 0;
   outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline-offset: -2px;
   background: var(--bg-sheet);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
@@ -1686,4 +1992,14 @@ mark.hl {
     width: var(--control-h-sm);
     padding: 0;
   }
+}
+
+/* Disclosure chevrons turn instead of swapping glyphs. */
+.chev {
+  flex: none;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.chev.is-open {
+  transform: rotate(90deg);
 }

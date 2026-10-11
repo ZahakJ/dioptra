@@ -4,7 +4,6 @@
 import {
   BetweenHorizontalStart,
   ChartSpline,
-  ChevronDown,
   ChevronRight,
   CircleHelp,
   Eye,
@@ -177,6 +176,80 @@ export function ItemIcon({ item, ...p }: P & { item: Pick<ProjectItem, 'kind' | 
   return <C {...p} />;
 }
 
+// ---- data set glyphs (grid headers) -------------------------------------------------------------
+
+/** The 12 px glyphs of the grid's data set headers: drawn on a 12-unit grid with a 1.25 stroke,
+ *  so they stay crisp at their size (the 24-unit kind glyphs would thin to 0.75 px). */
+const Glyph12 = ({ children }: { children: React.ReactNode }) => (
+  <svg
+    width={12}
+    height={12}
+    viewBox="0 0 12 12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.25}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden={true}
+    className="icon glyph12"
+  >
+    {children}
+  </svg>
+);
+const dot12 = (cx: number, cy: number) => <circle cx={cx} cy={cy} r={1.15} fill="currentColor" stroke="none" />;
+
+const DATASET_GLYPHS: Record<TableKind | 'x', React.ReactNode> = {
+  // A column of values: one bar on a baseline.
+  column: (
+    <>
+      <path d="M1.5 10.5h9" />
+      <rect x="4" y="3" width="4" height="7.5" rx="0.5" />
+    </>
+  ),
+  // Y values: points rising.
+  xy: (
+    <>
+      {dot12(2.5, 9.5)}
+      {dot12(6, 6.5)}
+      {dot12(9.5, 2.5)}
+    </>
+  ),
+  // A group: two bars side by side.
+  grouped: (
+    <>
+      <path d="M1.5 10.5h9" />
+      <path d="M3 10.5V5h2.5v5.5M6.5 10.5V3H9v7.5" />
+    </>
+  ),
+  contingency: (
+    <>
+      <rect x="1.75" y="1.75" width="8.5" height="8.5" rx="1" />
+      <path d="M6 1.75v8.5M1.75 6h8.5" />
+    </>
+  ),
+  // Survival: a step down.
+  survival: <path d="M1.5 2.5h3v3h3v3h3" />,
+  parts: (
+    <>
+      <circle cx="6" cy="6" r="4.5" />
+      <path d="M6 1.5V6l3.4 3" />
+    </>
+  ),
+  variables: (
+    <>
+      <rect x="1.75" y="1.75" width="8.5" height="8.5" rx="1" />
+      <path d="M1.75 4.5h8.5" />
+    </>
+  ),
+  nested: <path d="M6 1.5v2.5M2.5 4h7M2.5 4v6.5M6 4v6.5M9.5 4v6.5" />,
+  // The X column: an axis with an arrowhead.
+  x: <path d="M1.5 6h9M8 3.5 10.5 6 8 8.5" />,
+};
+
+export function DatasetGlyph({ kind }: { kind: TableKind | 'x' | string }) {
+  return <Glyph12>{DATASET_GLYPHS[kind as TableKind] ?? DATASET_GLYPHS.column}</Glyph12>;
+}
+
 // ---- generic, from Lucide ---------------------------------------------------------------------
 
 const lucide = { strokeWidth: 1.5, 'aria-hidden': true } as const;
@@ -185,8 +258,10 @@ export const PlusIcon = ({ size = 16 }: P) => <Plus size={size} {...lucide} />;
 export const CloseIcon = ({ size = 16 }: P) => <X size={size} {...lucide} />;
 export const SearchIcon = ({ size = 16 }: P) => <Search size={size} {...lucide} />;
 export const FormulaIcon = ({ size = 16 }: P) => <SquareFunction size={size} {...lucide} />;
-export const ChevronIcon = ({ open, size = 16 }: P & { open: boolean }) =>
-  open ? <ChevronDown size={size} {...lucide} /> : <ChevronRight size={size} {...lucide} />;
+/** A disclosure chevron: points right when closed and turns down (120 ms) when open. */
+export const ChevronIcon = ({ open, size = 16 }: P & { open: boolean }) => (
+  <ChevronRight size={size} {...lucide} className={'chev' + (open ? ' is-open' : '')} />
+);
 
 /** One glyph per menu, for the palette and the Menu button's tree. */
 export const MENU_ICONS: Record<MenuName, React.ReactElement> = {

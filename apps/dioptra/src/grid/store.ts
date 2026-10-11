@@ -13,10 +13,13 @@ export interface GridState {
   formulaMode: Record<Id, FormulaMode>;
   /** Bumped to ask a grid to start editing its active cell (menu "Edit cell"). */
   editRequest: number;
+  /** Rows added below the bounded sheet with "+ rows", per table (this session). */
+  extraRows: Record<Id, number>;
   setSelection(table: Id, sel: Selection): void;
   setActiveInfo(info: CellInfo | null): void;
   setFormulaMode(table: Id, mode: FormulaMode): void;
   requestEdit(): void;
+  addRows(table: Id, n: number): void;
 }
 
 export const useGrid = create<GridState>((set) => ({
@@ -24,10 +27,12 @@ export const useGrid = create<GridState>((set) => ({
   activeInfo: null,
   formulaMode: {},
   editRequest: 0,
+  extraRows: {},
   setSelection: (table, sel) => set((s) => ({ selections: { ...s.selections, [table]: sel } })),
   setActiveInfo: (activeInfo) => set({ activeInfo }),
   setFormulaMode: (table, mode) => set((s) => ({ formulaMode: { ...s.formulaMode, [table]: mode } })),
   requestEdit: () => set((s) => ({ editRequest: s.editRequest + 1 })),
+  addRows: (table, n) => set((s) => ({ extraRows: { ...s.extraRows, [table]: Math.max(0, (s.extraRows[table] ?? 0) + n) } })),
 }));
 
 export function selectionOf(table: Id | null | undefined): Selection {

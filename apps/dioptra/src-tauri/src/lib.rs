@@ -42,7 +42,11 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, menus: &[MenuGroupDto]) -> tauri::
     let menu = Menu::new(app)?;
     // The application menu every Mac app has.
     let app_menu = Submenu::new(app, "Dioptra", true)?;
-    app_menu.append(&PredefinedMenuItem::about(app, Some("About Dioptra"), None)?)?;
+    app_menu.append(&PredefinedMenuItem::about(
+        app,
+        Some("About Dioptra"),
+        None,
+    )?)?;
     app_menu.append(&PredefinedMenuItem::separator(app)?)?;
     app_menu.append(&PredefinedMenuItem::services(app, None)?)?;
     app_menu.append(&PredefinedMenuItem::separator(app)?)?;
@@ -63,7 +67,13 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, menus: &[MenuGroupDto]) -> tauri::
                     Some("cut") => sub.append(&PredefinedMenuItem::cut(app, None)?)?,
                     Some("copy") => sub.append(&PredefinedMenuItem::copy(app, None)?)?,
                     Some("paste") => sub.append(&PredefinedMenuItem::paste(app, None)?)?,
-                    _ => sub.append(&MenuItem::with_id(app, it.id.as_str(), &it.title, true, it.accelerator.as_deref())?)?,
+                    _ => sub.append(&MenuItem::with_id(
+                        app,
+                        it.id.as_str(),
+                        &it.title,
+                        true,
+                        it.accelerator.as_deref(),
+                    )?)?,
                 }
             }
         }
@@ -85,7 +95,10 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, menus: &[MenuGroupDto]) -> tauri::
 /// command tree, so this builds the menu (keeping the code checked) and returns without
 /// installing it.
 #[tauri::command]
-fn set_native_menu<R: Runtime>(app: AppHandle<R>, menus: Vec<MenuGroupDto>) -> Result<bool, String> {
+fn set_native_menu<R: Runtime>(
+    app: AppHandle<R>,
+    menus: Vec<MenuGroupDto>,
+) -> Result<bool, String> {
     let menu = build_menu(&app, &menus).map_err(|e| e.to_string())?;
     if cfg!(target_os = "macos") {
         app.set_menu(menu).map_err(|e| e.to_string())?;

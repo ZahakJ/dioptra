@@ -4,7 +4,8 @@
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { showContextMenu, type MenuEntry } from '../app/ContextMenu';
-import { PlusIcon } from '../app/icons';
+import { DatasetGlyph, PlusIcon } from '../app/icons';
+import { humanizeTimestamps } from '../app/time';
 import { isMac } from '../app/keys';
 import * as cmd from '../engine/commands';
 import type { CellView, Id, TableMeta } from '../engine/types';
@@ -26,23 +27,22 @@ import {
   type CellPos,
   type Selection,
 } from './selection';
+import { ADD_ROWS_STEP, datasetColour, headHeight, rowHeight, sheetRows } from './geometry';
 import { useGrid, useSelection } from './store';
 
-export const ROW_H = 24;
-export const HEAD_H = 22;
-const ROWNUM_W = 52;
+const ROWNUM_W = 48;
 const TITLE_W = 132;
-const SPARE_ROWS = 30;
-const MIN_ROWS = 60;
-const TAIL_W = 112;
+const TAIL_W = 128;
+/** The strip under the sheet that holds "+ rows". */
+const FOOT_H = 44;
 
 export function defaultColWidth(meta: TableMeta, col: number): number {
   const c = meta.columns[col];
-  if (!c) return 96;
-  if (c.role === 'x') return 88;
-  if (meta.kind === 'variables') return 112;
+  if (!c) return 112;
+  if (c.role === 'x') return 96;
+  if (meta.kind === 'variables') return 124;
   if (c.format && c.format.kind !== 'single' && !(c.format.kind === 'values' && c.format.n === 1)) return 84;
-  return 96;
+  return 116;
 }
 
 /** The second header row's text: the subcolumn part of the label, or the variable type. */
@@ -70,6 +70,10 @@ export function Grid({ meta }: { meta: TableMeta }) {
   const widths = useUi((s) => s.colWidths[tableId]);
   const setColWidth = useUi((s) => s.setColWidth);
   const editRequest = useGrid((s) => s.editRequest);
+  const extraRows = useGrid((s) => s.extraRows[tableId] ?? 0);
+  const density = useUi((s) => s.density);
+  const ROW_H = rowHeight(density);
+  const HEAD_H = headHeight(density);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cellsRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
@@ -79,7 +83,9 @@ export function Grid({ meta }: { meta: TableMeta }) {
   const hasTitles = meta.has_row_titles;
   const leftW = ROWNUM_W + (hasTitles ? TITLE_W : 0);
   const headerH = HEAD_H * 2;
-  const displayRows = Math.max(meta.rows + SPARE_ROWS, MIN_ROWS);
+  // The bounded sheet: the data plus a margin. A computed count for the virtualiser; only the
+  // visible rows exist in the DOM.
+  const displayRows = sheetRows(meta.rows, extraRows);
   const colWidth = useCallback((i: number) => widths?.[i] ?? defaultColWidth(meta, i), [widths, meta]);
 
   const rowV = useVirtualizer({
@@ -100,6 +106,9 @@ export function Grid({ meta }: { meta: TableMeta }) {
   useLayoutEffect(() => {
     colV.measure();
   }, [colWidth, colV]);
+  useLayoutEffect(() => {
+    rowV.measure();
+  }, [ROW_H, HEAD_H, rowV]);
 
   const vRows = rowV.getVirtualItems();
   const vCols = colV.getVirtualItems();
@@ -152,7 +161,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
         else if (r > el.scrollLeft + viewW) el.scrollLeft = Math.min(l, r - viewW);
       }
     },
-    [headerH, leftW, ncols, colLeft, colRight],
+    [headerH, leftW, ncols, colLeft, colRight, ROW_H],
   );
 
   const focusGrid = () => scrollRef.current?.focus({ preventScroll: true });
@@ -224,7 +233,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
       filled: (r, c) => (r >= meta.rows ? false : cellCache.get(tableId, r, c) === undefined ? undefined : isFilled(cellCache.get(tableId, r, c))),
     }),
     // `version` is a dependency on purpose: the cached data the accessor reads changed.
-    [displayRows, ncols, meta.rows, tableId, headerH, version], // eslint-disable-line react-hooks/exhaustive-deps
+    [displayRows, ncols, meta.rows, tableId, headerH, version, ROW_H], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -293,7 +302,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
       }
       return { row, col: Math.max(0, lo) };
     },
-    [displayRows, ncols, colLeft],
+    [displayRows, ncols, colLeft, ROW_H],
   );
 
   const drag = useCallback(
@@ -316,7 +325,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
       window.addEventListener('mousemove', move);
       window.addEventListener('mouseup', up);
     },
-    [headerH, leftW],
+    [headerH, leftW, ROW_H],
   );
 
   const onCellsMouseDown = (e: React.MouseEvent) => {
@@ -450,45 +459,88 @@ export function Grid({ meta }: { meta: TableMeta }) {
   const ar0 = activeRange(sel);
   const ranges = allRanges(sel);
   const visibleDatasets = useMemo(() => {
-    const out: { key: string; name: string; first: number; last: number; xcol: boolean }[] = [];
+    const out: { key: string; name: string; first: number; last: number; xcol: boolean; index: number }[] = [];
     if (c1 <= c0) return out;
-    if (meta.has_x && c0 === 0) out.push({ key: 'x', name: meta.columns[0]!.dataset_name || 'X', first: 0, last: 0, xcol: true });
+    if (meta.has_x && c0 === 0) out.push({ key: 'x', name: meta.columns[0]!.dataset_name || 'X', first: 0, last: 0, xcol: true, index: -1 });
     for (let d = 0; d < meta.datasets.length; d++) {
       const ds = meta.datasets[d]!;
       const first = ds.first_col;
       const last = ds.first_col + ds.subcolumns - 1;
       if (last < c0 || first >= c1) continue;
-      out.push({ key: `d${d}`, name: ds.name, first, last, xcol: false });
+      out.push({ key: `d${d}`, name: ds.name, first, last, xcol: false, index: d });
     }
     return out;
   }, [meta, c0, c1]);
 
   const rowTitle = (r: number) => meta.row_titles[r] ?? '';
+  const sheetW = leftW + bodyW;
+  const sheetH = headerH + bodyH;
+  const activeKey = `${sel.anchor.row}:${sel.anchor.col}`;
+
+  // The active cell's tooltip says where its value came from, in local time. Set on hover so
+  // the cells themselves never re-render for it.
+  const onCellsPointerOver = (e: React.PointerEvent) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.gc');
+    if (!el) return;
+    if (el.dataset.prov && el.dataset.cell !== activeKey) {
+      delete el.dataset.tip;
+      delete el.dataset.prov;
+      return;
+    }
+    if (el.dataset.cell !== activeKey || (el.dataset.tip && !el.dataset.prov)) return;
+    const info = useGrid.getState().activeInfo;
+    if (!info || info.table !== tableId || info.row !== sel.anchor.row || info.col !== sel.anchor.col || !info.provenance) return;
+    el.dataset.tip = humanizeTimestamps(info.provenance);
+    el.dataset.prov = '1';
+  };
+
+  // When the active cell's provenance arrives, put it on the cell so hovering shows it.
+  const activeInfo = useGrid((s) => s.activeInfo);
+  useEffect(() => {
+    const root = cellsRef.current;
+    if (!root) return;
+    for (const el of root.querySelectorAll<HTMLElement>('.gc[data-prov]')) {
+      delete el.dataset.tip;
+      delete el.dataset.prov;
+    }
+    const info = activeInfo;
+    if (!info || info.table !== tableId || !info.provenance) return;
+    const el = root.querySelector<HTMLElement>(`.gc[data-cell="${info.row}:${info.col}"]`);
+    if (el && !el.dataset.tip) {
+      el.dataset.tip = humanizeTimestamps(info.provenance);
+      el.dataset.prov = '1';
+    }
+  }, [activeInfo, tableId]);
 
   return (
     <div
       ref={scrollRef}
-      className="grid"
+      className={'grid' + (density === 'compact' ? ' is-compact' : '')}
       data-grid
       data-testid="grid"
+      data-density={density}
       tabIndex={0}
       role="grid"
       aria-label={`${meta.title} data`}
       aria-rowcount={meta.rows}
       aria-colcount={ncols}
       aria-multiselectable="true"
+      style={{ '--row-h': `${ROW_H}px`, '--head-h': `${HEAD_H}px` } as React.CSSProperties}
       onKeyDown={onKeyDown}
       onCopy={onCopy}
       onCut={onCut}
       onPaste={onPaste}
     >
-      <div className="grid-canvas" style={{ width: leftW + bodyW + TAIL_W, height: headerH + bodyH }}>
+      <div className="grid-canvas" style={{ width: sheetW + TAIL_W, height: sheetH + FOOT_H }}>
+        {/* The sheet's edge: a hairline on the sides that meet the desk. */}
+        <div className="grid-frame" style={{ width: sheetW, height: sheetH }} aria-hidden="true" />
         {/* Header */}
-        <div className="grid-head" style={{ height: headerH, width: leftW + bodyW + TAIL_W }}>
+        <div className="grid-head" style={{ height: headerH, width: sheetW + TAIL_W }}>
           <div className="grid-corner" style={{ width: leftW, height: headerH }}>
             <button
               type="button"
               className="corner-btn"
+              style={{ width: ROWNUM_W }}
               aria-label="Select all"
               data-tip="Select all"
               tabIndex={-1}
@@ -499,7 +551,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
               }}
             />
             {hasTitles && (
-              <div className="corner-titles" style={{ left: ROWNUM_W, width: TITLE_W }}>
+              <div className="corner-titles" style={{ left: ROWNUM_W, width: TITLE_W, top: HEAD_H }}>
                 {meta.kind === 'xy' ? 'Row title' : 'Row titles'}
               </div>
             )}
@@ -515,6 +567,8 @@ export function Grid({ meta }: { meta: TableMeta }) {
                 onContextMenu={(e) => headerMenu(e, g.first)}
                 onDoubleClick={() => !g.xcol && void actions.renameDataset(g.first)}
               >
+                <DatasetGlyph kind={g.xcol ? 'x' : meta.kind} />
+                {!g.xcol && <span className="gh-swatch" style={{ background: datasetColour(g.index) }} aria-hidden="true" />}
                 <span className="gh-text">{g.name}</span>
               </div>
             ))}
@@ -552,26 +606,26 @@ export function Grid({ meta }: { meta: TableMeta }) {
             {!meta.read_only && (
               <button
                 type="button"
-                className="btn btn-quiet btn-sm"
+                className="btn btn-quiet btn-sm grid-add"
                 tabIndex={-1}
                 onClick={() => void actions.addDataset()}
                 data-testid="add-dataset"
                 data-tip={meta.kind === 'variables' ? 'Add a variable' : 'Add a data set'}
               >
-                <PlusIcon size={16} /> {meta.kind === 'variables' ? 'Variable' : 'Data set'}
+                <PlusIcon size={14} /> {meta.kind === 'variables' ? 'Variable' : 'Data set'}
               </button>
             )}
           </div>
         </div>
 
         {/* Body */}
-        <div className="grid-body" style={{ height: bodyH, width: leftW + bodyW + TAIL_W }}>
+        <div className="grid-body" style={{ height: bodyH, width: sheetW }}>
           <div className="grid-rowheads" style={{ width: leftW, height: bodyH }}>
             {vRows.map((vr) => {
               const selected = vr.index >= ar0.row0 && vr.index < ar0.row1;
               const spare = vr.index >= meta.rows;
               return (
-                <div key={vr.key} className="rh-row" style={{ top: vr.start - headerH, height: ROW_H }}>
+                <div key={vr.key} className={'rh-row' + (vr.index % 2 ? ' is-alt' : '')} style={{ top: vr.start - headerH, height: ROW_H }}>
                   <div
                     className={'rh-num' + (selected ? ' is-sel' : '') + (spare ? ' is-spare' : '')}
                     style={{ width: ROWNUM_W }}
@@ -584,6 +638,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                       <RowTitleEditor
                         initial={rowTitle(vr.index)}
                         width={TITLE_W}
+                        height={ROW_H}
                         done={(v) => {
                           setTitleEdit(null);
                           focusGrid();
@@ -594,7 +649,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                       />
                     ) : (
                       <div
-                        className={'rh-title' + (spare ? ' is-spare' : '')}
+                        className={'rh-title' + (spare ? ' is-spare' : '') + (selected ? ' is-sel' : '')}
                         style={{ width: TITLE_W }}
                         data-tip="Double-click to edit the row title"
                         data-testid={`row-title-${vr.index}`}
@@ -612,6 +667,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
             className="grid-cells"
             style={{ width: bodyW, height: bodyH }}
             onMouseDown={onCellsMouseDown}
+            onPointerOver={onCellsPointerOver}
             onDoubleClick={(e) => {
               if ((e.target as HTMLElement).closest('.cell-editor')) return;
               beginEdit('edit');
@@ -626,6 +682,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
               headerH={headerH}
               leftW={leftW}
               dataRows={meta.rows}
+              xCol={meta.has_x ? 0 : -1}
             />
             {ranges.map((r, i) => {
               const rr = { ...r, col1: Math.min(r.col1, ncols) };
@@ -642,7 +699,12 @@ export function Grid({ meta }: { meta: TableMeta }) {
                     left: colLeft(rr.col0),
                     width: colRight(rr.col1 - 1) - colLeft(rr.col0),
                   }}
-                />
+                >
+                  <i className="sel-handle is-tl" />
+                  <i className="sel-handle is-tr" />
+                  <i className="sel-handle is-bl" />
+                  <i className="sel-handle is-br" />
+                </div>
               );
             })}
             {sel.anchor.col < ncols && (
@@ -666,6 +728,7 @@ export function Grid({ meta }: { meta: TableMeta }) {
                 left={colLeft(editing.col)}
                 top={editing.row * ROW_H}
                 width={colRight(editing.col) - colLeft(editing.col)}
+                height={ROW_H}
                 onChange={(text) => setEditing((s) => (s ? { ...s, text } : s))}
                 onCommit={(s, move) => commitEdit(s, move)}
                 onCancel={() => {
@@ -676,6 +739,23 @@ export function Grid({ meta }: { meta: TableMeta }) {
             )}
           </div>
         </div>
+
+        {/* Under the sheet: more rows, quietly. */}
+        {!meta.read_only && (
+          <div className="grid-foot" style={{ top: sheetH, width: sheetW, height: FOOT_H }}>
+            <button
+              type="button"
+              className="btn btn-quiet btn-sm grid-add grid-add-rows"
+              style={{ marginLeft: ROWNUM_W - 8 }}
+              tabIndex={-1}
+              data-testid="add-rows"
+              data-tip={`Show ${ADD_ROWS_STEP} more empty rows`}
+              onClick={() => useGrid.getState().addRows(tableId, ADD_ROWS_STEP)}
+            >
+              <PlusIcon size={14} /> {ADD_ROWS_STEP} rows
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -689,19 +769,23 @@ interface CellsProps {
   headerH: number;
   leftW: number;
   dataRows: number;
+  /** The X column (tinted), or -1. */
+  xCol: number;
 }
 
 /** The visible cells. Re-renders only when the viewport or the cached data change. */
 const GridCells = memo(
-  function GridCells({ tableId, vRows, vCols, headerH, leftW, dataRows }: CellsProps) {
+  function GridCells({ tableId, vRows, vCols, headerH, leftW, dataRows, xCol }: CellsProps) {
     const out: React.ReactElement[] = [];
     for (const vr of vRows) {
       const top = vr.start - headerH;
       const spare = vr.index >= dataRows;
+      const alt = vr.index % 2 === 1;
       for (const vc of vCols) {
         const cell = spare ? undefined : cellCache.get(tableId, vr.index, vc.index);
         const left = vc.start - leftW;
-        let cls = 'gc';
+        let cls = alt ? 'gc gc-alt' : 'gc';
+        if (vc.index === xCol) cls += ' gc-xcol';
         let text = '';
         let title: string | undefined;
         if (cell) {
@@ -714,7 +798,6 @@ const GridCells = memo(
             title = cell.e;
           }
         }
-        if (spare) cls += ' gc-spare';
         out.push(
           <div
             key={`${vr.index}:${vc.index}`}
@@ -736,6 +819,7 @@ const GridCells = memo(
     a.headerH === b.headerH &&
     a.leftW === b.leftW &&
     a.dataRows === b.dataRows &&
+    a.xCol === b.xCol &&
     sameItems(a.vRows, b.vRows) &&
     sameItems(a.vCols, b.vCols),
 );
@@ -755,6 +839,7 @@ function CellEditor({
   left,
   top,
   width,
+  height,
   onChange,
   onCommit,
   onCancel,
@@ -763,6 +848,7 @@ function CellEditor({
   left: number;
   top: number;
   width: number;
+  height: number;
   onChange: (text: string) => void;
   onCommit: (s: EditState, move: { dr: number; dc: number } | null) => void;
   onCancel: () => void;
@@ -792,7 +878,7 @@ function CellEditor({
       spellCheck={false}
       autoComplete="off"
       aria-label="Cell value"
-      style={{ left, top, width: Math.max(width, Math.min(480, 16 + state.text.length * 7.5)), height: ROW_H }}
+      style={{ left, top, width: Math.max(width, Math.min(480, 16 + state.text.length * 7.5)), height }}
       onChange={(e) => onChange(e.target.value)}
       onBlur={() => finish(null)}
       onKeyDown={(e) => {
@@ -817,7 +903,7 @@ function CellEditor({
   );
 }
 
-function RowTitleEditor({ initial, width, done }: { initial: string; width: number; done: (v: string | null) => void }) {
+function RowTitleEditor({ initial, width, height, done }: { initial: string; width: number; height: number; done: (v: string | null) => void }) {
   const [v, setV] = useState(initial);
   const finished = useRef(false);
   const finish = (val: string | null) => {
@@ -829,7 +915,7 @@ function RowTitleEditor({ initial, width, done }: { initial: string; width: numb
     <input
       autoFocus
       className="cell-editor row-title-editor"
-      style={{ position: 'relative', width, height: ROW_H }}
+      style={{ position: 'relative', width, height }}
       value={v}
       aria-label="Row title"
       onChange={(e) => setV(e.target.value)}

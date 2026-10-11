@@ -246,7 +246,24 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  container: split / inline-size;
+}
+
+/* Too narrow for two panes: the sheet alone, as if the table were hidden. */
+@container split (max-width: 640px) {
+  .split > .split-pane.split-table,
+  .split [data-testid='sheet-split'] {
+    display: none;
+  }
+
+  .split-pane.split-sheet {
+    grid-column: 1 / -1;
+  }
+
+  .split .sheet-wrap.is-split .sheet-col {
+    margin: 0 auto;
+  }
 }
 
 .split-pane {
@@ -260,7 +277,7 @@
   border-right: var(--border) solid var(--line);
 }
 
-/* ---- results sheet --------------------------------------------------------------------------- */
+/* ---- results sheet: a reading column (DESIGN.md §12.7) ---------------------------------------- */
 
 .sheet-wrap {
   flex: 1;
@@ -268,19 +285,61 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-panel);
+  font-size: 14px;
+}
+
+/* The reading column: 72 characters, centred when the sheet is alone, left-aligned beside
+   its table. The bar's inner row shares the column so the toolbar ends where the text does. */
+.sheet-col {
+  width: 100%;
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.sheet-wrap.is-split .sheet-col {
+  margin: 0;
 }
 
 .sheet-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--formula-h);
-  min-width: 0;
-  padding: 5px var(--s2) 5px var(--s3);
+  flex: none;
+  height: var(--formula-h);
+  padding: 0 var(--s6);
   background: var(--bg-panel);
   border-bottom: var(--border) solid var(--line);
-  flex: none;
+  container-type: inline-size;
+}
+
+.sheet-wrap.is-split .sheet-bar,
+.sheet-wrap.is-split .sheet-scroll {
+  padding-left: var(--s5);
+  padding-right: var(--s5);
+}
+
+.sheet-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.sheet-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sheet-tools .btn {
+  color: var(--fg-muted);
+}
+
+.sheet-tools .btn:hover {
+  color: var(--fg);
+}
+
+@container (max-width: 420px) {
+  .sheet-tools .btn-text {
+    display: none;
+  }
 }
 
 .sheet-bar-gap,
@@ -288,40 +347,38 @@
   flex: 1;
 }
 
-.sheet {
+.sheet-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--s5) var(--s6) var(--s6);
+  padding: var(--s6) var(--s6) 64px;
 }
 
-.sheet > * {
-  max-width: 980px;
-}
-
-.sheet > .sheet-sections {
-  max-width: none;
+.sheet {
+  display: block;
 }
 
 .sheet-head h1 {
   margin: 0;
-  font-size: var(--fs-xl);
+  font-size: var(--fs-2xl);
   font-weight: var(--fw-strong);
-  letter-spacing: -0.005em;
+  line-height: 1.25;
+  letter-spacing: var(--tracking-head);
+  color: var(--fg);
+  text-wrap: balance;
 }
 
 .sheet-method {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
 }
 
 .sheet-methods {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
   line-height: 1.5;
-  max-width: 80ch;
 }
 
 .sheet-error {
@@ -333,9 +390,11 @@
   align-items: center;
   gap: var(--s3);
   margin-top: var(--s4);
-  padding: 7px 10px;
+  padding: 8px 12px;
+  border: var(--border) solid var(--line);
   border-left: 2px solid var(--caution);
-  background: var(--bg-inset);
+  border-radius: var(--radius);
+  background: var(--bg-sheet);
   color: var(--fg-muted);
   font-size: var(--fs-sm);
 }
@@ -343,41 +402,58 @@
 .sheet-message {
   margin: var(--s4) 0 0;
   padding: 10px 12px;
+  border: var(--border) solid var(--line);
   border-left: 2px solid var(--line-strong);
-  background: var(--bg-inset);
+  border-radius: var(--radius);
+  background: var(--bg-sheet);
   color: var(--fg-muted);
   line-height: 1.55;
 }
 
+/* The assumption card: hairline frame, a 2 px left rule in the colour of the worst check. */
 .sheet-checks {
   margin-top: var(--s5);
   border: var(--border) solid var(--line);
+  border-left: 2px solid var(--fg-faint);
   border-radius: var(--radius);
+  background: var(--bg-sheet);
 }
 
-.sheet-checks.has-doubt {
-  border-color: var(--line-strong);
+.sheet-checks.is-pass {
+  border-left-color: var(--ok);
+}
+
+.sheet-checks.is-caution {
+  border-left-color: var(--caution);
+}
+
+.sheet-checks.is-fail {
+  border-left-color: var(--fail);
 }
 
 .checks-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--s3);
+  align-items: center;
+  gap: 4px 10px;
   width: 100%;
-  padding: 8px 12px;
+  min-height: 40px;
+  padding: 8px 14px;
   border: 0;
+  border-radius: var(--radius);
   background: transparent;
   text-align: left;
   cursor: default;
 }
 
+.checks-head:hover .checks-toggle {
+  color: var(--fg);
+}
+
 .checks-title {
-  color: var(--fg-muted);
-  font-size: var(--fs-xs);
+  color: var(--fg);
+  font-size: var(--fs-md);
   font-weight: var(--fw-strong);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .checks-sum {
@@ -394,71 +470,98 @@
 
 .checks-list {
   margin: 0;
-  padding: 0 12px 6px;
+  padding: 0 14px 4px;
   list-style: none;
 }
 
 .check {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 10px;
-  padding: 9px 0;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0 11px;
   border-top: var(--border) solid var(--line);
 }
 
 .check-glyph {
-  margin-top: 2px;
-  color: var(--fg-muted);
+  flex: none;
+  margin-top: 3px;
 }
 
-.check-caution .check-glyph,
-.check-caution .check-status {
+.check-glyph.is-pass {
+  color: var(--ok);
+}
+
+.check-glyph.is-caution {
   color: var(--caution);
 }
 
-.check-fail .check-glyph,
-.check-fail .check-status {
+.check-glyph.is-fail {
   color: var(--fail);
 }
 
+.check-glyph.is-not_checked {
+  color: var(--fg-faint);
+}
+
 .check-name {
+  font-size: var(--fs-md);
   font-weight: var(--fw-medium);
+  color: var(--fg);
 }
 
 .check-status {
   margin-left: 8px;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
-  font-weight: 400;
+  font-weight: var(--fw-regular);
+}
+
+.check-caution .check-status {
+  color: var(--caution);
+}
+
+.check-fail .check-status {
+  color: var(--fail);
 }
 
 .check-detail {
   margin: 3px 0 0;
   color: var(--fg-muted);
-  line-height: 1.55;
-  max-width: 72ch;
+  font-size: var(--fs-md);
+  line-height: 1.5;
 }
 
+/* The alternative: a muted second line led by an arrow. */
 .check-alt {
-  margin: 2px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0 0;
   color: var(--fg-muted);
   font-size: var(--fs-sm);
   line-height: 1.5;
-  max-width: 72ch;
 }
 
+.check-alt svg {
+  flex: none;
+  position: relative;
+  top: 1px;
+  color: var(--fg-faint);
+}
+
+/* The summary: sentences a reader pastes into a paper, each selected whole by a click. */
 .sheet-summary {
   margin-top: var(--s5);
-  user-select: text;
 }
 
-.sheet-summary p {
-  margin: 0 0 4px;
+.sheet-sentence {
+  margin: 0 0 8px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
+  color: var(--fg);
   text-wrap: pretty;
-  max-width: 72ch;
   font-variant-numeric: tabular-nums;
+  user-select: all;
 }
 
 .sheet-section {
@@ -468,22 +571,30 @@
 .sheet-section h2,
 .sheet-checklist h2 {
   margin: 0 0 8px;
-  color: var(--fg-muted);
-  font-size: var(--fs-xs);
+  color: var(--fg);
+  font-size: var(--fs-lg);
   font-weight: var(--fw-strong);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: var(--tracking-head);
 }
 
 .rt-scroll {
   overflow-x: auto;
   max-width: 100%;
+  /* A table wider than the column scrolls; soft edge shadows say there is more. */
+  background:
+    linear-gradient(to right, var(--bg-panel) 30%, transparent) left / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--bg-panel) 30%, transparent) right / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--scroll-shade), transparent) left / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--scroll-shade), transparent) right / 12px 100% no-repeat scroll;
 }
 
+/* Results tables: hairline rules between rows, none between columns. */
 .rt {
   border-collapse: collapse;
+  min-width: 100%;
   font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
+  line-height: var(--lh-tight);
   user-select: none;
   outline: none;
 }
@@ -494,12 +605,11 @@
 }
 
 .rt th {
-  padding: 5px 12px 6px;
+  padding: 6px 8px 7px;
   border-bottom: var(--border) solid var(--line-strong);
   color: var(--fg-muted);
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
-  line-height: 1.3;
   text-align: left;
   vertical-align: bottom;
   min-width: 4.5em;
@@ -508,19 +618,36 @@
 }
 
 .rt td {
-  padding: 4px 12px;
+  padding: 6px 8px;
   border-bottom: var(--border) solid var(--line);
   white-space: nowrap;
+  color: var(--fg);
   cursor: cell;
+}
+
+/* Labels may wrap so the numbers keep their columns in a narrow pane. */
+.rt td.rt-text {
+  white-space: normal;
+  min-width: 7em;
+  line-height: 1.3;
+}
+
+.rt tbody tr:last-child td {
+  border-bottom-color: var(--line-strong);
 }
 
 .rt th:first-child,
 .rt td:first-child {
-  padding-left: 4px;
+  padding-left: 0;
+}
+
+.rt th:last-child,
+.rt td:last-child {
+  padding-right: 0;
 }
 
 .rt th.is-num {
-  min-width: 6.5em;
+  min-width: 4.5em;
 }
 
 .rt .is-num {
@@ -533,6 +660,15 @@
   font-family: var(--font-num);
   font-size: var(--fs-sm);
   font-variant-ligatures: none;
+}
+
+/* p values: plain foreground; significant ones carry weight, never colour. */
+.rt td.rt-p {
+  color: var(--fg);
+}
+
+.rt td.rt-p.is-sig {
+  font-weight: var(--fw-medium);
 }
 
 .rt td.rt-text {
@@ -553,43 +689,74 @@
   background: var(--bg-hover);
 }
 
+/* The checklist: a quiet list after the numbers. */
 .sheet-checklist {
   margin-top: var(--s6);
   padding-top: var(--s4);
   border-top: var(--border) solid var(--line);
 }
 
+.sheet-checklist h2 {
+  color: var(--fg-muted);
+  font-size: var(--fs-md);
+}
+
 .sheet-checklist ul {
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   color: var(--fg-muted);
-  line-height: 1.6;
-  max-width: 76ch;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.sheet-checklist li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.sheet-checklist li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 8px;
+  height: 1px;
+  background: var(--line-strong);
 }
 
 .sheet-checklist li + li {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* ---- graph editor ----------------------------------------------------------------------------- */
+/* ---- graph editor: the figure on paper, on the desk (DESIGN.md §12.7) -------------------------- */
 
 .graph-editor {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
+  background: var(--bg-app);
 }
 
+/* The toolbar never wraps: labels collapse to icons first, then the least-used controls move
+   into the "More" menu (container queries at the end of this file). */
 .graph-toolbar {
+  flex: none;
+  min-height: var(--formula-h);
+  padding: 0 var(--s2) 0 var(--s3);
+  border-bottom: var(--border) solid var(--line);
+  background: var(--bg-panel);
+  container-type: inline-size;
+}
+
+.tb-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--formula-h);
-  padding: 4px var(--s2) 4px var(--s3);
-  border-bottom: var(--border) solid var(--line);
-  flex: none;
-  flex-wrap: wrap;
+  height: var(--formula-h);
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .graph-toolbar .select {
@@ -597,6 +764,7 @@
 }
 
 .tb-sep {
+  flex: none;
   width: 1px;
   height: 16px;
   margin: 0 4px;
@@ -612,12 +780,44 @@
   white-space: nowrap;
 }
 
+.tb-opt,
+.tb-points {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.tb-more {
+  display: none;
+}
+
 .graph-toolbar .checkbox {
   font-size: var(--fs-sm);
 }
 
 .tb-title {
   font-weight: var(--fw-medium);
+}
+
+/* Paper swatches in the segmented control. */
+.paper-sw {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--swatch-edge);
+}
+
+.paper-sw.is-white {
+  background: #ffffff;
+}
+
+.paper-sw.is-theme {
+  background: var(--bg-sheet);
+}
+
+.paper-sw.is-checker {
+  background: repeating-conic-gradient(#d9d6cf 0 25%, #ffffff 0 50%) 0 0 / 6px 6px;
 }
 
 .graph-stage {
@@ -627,14 +827,16 @@
   flex-direction: column;
 }
 
+/* The desk. */
 .graph-view {
   flex: 1;
   min-height: 0;
   overflow: auto;
   display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--bg-inset);
+  /* "safe": a figure wider than the desk scrolls from its left edge instead of being cut. */
+  place-items: safe center;
+  padding: 32px 40px 40px;
+  background: var(--bg-app);
   outline: none;
 }
 
@@ -642,12 +844,61 @@
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
+/* Paper plus its rulers: rulers sit 6 px off the top and left edges. */
+.graph-sheet {
+  position: relative;
+  padding: 24px 0 0 24px;
+  margin: 0 24px 0 0;
+}
+
+.ruler {
+  position: absolute;
+  display: block;
+  overflow: visible;
+  stroke: var(--fg-faint);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.ruler text {
+  fill: var(--fg-faint);
+  stroke: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ruler-top {
+  top: 0;
+  left: 24px;
+}
+
+.ruler-left {
+  top: 24px;
+  left: 0;
+}
+
+/* The paper: a hairline and the floating elevation. Its colour is the user's choice. */
 .graph-paper {
   position: relative;
   flex: none;
+  background: #ffffff;
   box-shadow:
-    0 0 0 1px var(--line-strong),
-    var(--elev-1);
+    0 0 0 1px var(--raised-edge),
+    var(--elev-2);
+}
+
+.graph-paper.paper-theme {
+  background: var(--bg-sheet);
+}
+
+.graph-paper.paper-checker {
+  background: repeating-conic-gradient(var(--paper-checker-a) 0 25%, var(--paper-checker-b) 0 50%) 0 0 / 16px 16px;
+}
+
+.graph-paper.paper-theme .graph-svg #background,
+.graph-paper.paper-checker .graph-svg #background {
+  fill: transparent;
 }
 
 .graph-svg,
@@ -668,14 +919,17 @@
   inset: 0;
 }
 
+/* Targets: hover is a 1 px accent halo 2 px outside the box; selection a 1.5 px accent frame
+   with square handles. Nothing is filled. */
 .tg {
   position: absolute;
-  border-radius: 2px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.tg:hover {
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+.tg:hover:not(.is-selected) {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tg.is-draggable {
@@ -684,12 +938,43 @@
 
 .tg.is-dragging {
   cursor: grabbing;
-  box-shadow: inset 0 0 0 1px var(--accent);
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
 }
 
 .tg.is-selected {
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-  background: var(--accent-wash);
+  border-radius: 0;
+  outline: 1.5px solid var(--accent);
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.tg-handle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+.tg-handle.is-tl {
+  left: -5.5px;
+  top: -5.5px;
+}
+
+.tg-handle.is-tr {
+  right: -5.5px;
+  top: -5.5px;
+}
+
+.tg-handle.is-bl {
+  left: -5.5px;
+  bottom: -5.5px;
+}
+
+.tg-handle.is-br {
+  right: -5.5px;
+  bottom: -5.5px;
 }
 
 .tg-panel {
@@ -703,17 +988,20 @@
   box-shadow: var(--elev-2);
 }
 
+/* The status strip of the editor: selection, size in mm, zoom. */
 .graph-foot {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  height: 30px;
+  height: 34px;
   padding: 0 var(--s2) 0 var(--s3);
   border-top: var(--border) solid var(--line);
   background: var(--bg-panel);
   color: var(--fg-muted);
   font-size: var(--fs-sm);
   flex: none;
+  white-space: nowrap;
+  container-type: inline-size;
 }
 
 .gf-sel {
@@ -724,6 +1012,12 @@
 }
 
 .gf-size {
+  flex: none;
+  padding: 2px 8px;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+  color: var(--fg);
   font-size: var(--fs-xs);
   white-space: nowrap;
 }
@@ -731,7 +1025,14 @@
 .zoom {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
+  flex: none;
+}
+
+.zoom-steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
 }
 
 .zoom-val {
@@ -739,10 +1040,6 @@
   text-align: center;
   font-size: var(--fs-xs);
   color: var(--fg);
-}
-
-.zoom .seg {
-  margin-left: 6px;
 }
 
 .graph-error {
@@ -1059,17 +1356,29 @@
   color: var(--fg-muted);
 }
 
-.graph-toolbar {
-  container-type: inline-size;
-}
-
-@container (max-width: 760px) {
-  .graph-toolbar .tb-sep,
+/* Toolbar steps for narrow work areas: icons first, then the overflow menu. */
+@container (max-width: 980px) {
   .graph-toolbar .btn-text {
     display: none;
   }
 
   .graph-toolbar .btn {
     padding: 0 6px;
+  }
+}
+
+@container (max-width: 760px) {
+  .graph-toolbar .tb-opt {
+    display: none;
+  }
+
+  .graph-toolbar .tb-more {
+    display: inline-flex;
+  }
+}
+
+@container (max-width: 560px) {
+  .gf-sel {
+    display: none;
   }
 }

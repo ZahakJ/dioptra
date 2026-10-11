@@ -11,7 +11,12 @@ export interface DisplayCell {
   text: string;
   /** What Mod+C copies: full precision for numbers and p values. */
   raw: string;
+  /** A p value below the significance level (shown at weight 500, never in colour). */
+  significant?: boolean;
 }
+
+/** The significance level the sheet marks p values against. */
+export const ALPHA = 0.05;
 
 export interface DisplayTable {
   columns: string[];
@@ -42,7 +47,7 @@ export function displayCell(c: ResultCell, style: PValueStyle): DisplayCell {
     return { kind: 'number', text: formatSig(v, decimals ?? undefined, 4), raw: full(v) };
   }
   const p = (c as { p_value: { p: number } }).p_value.p;
-  return { kind: 'p', text: formatPValue(p, style), raw: full(p) };
+  return { kind: 'p', text: formatPValue(p, style), raw: full(p), significant: p < ALPHA };
 }
 
 /**
@@ -145,4 +150,16 @@ export function summarizeChecks(sheet: Sheet): CheckSummary {
   if (pass) parts.push(plural(pass, 'check passed', 'checks passed'));
   if (judge) parts.push(`${judge} to judge from the design`);
   return { collapsed: fail + caution === 0, text: parts.join(', ') || 'No checks' };
+}
+
+export type WorstStatus = 'pass' | 'caution' | 'fail' | 'not_checked';
+
+/** The worst status among the checks, for the assumption card's rule: fail, caution, pass,
+ *  then not_checked when nothing could be checked. */
+export function worstStatus(sheet: Pick<Sheet, 'assumptions'>): WorstStatus {
+  const a = sheet.assumptions;
+  if (a.some((x) => x.status === 'fail')) return 'fail';
+  if (a.some((x) => x.status === 'caution')) return 'caution';
+  if (a.some((x) => x.status === 'pass')) return 'pass';
+  return 'not_checked';
 }

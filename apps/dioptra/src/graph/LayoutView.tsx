@@ -6,7 +6,8 @@ import type { LayoutInfo, Rendered } from '../engine/objects';
 import { withEngine } from '../store/engine';
 import { useProject } from '../store/project';
 import { mutate, onChanged } from '../store/sync';
-import { Download, Maximize, Minus, Plus } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { Rulers, ZoomControl } from './chrome';
 import { Button, Segmented } from '../ui';
 import { exportLayoutDialog } from './actions';
 import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt } from './units';
@@ -44,7 +45,7 @@ export function LayoutView({ item }: WorkAreaProps) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const z = r ? (zoom === 'fit' ? fitZoom(r.width_mm, r.height_mm, view.w, view.h) : zoom) : 1;
+  const z = r ? (zoom === 'fit' ? fitZoom(r.width_mm, r.height_mm, view.w, view.h, 120) : zoom) : 1;
   const k = pxPerPt(z);
   const panels = r?.targets.filter((t) => /^panel-\d+$/.test(t.id)) ?? [];
   const graphs = info?.graphs ?? [];
@@ -55,6 +56,7 @@ export function LayoutView({ item }: WorkAreaProps) {
   return (
     <div className="graph-editor layout-view" data-testid="layout-view">
       <div className="graph-toolbar" role="toolbar" aria-label="Layout">
+        <div className="tb-row">
         <span className="tb-title">{item.title}</span>
         <span className="muted small">{panels.length ? `${panels.length} panels, lettered in reading order` : ''}</span>
         <span className="tb-gap" />
@@ -84,12 +86,15 @@ export function LayoutView({ item }: WorkAreaProps) {
         >
           Export…
         </Button>
+        </div>
       </div>
       <div className="graph-stage">
         <div className="graph-view" ref={viewRef}>
           {error && <div className="graph-error text-error">{error}</div>}
           {r && (
-            <div className="graph-paper" style={{ width: mmToPt(r.width_mm) * k, height: mmToPt(r.height_mm) * k }} data-testid="layout-paper">
+            <div className="graph-sheet">
+            <Rulers wMm={r.width_mm} hMm={r.height_mm} zoom={z} />
+            <div className="graph-paper paper-white" style={{ width: mmToPt(r.width_mm) * k, height: mmToPt(r.height_mm) * k }} data-testid="layout-paper">
               <div className="graph-svg" data-testid="layout-svg" dangerouslySetInnerHTML={{ __html: r.svg }} />
               <div className="graph-overlay">
                 {panels.map((t) => {
@@ -109,6 +114,7 @@ export function LayoutView({ item }: WorkAreaProps) {
                 })}
               </div>
             </div>
+            </div>
           )}
         </div>
         <div className="graph-foot">
@@ -119,20 +125,7 @@ export function LayoutView({ item }: WorkAreaProps) {
               {Math.round(r.width_mm * 10) / 10} × {Math.round(r.height_mm * 10) / 10} mm
             </span>
           )}
-          <div className="zoom" role="group" aria-label="Zoom">
-            <Button variant="quiet" size="sm" iconOnly="Zoom out" icon={<Minus size={16} strokeWidth={1.5} />} onClick={() => setZoom(clampZoom(z / 1.25))} />
-            <span className="zoom-val mono">{Math.round(z * 100)}%</span>
-            <Button variant="quiet" size="sm" iconOnly="Zoom in" icon={<Plus size={16} strokeWidth={1.5} />} onClick={() => setZoom(clampZoom(z * 1.25))} />
-            <Segmented
-              label="Zoom preset"
-              value={zoom === 'fit' ? 'fit' : zoom === 1 ? 'actual' : 'other'}
-              choices={[
-                { value: 'fit', label: <Maximize size={16} strokeWidth={1.5} aria-hidden="true" />, aria: 'Fit', hint: 'Fit the window' },
-                { value: 'actual', label: '1:1', hint: 'Actual size at 96 dpi' },
-              ]}
-              onChange={(v) => setZoom(v === 'fit' ? 'fit' : 1)}
-            />
-          </div>
+          <ZoomControl state={zoom} shown={z} onChange={(v) => setZoom(v === 'fit' ? 'fit' : clampZoom(v))} />
         </div>
       </div>
     </div>

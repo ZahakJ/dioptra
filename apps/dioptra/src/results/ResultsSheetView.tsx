@@ -1,5 +1,6 @@
 // The results sheet: title and method line, assumption checks first, the summary sentences,
 // the typed tables, then the checklist. Opens beside its table when both are open.
+import { ArrowRight, Check, ChartColumn, Copy, Minus, SlidersHorizontal, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import { showContextMenu } from '../app/ContextMenu';
@@ -15,7 +16,7 @@ import { notify, notifyError } from '../store/notices';
 import { itemById, usePValueStyle, useProject } from '../store/project';
 import { applyChanged, onChanged } from '../store/sync';
 import { kindTitle } from '../analysis/AnalyzeDialog';
-import { displayTable, normRange, rangeTsv, summarizeChecks, totalN, type CellRange, type DisplayTable } from './sheetModel';
+import { displayTable, normRange, rangeTsv, summarizeChecks, totalN, worstStatus, type CellRange, type DisplayTable } from './sheetModel';
 
 /** Per-session: whether the source table is hidden beside a sheet. */
 export const useSplit = create<{ hidden: Record<Id, boolean>; toggle(id: Id): void }>((set) => ({
@@ -83,7 +84,7 @@ export function ResultsSheetView({ item }: WorkAreaProps) {
   const hidden = useSplit((s) => !!s.hidden[item.id]);
   const table = item.derived_from ? itemById(item.derived_from) : undefined;
   const split = !!table && tabs.includes(table.id) && !hidden;
-  const sheet = <SheetPane id={item.id} title={item.title} tableTitle={table?.title} splitAvailable={!!table && tabs.includes(table.id)} />;
+  const sheet = <SheetPane id={item.id} title={item.title} tableTitle={table?.title} splitAvailable={!!table && tabs.includes(table.id)} split={split} />;
   if (!split || !table) return sheet;
   return (
     <div className="split" data-testid="split-view">
@@ -100,11 +101,13 @@ function SheetPane({
   title,
   tableTitle,
   splitAvailable,
+  split = false,
 }: {
   id: Id;
   title: string;
   tableTitle?: string;
   splitAvailable: boolean;
+  split?: boolean;
 }) {
   const { sheet, error } = useSheet(id);
   const style = usePValueStyle();
@@ -134,25 +137,33 @@ function SheetPane({
   };
 
   return (
-    <div className="sheet-wrap" data-testid="results-sheet">
+    <div className={'sheet-wrap' + (split ? ' is-split' : '')} data-testid="results-sheet">
       <div className="sheet-bar">
-        {splitAvailable && (
-          <button type="button" className="btn btn-sm btn-quiet" onClick={() => useSplit.getState().toggle(id)} data-testid="sheet-split">
-            {hidden ? 'Show table beside' : 'Hide table'}
-          </button>
-        )}
-        <span className="sheet-bar-gap" />
-        <button type="button" className="btn btn-sm" onClick={() => void editAnalysisOptions(id)} data-testid="sheet-options">
-          Options
-        </button>
-        <button type="button" className="btn btn-sm" onClick={copySheet} data-testid="sheet-copy">
-          Copy sheet
-        </button>
-        <button type="button" className="btn btn-sm btn-primary" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph">
-          Make graph
-        </button>
+        <div className="sheet-col sheet-bar-inner">
+          {splitAvailable && (
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => useSplit.getState().toggle(id)} data-testid="sheet-split">
+              {hidden ? 'Show table beside' : 'Hide table'}
+            </button>
+          )}
+          <span className="sheet-bar-gap" />
+          <div className="sheet-tools" role="toolbar" aria-label="Results sheet">
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => void editAnalysisOptions(id)} data-testid="sheet-options" data-tip="Change the analysis options">
+              <SlidersHorizontal size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span className="btn-text">Options</span>
+            </button>
+            <button type="button" className="btn btn-sm btn-quiet" onClick={copySheet} data-testid="sheet-copy" data-tip="Copy every table as TSV or Markdown">
+              <Copy size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span className="btn-text">Copy sheet</span>
+            </button>
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph" data-tip="A graph of this result">
+              <ChartColumn size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span className="btn-text">Make graph</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <article className="sheet">
+      <div className="sheet-scroll">
+      <article className="sheet sheet-col">
         <header className="sheet-head">
           <h1 data-testid="sheet-title">{sheet.title || title}</h1>
           <p className="sheet-method">{method}</p>
@@ -188,7 +199,9 @@ function SheetPane({
         {sheet.summary.length > 0 && (
           <section className="sheet-summary" aria-label="Summary" data-testid="sheet-summary">
             {sheet.summary.map((s, i) => (
-              <p key={i}>{s}</p>
+              <p key={i} className="sheet-sentence">
+                {s}
+              </p>
             ))}
           </section>
         )}
@@ -204,17 +217,25 @@ function SheetPane({
           </section>
         )}
       </article>
+      </div>
     </div>
   );
 }
 
 function Assumptions({ sheet }: { sheet: Sheet }) {
   const sum = summarizeChecks(sheet);
+  const worst = worstStatus(sheet);
   const [open, setOpen] = useState(!sum.collapsed);
   useEffect(() => setOpen(!sum.collapsed), [sum.collapsed]);
   return (
-    <section className={'sheet-checks' + (sum.collapsed ? '' : ' has-doubt')} aria-label="Assumptions" data-testid="sheet-assumptions">
+    <section
+      className={'sheet-checks is-' + worst + (sum.collapsed ? '' : ' has-doubt')}
+      aria-label="Assumptions"
+      data-testid="sheet-assumptions"
+      data-worst={worst}
+    >
       <button type="button" className="checks-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <CheckGlyph status={worst} />
         <span className="checks-title">Assumptions</span>
         <span className="checks-sum">{sum.text}</span>
         <span className="checks-toggle">{open ? 'Hide' : 'Show'}</span>
@@ -232,7 +253,8 @@ function Assumptions({ sheet }: { sheet: Sheet }) {
                 <p className="check-detail">{a.detail}</p>
                 {a.alternative && (
                   <p className="check-alt" data-testid="check-alternative">
-                    {a.alternative}
+                    <ArrowRight size={12} strokeWidth={1.5} aria-hidden="true" />
+                    <span>{a.alternative}</span>
                   </p>
                 )}
               </div>
@@ -246,25 +268,13 @@ function Assumptions({ sheet }: { sheet: Sheet }) {
 
 const STATUS_LABEL: Record<string, string> = { pass: 'passed', caution: 'in doubt', fail: 'failed', not_checked: 'not checkable from the data' };
 
+/** The designed 14 px marks: check, warning triangle, cross, dash, in the semantic colours. */
 function CheckGlyph({ status }: { status: string }) {
-  return (
-    <svg className="check-glyph" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4">
-      {status === 'pass' && <path d="M3 7.5l2.5 2.5L11 4.5" />}
-      {status === 'caution' && (
-        <>
-          <path d="M7 1.8l5.6 10H1.4z" strokeLinejoin="round" />
-          <path d="M7 5.5v3M7 10v.4" />
-        </>
-      )}
-      {status === 'fail' && (
-        <>
-          <circle cx="7" cy="7" r="5.5" />
-          <path d="M4.8 4.8l4.4 4.4M9.2 4.8l-4.4 4.4" />
-        </>
-      )}
-      {status === 'not_checked' && <path d="M3.5 7h7" />}
-    </svg>
-  );
+  const p = { size: 14, strokeWidth: 1.75, 'aria-hidden': true, className: `check-glyph is-${status}` } as const;
+  if (status === 'pass') return <Check {...p} />;
+  if (status === 'caution') return <TriangleAlert {...p} />;
+  if (status === 'fail') return <X {...p} />;
+  return <Minus {...p} />;
 }
 
 function Sections({ sheet, style }: { sheet: Sheet; style: PValueStyle }) {
@@ -354,7 +364,7 @@ function ResultTableView({
                 <td
                   key={c}
                   className={
-                    'rt-' + cell.kind + (t.numeric[c] ? ' is-num' : '') + (inSel(r, c) ? ' is-sel' : '')
+                    'rt-' + cell.kind + (t.numeric[c] ? ' is-num' : '') + (cell.significant ? ' is-sig' : '') + (inSel(r, c) ? ' is-sel' : '')
                   }
                   data-raw={cell.raw}
                   data-tip={cell.kind === "number" || cell.kind === "p" ? cell.raw : undefined}

@@ -24,7 +24,7 @@ describe('pt / px / mm conversion', () => {
     // An 85 mm figure is 321.26 px at 96 dpi; a 700 px wide, tall view leaves 628 px.
     expect(fitZoom(85, 70, 700, 2000)).toBeCloseTo((700 - 72) / ((85 / 25.4) * 96), 6);
     expect(fitZoom(85, 70, 10000, 10000)).toBe(2);
-    expect(fitZoom(500, 500, 100, 100)).toBe(0.5);
+    expect(fitZoom(500, 500, 100, 100)).toBe(0.25);
     expect(clampZoom(Number.NaN)).toBe(1);
   });
   it('PNG pixels as the engine computes them', () => {

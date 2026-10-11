@@ -32,6 +32,8 @@ test('scrolls a 1,000 x 1,000 table smoothly with only the viewport rendered', a
     const g = document.querySelector('[data-grid]') as HTMLElement;
     const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
     await frame();
+    const rowH = parseFloat(getComputedStyle(g).getPropertyValue('--row-h')) || 28;
+    const colW = (g.querySelector('[data-cell="0:1"]') as HTMLElement | null)?.offsetWidth || 96;
     const frames: number[] = [];
     let maxCells = 0;
     let last = await frame();
@@ -44,10 +46,11 @@ test('scrolls a 1,000 x 1,000 table smoothly with only the viewport rendered', a
       last = now;
       maxCells = Math.max(maxCells, g.querySelectorAll('.gc').length);
     }
-    // Jump far and time until the new viewport is filled from the engine.
+    // Jump far and time until the new viewport is filled from the engine. Row height and
+    // column width come from the grid (they follow the density setting).
     const t0 = performance.now();
-    g.scrollTop = 900 * 24;
-    g.scrollLeft = 880 * 96;
+    g.scrollTop = 900 * rowH;
+    g.scrollLeft = 880 * colW;
     let filledMs = -1;
     for (let i = 0; i < 300; i++) {
       await frame();
