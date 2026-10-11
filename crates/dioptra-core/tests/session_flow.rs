@@ -113,7 +113,7 @@ fn table_paste_formula_analysis_save_open() {
         .as_str()
         .unwrap()
         .contains("| Data set | N | Mean"));
-    // A graph renders through the fallback renderer.
+    // A graph renders through the plot engine, with hit-test targets.
     let g = ok(
         &mut s,
         json!({"type": "create_graph", "source": t, "family": "column", "title": null}),
@@ -123,6 +123,11 @@ fn table_paste_formula_analysis_save_open() {
         .to_string();
     let svg = ok(&mut s, json!({"type": "render_graph", "id": g}));
     assert!(svg["svg"].as_str().unwrap().contains("<circle"));
+    assert!(svg["targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|t| t["target"] == "/axes/y" && t["bbox"]["width"].as_f64().unwrap() > 0.0));
     // Save, open in a new session, results are equal.
     let saved = ok(&mut s, json!({"type": "save_project_bytes"}));
     assert_eq!(saved["type"], "bytes");
@@ -397,7 +402,7 @@ fn graphs_patch_and_layouts() {
     );
     let spec = ok(&mut s, json!({"type": "get_graph_spec", "id": g}));
     assert_eq!(spec["style"]["size_mm"]["width"], 174.0);
-    assert_eq!(spec["style"]["size_mm"]["height"], 65.0);
+    assert_eq!(spec["style"]["size_mm"]["height"], 70.0);
     assert_eq!(spec["axes"]["y"]["scale"], "log10");
     let r = ok(&mut s, json!({"type": "render_graph", "id": g}));
     assert_eq!(r["width_mm"], 174.0);
@@ -410,11 +415,22 @@ fn graphs_patch_and_layouts() {
         .to_string();
     let svg = ok(&mut s, json!({"type": "render_layout", "id": l}));
     assert_eq!(svg["svg"].as_str().unwrap().matches("<circle").count(), 4);
-    let e = err(
+    // The layout carries hit-test targets for every panel.
+    let targets = svg["targets"].as_array().unwrap();
+    assert!(targets
+        .iter()
+        .any(|t| t["id"] == "p1-axis-x" && t["target"] == "/axes/x"));
+    let pdf = ok(
         &mut s,
         json!({"type": "export_graph", "id": g, "format": {"format": "pdf"}, "size": null}),
     );
-    assert!(e.contains("SVG"));
+    assert_eq!(pdf["mime"], "application/pdf");
+    let png = ok(
+        &mut s,
+        json!({"type": "export_layout", "id": l, "format": {"format": "png", "dpi": 150.0}}),
+    );
+    assert_eq!(png["mime"], "image/png");
+    assert!(png["name"].as_str().unwrap().ends_with(".png"));
     let b = ok(
         &mut s,
         json!({"type": "export_graph", "id": g, "format": {"format": "svg"}, "size": null}),

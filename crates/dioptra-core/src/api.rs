@@ -17,27 +17,9 @@ use serde::{Deserialize, Serialize};
 /// Opaque object identifier.
 pub type Id = String;
 
-/// Table kinds (DESIGN §4.1).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TableKind {
-    /// X column plus Y datasets with subcolumns.
-    Xy,
-    /// Datasets of values, rows unaligned.
-    Column,
-    /// Rows = factor A levels, datasets = factor B levels, subcolumns = replicates.
-    Grouped,
-    /// Rows × datasets of counts.
-    Contingency,
-    /// X = time, datasets with 1 = event, 0 = censored.
-    Survival,
-    /// One dataset, rows = categories.
-    Parts,
-    /// Flat data frame; each dataset is a variable with a declared type.
-    Variables,
-    /// Datasets = groups, subcolumns = subgroups.
-    Nested,
-}
+/// Table kinds (DESIGN §4.1). Defined in `dioptra-plot` (graphs need it too) and
+/// re-exported here unchanged.
+pub use dioptra_plot::data::TableKind;
 
 /// How the subcolumns of a dataset are to be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -159,14 +141,8 @@ pub enum GraphFormat {
     },
 }
 
-/// Physical size in millimetres.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SizeMm {
-    /// Width.
-    pub width: f64,
-    /// Height.
-    pub height: f64,
-}
+/// Physical size in millimetres (defined in `dioptra-plot`, re-exported).
+pub use dioptra_plot::spec::SizeMm;
 
 /// P-value display style (DESIGN §4.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -683,8 +659,11 @@ pub enum Response {
     /// A results sheet.
     Results(crate::results::ResultsSheet),
     /// A graph spec.
-    GraphSpec(crate::graph::GraphSpec),
-    /// Rendered SVG.
+    GraphSpec(Box<crate::graph::GraphSpec>),
+    /// Rendered SVG. `targets` lists the clickable elements of the graph editor: each has
+    /// the element `id` in the SVG, the JSON pointer `target` into the graph spec that the
+    /// inspector edits, and `bbox` (`x`, `y`, `width`, `height`) in points in the SVG's
+    /// `viewBox` coordinates. For layouts, ids inside panel `i` are prefixed `p{i}-`.
     Svg {
         /// SVG document.
         svg: String,
@@ -692,6 +671,9 @@ pub enum Response {
         width_mm: f64,
         /// Height in millimetres.
         height_mm: f64,
+        /// Clickable elements for hit-testing.
+        #[serde(default)]
+        targets: Vec<dioptra_plot::Target>,
     },
     /// Binary payload.
     Bytes {
