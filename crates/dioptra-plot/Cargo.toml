@@ -14,3 +14,8 @@ usvg.workspace = true
 resvg.workspace = true
 svg2pdf.workspace = true
 fontdb.workspace = true
+ttf-parser.workspace = true
+libm.workspace = true
+
+[dev-dependencies]
+

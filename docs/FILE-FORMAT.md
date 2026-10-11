@@ -12,7 +12,7 @@ tables/<id>.json         one table: kind, datasets, subcolumns, columns (columna
                          row titles, column sources and formulas, excluded cells, text cells,
                          edit log
 analyses/<id>.json       analysis spec (table id, kind, options); no results
-graphs/<id>.json         graph spec (source id, family, mapping, style, annotations)
+graphs/<id>.json         graph spec (source id, family, mapping, style, axes, legend, options, annotations; docs/GRAPHS.md)
 results/<id>.json        cached results sheets (optional; recomputed when absent or stale)
 history.jsonl            command log: one JSON object per line, newest last
 ```

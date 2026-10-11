@@ -12,7 +12,7 @@ use crate::deps;
 use crate::export;
 use crate::file;
 use crate::formula;
-use crate::graph::{self, FallbackRenderer, Graph, GraphSpec, Layout, Renderer};
+use crate::graph::{self, DioptraRenderer, Graph, GraphSpec, Layout, Renderer};
 use crate::history::{capture_cells, Entry, History, HistoryEntry, Snapshot, Touched};
 use crate::import::{self, Origin, PasteReport};
 use crate::project::Project;
@@ -29,7 +29,7 @@ impl Default for Session {
         Session {
             project: Project::new(),
             history: History::default(),
-            renderer: Box::new(FallbackRenderer),
+            renderer: Box::new(DioptraRenderer),
             engine: AnalysisEngine::default(),
         }
     }
@@ -105,7 +105,7 @@ impl Session {
         crate::util::set_clock(clock);
     }
 
-    /// Replace the graph renderer (the architect wires `dioptra-plot` here).
+    /// Replace the graph renderer (the default is [`DioptraRenderer`], the plot engine).
     pub fn set_renderer(&mut self, renderer: Box<dyn Renderer>) {
         self.renderer = renderer;
     }
@@ -1406,7 +1406,7 @@ impl Session {
                     .graphs
                     .get(&id)
                     .ok_or_else(|| format!("no graph with id {id}"))?;
-                Ok(Response::GraphSpec(g.spec.clone()))
+                Ok(Response::GraphSpec(Box::new(g.spec.clone())))
             }
             Command::UpdateGraph { id, spec } => self.set_graph_spec(id, spec, log),
             Command::PatchGraph { id, patch } => {
@@ -1427,6 +1427,7 @@ impl Session {
                     svg: r.svg,
                     width_mm: r.width_mm,
                     height_mm: r.height_mm,
+                    targets: r.targets,
                 })
             }
             Command::ExportGraph { id, format, size } => {
@@ -1485,23 +1486,23 @@ impl Session {
                 Ok(changed(vec![id.clone()], true, Some(id)))
             }
             Command::RenderLayout { id } => {
-                let r = self.render_layout(&id)?;
+                let (panels, columns) = self.layout_panels(&id)?;
+                let r = self.renderer.render_layout(&panels, columns)?;
                 Ok(Response::Svg {
                     svg: r.svg,
                     width_mm: r.width_mm,
                     height_mm: r.height_mm,
+                    targets: r.targets,
                 })
             }
             Command::ExportLayout { id, format } => {
-                let r = self.render_layout(&id)?;
-                match format {
-                    GraphFormat::Svg => Ok(Response::Bytes {
-                        name: format!("{}.svg", file_stem(&self.project.layouts[&id].title)),
-                        mime: "image/svg+xml".into(),
-                        base64: base64_encode(r.svg.as_bytes()),
-                    }),
-                    _ => Err("PDF and PNG export of layouts need the plot engine, which is not wired into this build yet; export SVG for now.".into()),
-                }
+                let (panels, columns) = self.layout_panels(&id)?;
+                let (bytes, mime, ext) = self.renderer.export_layout(&panels, columns, format)?;
+                Ok(Response::Bytes {
+                    name: format!("{}.{ext}", file_stem(&self.project.layouts[&id].title)),
+                    mime: mime.into(),
+                    base64: base64_encode(&bytes),
+                })
             }
 
             // ---- history ----
@@ -1545,7 +1546,8 @@ impl Session {
         Ok(changed(vec![id], false, None))
     }
 
-    fn render_layout(&mut self, id: &str) -> R<graph::Rendered> {
+    /// Specs and data of a layout's graphs, in reading order, and its column count.
+    fn layout_panels(&mut self, id: &str) -> R<(Vec<(GraphSpec, graph::GraphData)>, usize)> {
         let l = self
             .project
             .layouts
@@ -1554,9 +1556,20 @@ impl Session {
             .clone();
         let mut panels = Vec::new();
         for g in &l.graphs {
-            panels.push(self.render(g)?);
+            let spec = self
+                .project
+                .graphs
+                .get(g)
+                .ok_or_else(|| format!("no graph with id {g}"))?
+                .spec
+                .clone();
+            let data = self.graph_data(&spec)?;
+            if let Some(gr) = self.project.graphs.get_mut(g) {
+                gr.stale = false;
+            }
+            panels.push((spec, data));
         }
-        Ok(graph::compose_layout(&panels, l.columns))
+        Ok((panels, l.columns))
     }
 }
 

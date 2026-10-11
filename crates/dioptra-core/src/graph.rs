@@ -1,335 +1,19 @@
-//! Graph and layout specifications (DESIGN §4.4, §6) and the renderer seam.
+//! Graphs and layouts in the project (DESIGN §4.4), data extraction for the plot engine,
+//! and the renderer seam.
 //!
-//! The plot engine (`dioptra-plot`) turns a [`GraphSpec`] plus extracted [`GraphData`]
-//! into a scene and renders SVG, PDF or PNG. Until it is wired in, the session holds a
-//! [`FallbackRenderer`] that draws plain axes and points as SVG so the whole pipeline can
-//! be exercised.
+//! The specification types live in `dioptra_plot::spec` and are re-exported here, so the
+//! JSON the UI sends and receives is the plot engine's own. [`extract`] turns a table into
+//! [`GraphData`]; a [`Renderer`] turns spec + data into SVG, PDF or PNG. The session uses
+//! [`DioptraRenderer`] (the real engine) unless another renderer is installed.
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::{GraphFormat, Id, SizeMm, TableKind};
-use crate::table::{ColLoc, Table};
+pub use dioptra_plot::data::{AtRiskTable, Curve, GraphData, Series};
+pub use dioptra_plot::spec::*;
+pub use dioptra_plot::Target;
 
-/// Axis scale.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Scale {
-    /// Linear.
-    #[default]
-    Linear,
-    /// Base-10 logarithmic.
-    Log10,
-    /// Base-2 logarithmic.
-    Log2,
-}
-
-/// Tick direction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TickDirection {
-    /// Outside the plot area (default).
-    #[default]
-    Out,
-    /// Inside.
-    In,
-    /// Crossing the axis.
-    Cross,
-}
-
-/// Tick settings.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Ticks {
-    /// Major tick interval (`None`: automatic).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub major: Option<f64>,
-    /// Minor ticks between majors.
-    pub minor: u32,
-    /// Direction.
-    pub direction: TickDirection,
-    /// Tick length in points.
-    pub length_pt: f64,
-}
-
-impl Default for Ticks {
-    fn default() -> Self {
-        Ticks {
-            major: None,
-            minor: 0,
-            direction: TickDirection::Out,
-            length_pt: 3.0,
-        }
-    }
-}
-
-/// A gap in an axis.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct AxisBreak {
-    /// Start of the gap.
-    pub from: f64,
-    /// End of the gap.
-    pub to: f64,
-}
-
-/// One axis.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Axis {
-    /// Title (`^`/`_` for super/subscripts, `\alpha` for Greek).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    /// Scale.
-    pub scale: Scale,
-    /// Minimum (`None`: automatic).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub min: Option<f64>,
-    /// Maximum (`None`: automatic).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max: Option<f64>,
-    /// Breaks.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub breaks: Vec<AxisBreak>,
-    /// Ticks.
-    pub ticks: Ticks,
-}
-
-/// Both axes.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Axes {
-    /// Horizontal.
-    pub x: Axis,
-    /// Vertical.
-    pub y: Axis,
-}
-
-/// Legend position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LegendPosition {
-    /// No legend.
-    Hidden,
-    /// Right of the plot (default).
-    #[default]
-    Right,
-    /// Above.
-    Top,
-    /// Below.
-    Bottom,
-    /// Inside, top left.
-    InsideTopLeft,
-    /// Inside, top right.
-    InsideTopRight,
-    /// Inside, bottom left.
-    InsideBottomLeft,
-    /// Inside, bottom right.
-    InsideBottomRight,
-}
-
-/// Legend.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Legend {
-    /// Position.
-    pub position: LegendPosition,
-}
-
-/// Line style.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LineStyle {
-    /// Solid.
-    Solid,
-    /// Dashed.
-    Dashed,
-    /// Dotted.
-    Dotted,
-    /// No line.
-    None,
-}
-
-/// Per-dataset overrides.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct DatasetStyle {
-    /// Dataset index.
-    pub dataset: usize,
-    /// Colour (`#rrggbb`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub colour: Option<String>,
-    /// Marker (`circle`, `square`, `triangle`, `diamond`, `none`, …).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub marker: Option<String>,
-    /// Line style.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub line_style: Option<LineStyle>,
-    /// Legend label.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-}
-
-/// Visual style of a graph.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GraphStyle {
-    /// Theme: `instrument`, `night` or `journal`.
-    pub theme: String,
-    /// Palette: `okabe_ito`, `tol_bright`, `tol_muted`, `viridis`, `cividis`, `tol_sunset`, `grey`.
-    pub palette: String,
-    /// Size in millimetres.
-    pub size_mm: SizeMm,
-    /// Base font size in points.
-    pub font_pt: f64,
-    /// Line width in points.
-    pub line_pt: f64,
-    /// Per-dataset overrides.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub datasets: Vec<DatasetStyle>,
-}
-
-impl Default for GraphStyle {
-    fn default() -> Self {
-        GraphStyle {
-            theme: "instrument".into(),
-            palette: "okabe_ito".into(),
-            size_mm: SizeMm {
-                width: 85.0,
-                height: 65.0,
-            },
-            font_pt: 8.0,
-            line_pt: 0.75,
-            datasets: Vec::new(),
-        }
-    }
-}
-
-/// Error bars.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ErrorBars {
-    /// None.
-    None,
-    /// Standard deviation.
-    Sd,
-    /// Standard error of the mean.
-    #[default]
-    Sem,
-    /// 95% confidence interval.
-    Ci95,
-    /// Range.
-    Range,
-    /// Interquartile range.
-    Iqr,
-}
-
-/// Which data the graph shows.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Mapping {
-    /// Datasets to plot (empty: all).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub datasets: Vec<usize>,
-    /// Flat X column override (variables tables).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub x: Option<usize>,
-    /// Flat Y columns override (variables tables).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub y: Vec<usize>,
-    /// Error bars for summary families.
-    pub error_bars: ErrorBars,
-    /// Show individual points over summaries.
-    pub points: bool,
-}
-
-/// An annotation drawn on the graph.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Annotation {
-    /// A bracket between two groups with a label (asterisks or a p value).
-    SignificanceBracket {
-        /// First group (dataset index).
-        from: usize,
-        /// Second group.
-        to: usize,
-        /// Label.
-        text: String,
-        /// Height in data units (`None`: automatic).
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        y: Option<f64>,
-    },
-    /// Free text.
-    TextLabel {
-        /// Text.
-        text: String,
-        /// X in data units.
-        x: f64,
-        /// Y in data units.
-        y: f64,
-        /// Font size in points (`None`: theme size).
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        size_pt: Option<f64>,
-    },
-    /// A straight line in data units.
-    Line {
-        /// Start X.
-        x1: f64,
-        /// Start Y.
-        y1: f64,
-        /// End X.
-        x2: f64,
-        /// End Y.
-        y2: f64,
-        /// Dashed.
-        #[serde(default)]
-        dashed: bool,
-    },
-}
-
-/// A graph specification.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GraphSpec {
-    /// Source table or analysis.
-    pub source: Id,
-    /// Family name (see `dioptra_plot::GraphFamily`), e.g. `scatter`, `column`, `box`.
-    pub family: String,
-    /// Graph title.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    /// Data mapping.
-    #[serde(default)]
-    pub mapping: Mapping,
-    /// Style.
-    #[serde(default)]
-    pub style: GraphStyle,
-    /// Axes.
-    #[serde(default)]
-    pub axes: Axes,
-    /// Legend.
-    #[serde(default)]
-    pub legend: Legend,
-    /// Annotations.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub annotations: Vec<Annotation>,
-}
-
-impl GraphSpec {
-    /// Defaults for a family.
-    pub fn new(source: Id, family: &str) -> Self {
-        GraphSpec {
-            source,
-            family: family.to_string(),
-            title: None,
-            mapping: Mapping {
-                points: true,
-                ..Default::default()
-            },
-            style: GraphStyle::default(),
-            axes: Axes::default(),
-            legend: Legend::default(),
-            annotations: Vec::new(),
-        }
-    }
-}
+use crate::api::{GraphFormat, SubcolumnFormat, TableKind};
+use crate::table::{ColLoc, Column, Table};
 
 /// A graph object in a project. Equality ignores the stale flag.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -364,36 +48,112 @@ pub struct Layout {
     pub columns: usize,
 }
 
-/// One plotted series.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct Series {
-    /// Name (dataset name).
-    pub name: String,
-    /// Dataset index in the source table.
-    pub dataset: usize,
-    /// X values (category position for column-like data, starting at 1).
-    pub x: Vec<f64>,
-    /// Y values.
-    pub y: Vec<f64>,
+/// Error bounds for a summary row (mean/SD/N and friends), converted to what the spec
+/// asks for when the stored numbers allow it. Returns (centre, low, high).
+fn summary_row(
+    format: SubcolumnFormat,
+    v: &[f64],
+    eb: ErrorBars,
+) -> Option<(f64, Option<(f64, f64)>)> {
+    let g = |i: usize| v.get(i).copied().unwrap_or(f64::NAN);
+    let t = |n: f64| dioptra_plot::stats::t_quantile(0.975, n - 1.0);
+    let (c, half): (f64, Option<f64>) = match format {
+        SubcolumnFormat::MeanSdN | SubcolumnFormat::MeanSd => {
+            let (m, sd, n) = (g(0), g(1), g(2));
+            let h = match eb {
+                ErrorBars::Sem if n > 1.0 => sd / n.sqrt(),
+                ErrorBars::Ci95 if n > 1.0 => t(n) * sd / n.sqrt(),
+                _ => sd,
+            };
+            (m, Some(h))
+        }
+        SubcolumnFormat::MeanSemN | SubcolumnFormat::MeanSem => {
+            let (m, sem, n) = (g(0), g(1), g(2));
+            let h = match eb {
+                ErrorBars::Sd if n > 0.0 => sem * n.sqrt(),
+                ErrorBars::Ci95 if n > 1.0 => t(n) * sem,
+                _ => sem,
+            };
+            (m, Some(h))
+        }
+        SubcolumnFormat::MeanCiN => {
+            let (m, ci, n) = (g(0), g(1), g(2));
+            let h = match eb {
+                ErrorBars::Sem if n > 1.0 => ci / t(n),
+                ErrorBars::Sd if n > 1.0 => ci / t(n) * n.sqrt(),
+                _ => ci,
+            };
+            (m, Some(h))
+        }
+        SubcolumnFormat::MedianIqr => {
+            let (m, q1, q3) = (g(0), g(1), g(2));
+            if !m.is_finite() {
+                return None;
+            }
+            let e = (eb != ErrorBars::None && q1.is_finite() && q3.is_finite()).then_some((q1, q3));
+            return Some((m, e));
+        }
+        SubcolumnFormat::LowerUpper => {
+            let (lo, hi) = (g(0), g(1));
+            if !(lo.is_finite() && hi.is_finite()) {
+                return None;
+            }
+            let e = (eb != ErrorBars::None).then_some((lo, hi));
+            return Some(((lo + hi) / 2.0, e));
+        }
+        SubcolumnFormat::Values(_) | SubcolumnFormat::Single => (g(0), None),
+    };
+    if !c.is_finite() {
+        return None;
+    }
+    let e = match (eb, half) {
+        (ErrorBars::None, _) => None,
+        (_, Some(h)) if h.is_finite() => Some((c - h, c + h)),
+        _ => None,
+    };
+    Some((c, e))
 }
 
-/// Data extracted from the source for the renderer.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct GraphData {
-    /// Series.
-    pub series: Vec<Series>,
-    /// Category names when X is categorical.
-    pub categories: Vec<String>,
-    /// Default X title.
-    pub x_label: String,
-    /// Default Y title.
-    pub y_label: String,
+fn is_summary(f: SubcolumnFormat) -> bool {
+    !matches!(f, SubcolumnFormat::Values(_) | SubcolumnFormat::Single)
 }
 
-/// Pull the plotted values out of a table (excluded and empty cells are left out).
+fn row_label(table: &Table, r: usize) -> String {
+    table
+        .row_titles
+        .get(r)
+        .filter(|s| !s.trim().is_empty())
+        .cloned()
+        .unwrap_or_else(|| format!("{}", r + 1))
+}
+
+fn text_or_value(c: &Column, r: usize) -> String {
+    if let Some(t) = c.text.get(&r) {
+        return t.clone();
+    }
+    let v = c.values.get(r).copied().unwrap_or(f64::NAN);
+    if v.is_finite() {
+        crate::util::format_sig(v, None, 6)
+    } else {
+        String::new()
+    }
+}
+
+/// Pull the plotted values out of a table. Excluded and empty cells become NaN (kept in
+/// place inside `replicates` so rows stay aligned) or are left out.
 pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
-    let mut d = GraphData::default();
+    let mut d = GraphData {
+        kind: table.kind,
+        ..Default::default()
+    };
     let wanted = |i: usize| spec.mapping.datasets.is_empty() || spec.mapping.datasets.contains(&i);
+    // Forest plots show confidence intervals whatever the error-bar setting says.
+    let eb = if spec.family == "forest" {
+        ErrorBars::Ci95
+    } else {
+        spec.mapping.error_bars
+    };
+    let rows = table.rows;
     match table.kind {
         TableKind::Xy | TableKind::Survival => {
             let x = table.x.as_ref();
@@ -409,21 +169,36 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
                     dataset: i,
                     ..Default::default()
                 };
-                for c in ds.subcolumns.iter().take(
-                    if matches!(ds.format, crate::api::SubcolumnFormat::Values(_)) {
-                        usize::MAX
-                    } else {
-                        1
-                    },
-                ) {
-                    for r in 0..table.rows {
-                        let (xv, yv) =
-                            (x.map_or((r + 1) as f64, |c| c.usable_at(r)), c.usable_at(r));
-                        if xv.is_finite() && yv.is_finite() {
+                let reps = matches!(ds.format, SubcolumnFormat::Values(n) if n > 1)
+                    && table.kind == TableKind::Xy;
+                for r in 0..rows {
+                    let xv = x.map_or((r + 1) as f64, |c| c.usable_at(r));
+                    if !xv.is_finite() {
+                        continue;
+                    }
+                    let vals: Vec<f64> = ds.subcolumns.iter().map(|c| c.usable_at(r)).collect();
+                    if is_summary(ds.format) {
+                        if let Some((c, e)) = summary_row(ds.format, &vals, eb) {
                             s.x.push(xv);
-                            s.y.push(yv);
+                            s.y.push(c);
+                            s.error.push(e.unwrap_or((f64::NAN, f64::NAN)));
+                        }
+                    } else if reps {
+                        if vals.iter().any(|v| v.is_finite()) {
+                            s.x.push(xv);
+                            s.y.push(dioptra_plot::stats::mean(&vals));
+                            s.replicates.push(vals);
+                        }
+                    } else if vals[0].is_finite() {
+                        s.x.push(xv);
+                        s.y.push(vals[0]);
+                        if !table.row_titles.is_empty() {
+                            s.labels.push(row_label(table, r));
                         }
                     }
+                }
+                if s.error.iter().all(|e| !e.0.is_finite()) {
+                    s.error.clear();
                 }
                 d.series.push(s);
             }
@@ -436,10 +211,16 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
             let xc = table.col(xi);
             d.x_label = table.col_header(xi);
             let ys: Vec<usize> = if spec.mapping.y.is_empty() {
-                (0..table.col_count()).filter(|c| *c != xi).collect()
+                (0..table.col_count())
+                    .filter(|c| *c != xi && Some(*c) != spec.mapping.label)
+                    .collect()
             } else {
                 spec.mapping.y.clone()
             };
+            if ys.len() == 1 {
+                d.y_label = table.col_header(ys[0]);
+            }
+            let lc = spec.mapping.label.and_then(|l| table.col(l));
             for yi in ys {
                 let (Some(xc), Some(yc)) = (xc, table.col(yi)) else {
                     continue;
@@ -453,17 +234,98 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
                     dataset: ds,
                     ..Default::default()
                 };
-                for r in 0..table.rows {
+                for r in 0..rows {
                     let (a, b) = (xc.usable_at(r), yc.usable_at(r));
                     if a.is_finite() && b.is_finite() {
                         s.x.push(a);
                         s.y.push(b);
+                        if let Some(lc) = lc {
+                            s.labels.push(text_or_value(lc, r));
+                        } else if !table.row_titles.is_empty() {
+                            s.labels.push(row_label(table, r));
+                        }
                     }
                 }
                 d.series.push(s);
             }
         }
+        TableKind::Variables
+            if matches!(spec.family.as_str(), "correlation_matrix" | "heatmap") =>
+        {
+            // One series per numeric variable, aligned by row.
+            for (i, ds) in table
+                .datasets
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| wanted(*i))
+            {
+                if !matches!(ds.var_type, None | Some(crate::api::VariableType::Number)) {
+                    continue;
+                }
+                let c = &ds.subcolumns[0];
+                let mut s = Series {
+                    name: ds.name.clone(),
+                    dataset: i,
+                    ..Default::default()
+                };
+                for r in 0..rows {
+                    let v = c.usable_at(r);
+                    if v.is_finite() {
+                        s.x.push((r + 1) as f64);
+                        s.y.push(v);
+                    }
+                }
+                d.series.push(s);
+            }
+            d.categories = (0..rows).map(|r| row_label(table, r)).collect();
+        }
+        TableKind::Grouped | TableKind::Contingency | TableKind::Parts => {
+            d.categories = (0..rows).map(|r| row_label(table, r)).collect();
+            for (i, ds) in table
+                .datasets
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| wanted(*i))
+            {
+                let mut s = Series {
+                    name: ds.name.clone(),
+                    dataset: i,
+                    ..Default::default()
+                };
+                let reps = matches!(ds.format, SubcolumnFormat::Values(n) if n > 1);
+                for r in 0..rows {
+                    let vals: Vec<f64> = ds.subcolumns.iter().map(|c| c.usable_at(r)).collect();
+                    let pos = (r + 1) as f64;
+                    if is_summary(ds.format) {
+                        if let Some((c, e)) = summary_row(ds.format, &vals, eb) {
+                            s.x.push(pos);
+                            s.y.push(c);
+                            s.error.push(e.unwrap_or((f64::NAN, f64::NAN)));
+                        }
+                    } else if reps {
+                        if vals.iter().any(|v| v.is_finite()) {
+                            s.x.push(pos);
+                            s.y.push(dioptra_plot::stats::mean(&vals));
+                            s.replicates.push(vals);
+                        }
+                    } else if vals[0].is_finite() {
+                        s.x.push(pos);
+                        s.y.push(vals[0]);
+                    }
+                }
+                if s.error.iter().all(|e| !e.0.is_finite()) {
+                    s.error.clear();
+                }
+                d.series.push(s);
+            }
+            if table.datasets.len() == 1 {
+                d.y_label = table.datasets[0].name.clone();
+            }
+        }
         _ => {
+            // Column, Nested and Variables without an X: one category per dataset.
+            let nested = table.kind == TableKind::Nested;
+            let mut max_sub = 0;
             for (i, ds) in table
                 .datasets
                 .iter()
@@ -472,18 +334,61 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
             {
                 let pos = (d.categories.len() + 1) as f64;
                 d.categories.push(ds.name.clone());
-                let mut s = Series {
-                    name: ds.name.clone(),
-                    dataset: i,
-                    ..Default::default()
-                };
-                for c in &ds.subcolumns {
-                    for v in c.usable() {
+                if is_summary(ds.format) {
+                    let vals: Vec<f64> = ds.subcolumns.iter().map(|c| c.usable_at(0)).collect();
+                    let mut s = Series {
+                        name: ds.name.clone(),
+                        dataset: i,
+                        ..Default::default()
+                    };
+                    if let Some((c, e)) = summary_row(ds.format, &vals, eb) {
                         s.x.push(pos);
-                        s.y.push(v);
+                        s.y.push(c);
+                        if let Some(e) = e {
+                            s.error.push(e);
+                        }
+                    }
+                    d.series.push(s);
+                    continue;
+                }
+                // Row-aligned values (NaN kept) so paired families can match rows.
+                let mut vals = Vec::new();
+                let mut groups = Vec::new();
+                for (k, c) in ds.subcolumns.iter().enumerate() {
+                    for r in 0..rows {
+                        vals.push(c.usable_at(r));
+                        groups.push(k);
                     }
                 }
+                if !nested {
+                    // Trim trailing empty rows.
+                    while vals.last().is_some_and(|v| v.is_nan()) {
+                        vals.pop();
+                        groups.pop();
+                    }
+                }
+                max_sub = max_sub.max(ds.subcolumns.len());
+                let mut s = Series::category(&ds.name, i, pos, vals);
+                if nested {
+                    s.groups = groups;
+                }
                 d.series.push(s);
+            }
+            if nested {
+                d.group_names = (0..max_sub)
+                    .map(|k| {
+                        table
+                            .datasets
+                            .iter()
+                            .find_map(|ds| {
+                                ds.subcolumns
+                                    .get(k)
+                                    .map(|c| c.title.clone())
+                                    .filter(|t| !t.is_empty())
+                            })
+                            .unwrap_or_else(|| format!("Subgroup {}", k + 1))
+                    })
+                    .collect();
             }
         }
     }
@@ -499,10 +404,15 @@ pub struct Rendered {
     pub width_mm: f64,
     /// Height in millimetres.
     pub height_mm: f64,
+    /// Clickable elements for the graph editor.
+    pub targets: Vec<Target>,
 }
 
-/// Turns specs and data into drawings. `dioptra-plot` will implement this.
-pub trait Renderer {
+/// An exported file: bytes, MIME type and extension.
+pub type Exported = (Vec<u8>, &'static str, &'static str);
+
+/// Turns specs and data into drawings.
+pub trait Renderer: Send + Sync {
     /// Render to SVG for display.
     fn render(&self, spec: &GraphSpec, data: &GraphData) -> Result<Rendered, String>;
 
@@ -512,265 +422,128 @@ pub trait Renderer {
         spec: &GraphSpec,
         data: &GraphData,
         format: GraphFormat,
-    ) -> Result<(Vec<u8>, &'static str, &'static str), String> {
+    ) -> Result<Exported, String> {
         match format {
-            GraphFormat::Svg => Ok((self.render(spec, data)?.svg.into_bytes(), "image/svg+xml", "svg")),
-            GraphFormat::Pdf | GraphFormat::Png { .. } => {
-                Err("PDF and PNG export need the plot engine, which is not wired into this build yet; export SVG for now.".into())
-            }
+            GraphFormat::Svg => Ok((
+                self.render(spec, data)?.svg.into_bytes(),
+                "image/svg+xml",
+                "svg",
+            )),
+            _ => Err("this renderer exports SVG only".into()),
+        }
+    }
+
+    /// Render a layout (a grid of graphs with panel letters).
+    fn render_layout(
+        &self,
+        panels: &[(GraphSpec, GraphData)],
+        columns: usize,
+    ) -> Result<Rendered, String> {
+        let _ = (panels, columns);
+        Err("this renderer cannot draw layouts".into())
+    }
+
+    /// Export a layout. The default supports SVG only.
+    fn export_layout(
+        &self,
+        panels: &[(GraphSpec, GraphData)],
+        columns: usize,
+        format: GraphFormat,
+    ) -> Result<Exported, String> {
+        match format {
+            GraphFormat::Svg => Ok((
+                self.render_layout(panels, columns)?.svg.into_bytes(),
+                "image/svg+xml",
+                "svg",
+            )),
+            _ => Err("this renderer exports SVG only".into()),
         }
     }
 }
 
-/// Points per millimetre.
-pub const PT_PER_MM: f64 = 72.0 / 25.4;
-
-const OKABE_ITO: [&str; 8] = [
-    "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
-];
-
-/// Minimal placeholder renderer: a frame, two axes with min/max labels, and points.
+/// The plot engine (`dioptra-plot`): SVG, PDF with embedded fonts, PNG at any DPI.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct FallbackRenderer;
+pub struct DioptraRenderer;
 
-/// Escape text for SVG.
-pub fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-}
-
-fn fmt_pt(v: f64) -> String {
-    let s = format!("{v:.2}");
-    s.trim_end_matches('0').trim_end_matches('.').to_string()
-}
-
-impl Renderer for FallbackRenderer {
-    fn render(&self, spec: &GraphSpec, data: &GraphData) -> Result<Rendered, String> {
-        let (wmm, hmm) = (spec.style.size_mm.width, spec.style.size_mm.height);
-        if !(wmm > 0.0 && hmm > 0.0) {
-            return Err("graph size must be positive".into());
-        }
-        let (w, h) = (wmm * PT_PER_MM, hmm * PT_PER_MM);
-        let font = spec.style.font_pt;
-        let (l, r, t, b) = (font * 4.5, font, font * 1.5, font * 4.0);
-        let (pw, ph) = ((w - l - r).max(1.0), (h - t - b).max(1.0));
-        let tr = |v: f64, s: Scale| match s {
-            Scale::Linear => v,
-            Scale::Log10 => v.log10(),
-            Scale::Log2 => v.log2(),
-        };
-        let pts: Vec<(f64, f64)> = data
-            .series
-            .iter()
-            .flat_map(|s| {
-                s.x.iter()
-                    .zip(&s.y)
-                    .map(|(x, y)| (tr(*x, spec.axes.x.scale), tr(*y, spec.axes.y.scale)))
-            })
-            .filter(|(x, y)| x.is_finite() && y.is_finite())
-            .collect();
-        let range =
-            |vals: &mut dyn Iterator<Item = f64>, min: Option<f64>, max: Option<f64>, s: Scale| {
-                let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
-                for v in vals {
-                    lo = lo.min(v);
-                    hi = hi.max(v);
-                }
-                if !lo.is_finite() {
-                    (lo, hi) = (0.0, 1.0);
-                }
-                if let Some(m) = min {
-                    lo = tr(m, s);
-                }
-                if let Some(m) = max {
-                    hi = tr(m, s);
-                }
-                if hi <= lo {
-                    hi = lo + 1.0;
-                }
-                let pad = if min.is_none() && max.is_none() {
-                    (hi - lo) * 0.05
-                } else {
-                    0.0
-                };
-                (lo - pad, hi + pad)
-            };
-        let (x0, x1) = range(
-            &mut pts.iter().map(|p| p.0),
-            spec.axes.x.min,
-            spec.axes.x.max,
-            spec.axes.x.scale,
-        );
-        let (y0, y1) = range(
-            &mut pts.iter().map(|p| p.1),
-            spec.axes.y.min,
-            spec.axes.y.max,
-            spec.axes.y.scale,
-        );
-        let sx = |v: f64| l + (v - x0) / (x1 - x0) * pw;
-        let sy = |v: f64| t + ph - (v - y0) / (y1 - y0) * ph;
-        let lw = spec.style.line_pt;
-        let mut s = String::with_capacity(4096);
-        s.push_str(&format!(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}mm\" height=\"{}mm\" viewBox=\"0 0 {} {}\" font-family=\"Inter, sans-serif\" font-size=\"{}\">",
-            fmt_pt(wmm), fmt_pt(hmm), fmt_pt(w), fmt_pt(h), fmt_pt(font)
-        ));
-        s.push_str(&format!(
-            "<rect width=\"{}\" height=\"{}\" fill=\"#ffffff\"/>",
-            fmt_pt(w),
-            fmt_pt(h)
-        ));
-        s.push_str(&format!(
-            "<g id=\"axis-x\" stroke=\"#000\" stroke-width=\"{lw}\"><line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\"/></g>",
-            fmt_pt(l), fmt_pt(t + ph), fmt_pt(l + pw), fmt_pt(t + ph)
-        ));
-        s.push_str(&format!(
-            "<g id=\"axis-y\" stroke=\"#000\" stroke-width=\"{lw}\"><line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\"/></g>",
-            fmt_pt(l), fmt_pt(t), fmt_pt(l), fmt_pt(t + ph)
-        ));
-        let lab = |v: f64, sc: Scale| {
-            crate::util::format_sig(
-                match sc {
-                    Scale::Linear => v,
-                    Scale::Log10 => 10f64.powf(v),
-                    Scale::Log2 => 2f64.powf(v),
-                },
-                None,
-                3,
-            )
-        };
-        s.push_str(&format!(
-            "<g id=\"ticklabels\" fill=\"#000\"><text x=\"{}\" y=\"{}\" text-anchor=\"middle\">{}</text><text x=\"{}\" y=\"{}\" text-anchor=\"middle\">{}</text><text x=\"{}\" y=\"{}\" text-anchor=\"end\">{}</text><text x=\"{}\" y=\"{}\" text-anchor=\"end\">{}</text></g>",
-            fmt_pt(l), fmt_pt(t + ph + font * 1.3), lab(x0, spec.axes.x.scale),
-            fmt_pt(l + pw), fmt_pt(t + ph + font * 1.3), lab(x1, spec.axes.x.scale),
-            fmt_pt(l - font * 0.4), fmt_pt(t + ph), lab(y0, spec.axes.y.scale),
-            fmt_pt(l - font * 0.4), fmt_pt(t + font * 0.7), lab(y1, spec.axes.y.scale),
-        ));
-        let xt = spec
-            .axes
-            .x
-            .title
-            .clone()
-            .unwrap_or_else(|| data.x_label.clone());
-        let yt = spec
-            .axes
-            .y
-            .title
-            .clone()
-            .unwrap_or_else(|| data.y_label.clone());
-        s.push_str(&format!(
-            "<text id=\"axis-x-title\" x=\"{}\" y=\"{}\" text-anchor=\"middle\">{}</text>",
-            fmt_pt(l + pw / 2.0),
-            fmt_pt(h - font * 0.6),
-            xml_escape(&xt)
-        ));
-        s.push_str(&format!(
-            "<text id=\"axis-y-title\" transform=\"translate({} {}) rotate(-90)\" text-anchor=\"middle\">{}</text>",
-            fmt_pt(font * 1.2), fmt_pt(t + ph / 2.0), xml_escape(&yt)
-        ));
-        for (i, se) in data.series.iter().enumerate() {
-            let colour = spec
-                .style
-                .datasets
-                .iter()
-                .find(|d| d.dataset == se.dataset)
-                .and_then(|d| d.colour.clone())
-                .unwrap_or_else(|| OKABE_ITO[i % OKABE_ITO.len()].to_string());
-            s.push_str(&format!(
-                "<g id=\"series-{}\" fill=\"{}\">",
-                se.dataset,
-                xml_escape(&colour)
-            ));
-            for (x, y) in se.x.iter().zip(&se.y) {
-                let (tx, ty) = (tr(*x, spec.axes.x.scale), tr(*y, spec.axes.y.scale));
-                if tx.is_finite() && ty.is_finite() {
-                    s.push_str(&format!(
-                        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\"/>",
-                        fmt_pt(sx(tx)),
-                        fmt_pt(sy(ty)),
-                        fmt_pt(font * 0.25)
-                    ));
-                }
-            }
-            s.push_str("</g>");
-        }
-        if let Some(title) = &spec.title {
-            s.push_str(&format!("<text id=\"title\" x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-weight=\"600\">{}</text>", fmt_pt(w / 2.0), fmt_pt(font * 1.1), xml_escape(title)));
-        }
-        s.push_str("</svg>");
-        Ok(Rendered {
-            svg: s,
-            width_mm: wmm,
-            height_mm: hmm,
-        })
-    }
-}
-
-/// Compose rendered graphs into a grid page with panel letters.
-pub fn compose_layout(panels: &[Rendered], columns: usize) -> Rendered {
-    let columns = columns.max(1);
-    let cell_w = panels
-        .iter()
-        .map(|p| p.width_mm)
-        .fold(0.0, f64::max)
-        .max(10.0);
-    let cell_h = panels
-        .iter()
-        .map(|p| p.height_mm)
-        .fold(0.0, f64::max)
-        .max(10.0);
-    let rows = panels.len().div_ceil(columns).max(1);
-    let (wmm, hmm) = (
-        cell_w * columns.min(panels.len().max(1)) as f64,
-        cell_h * rows as f64,
-    );
-    let mut s = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}mm\" height=\"{}mm\" viewBox=\"0 0 {} {}\">",
-        fmt_pt(wmm), fmt_pt(hmm), fmt_pt(wmm * PT_PER_MM), fmt_pt(hmm * PT_PER_MM)
-    );
-    for (i, p) in panels.iter().enumerate() {
-        let (cx, cy) = (
-            (i % columns) as f64 * cell_w * PT_PER_MM,
-            (i / columns) as f64 * cell_h * PT_PER_MM,
-        );
-        // Re-anchor the panel's own <svg> at its cell.
-        let inner = p.svg.replacen(
-            "<svg ",
-            &format!("<svg x=\"{}\" y=\"{}\" ", fmt_pt(cx), fmt_pt(cy)),
-            1,
-        );
-        let inner = inner.replacen(
-            &format!(
-                "width=\"{}mm\" height=\"{}mm\"",
-                fmt_pt(p.width_mm),
-                fmt_pt(p.height_mm)
-            ),
-            &format!(
-                "width=\"{}\" height=\"{}\"",
-                fmt_pt(p.width_mm * PT_PER_MM),
-                fmt_pt(p.height_mm * PT_PER_MM)
-            ),
-            1,
-        );
-        s.push_str(&format!("<g id=\"panel-{i}\">{inner}<text x=\"{}\" y=\"{}\" font-family=\"Inter, sans-serif\" font-size=\"10\" font-weight=\"700\">{}</text></g>", fmt_pt(cx + 2.0), fmt_pt(cy + 10.0), crate::util::letters(i)));
-    }
-    s.push_str("</svg>");
+fn from_scene(s: &dioptra_plot::Scene) -> Rendered {
+    let r = dioptra_plot::rendered(s);
     Rendered {
-        svg: s,
-        width_mm: wmm,
-        height_mm: hmm,
+        svg: r.svg,
+        width_mm: r.width_mm,
+        height_mm: r.height_mm,
+        targets: r.targets,
+    }
+}
+
+fn export_scene(s: &dioptra_plot::Scene, format: GraphFormat) -> Result<Exported, String> {
+    match format {
+        GraphFormat::Svg => Ok((dioptra_plot::to_svg(s).into_bytes(), "image/svg+xml", "svg")),
+        GraphFormat::Pdf => Ok((
+            dioptra_plot::to_pdf(s).map_err(|e| e.to_string())?,
+            "application/pdf",
+            "pdf",
+        )),
+        GraphFormat::Png { dpi } => Ok((
+            dioptra_plot::to_png(s, dpi).map_err(|e| e.to_string())?,
+            "image/png",
+            "png",
+        )),
+    }
+}
+
+fn layout_scene(
+    panels: &[(GraphSpec, GraphData)],
+    columns: usize,
+) -> Result<dioptra_plot::Scene, String> {
+    let scenes = panels
+        .iter()
+        .map(|(s, d)| dioptra_plot::scene(s, d).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(dioptra_plot::compose_layout(&scenes, columns, true))
+}
+
+impl Renderer for DioptraRenderer {
+    fn render(&self, spec: &GraphSpec, data: &GraphData) -> Result<Rendered, String> {
+        Ok(from_scene(
+            &dioptra_plot::scene(spec, data).map_err(|e| e.to_string())?,
+        ))
+    }
+
+    fn export(
+        &self,
+        spec: &GraphSpec,
+        data: &GraphData,
+        format: GraphFormat,
+    ) -> Result<Exported, String> {
+        export_scene(
+            &dioptra_plot::scene(spec, data).map_err(|e| e.to_string())?,
+            format,
+        )
+    }
+
+    fn render_layout(
+        &self,
+        panels: &[(GraphSpec, GraphData)],
+        columns: usize,
+    ) -> Result<Rendered, String> {
+        Ok(from_scene(&layout_scene(panels, columns)?))
+    }
+
+    fn export_layout(
+        &self,
+        panels: &[(GraphSpec, GraphData)],
+        columns: usize,
+        format: GraphFormat,
+    ) -> Result<Exported, String> {
+        export_scene(&layout_scene(panels, columns)?, format)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::SubcolumnFormat;
 
-    #[test]
-    fn fallback_draws_points() {
+    fn xy() -> Table {
         let mut t = Table::new(
             "t".into(),
             TableKind::Xy,
@@ -783,15 +556,66 @@ mod tests {
             t.set_cell_raw(r, 0, &format!("{}", r + 1)).unwrap();
             t.set_cell_raw(r, 1, &format!("{}", (r + 1) * 2)).unwrap();
         }
+        t
+    }
+
+    #[test]
+    fn renders_points_with_targets() {
+        let t = xy();
         let spec = GraphSpec::new("t".into(), "scatter");
         let data = extract(&spec, &t);
         assert_eq!(data.series[0].y, vec![2.0, 4.0, 6.0]);
-        let r = FallbackRenderer.render(&spec, &data).unwrap();
+        let r = DioptraRenderer.render(&spec, &data).unwrap();
         assert_eq!(r.svg.matches("<circle").count(), 3);
         assert!(r.svg.contains("id=\"series-0\""));
-        let page = compose_layout(&[r.clone(), r], 2);
+        assert!(r
+            .targets
+            .iter()
+            .any(|t| t.id == "axis-x" && t.target == "/axes/x"));
+        let page = DioptraRenderer
+            .render_layout(&[(spec.clone(), data.clone()), (spec, data)], 2)
+            .unwrap();
         assert_eq!(page.svg.matches("<circle").count(), 6);
-        assert_eq!(page.width_mm, 170.0);
+        assert!((page.width_mm - 170.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn exports_pdf_and_png() {
+        let t = xy();
+        let spec = GraphSpec::new("t".into(), "scatter");
+        let data = extract(&spec, &t);
+        let (pdf, mime, ext) = DioptraRenderer
+            .export(&spec, &data, GraphFormat::Pdf)
+            .unwrap();
+        assert!(pdf.starts_with(b"%PDF-1."));
+        assert_eq!((mime, ext), ("application/pdf", "pdf"));
+        let (png, _, _) = DioptraRenderer
+            .export(&spec, &data, GraphFormat::Png { dpi: 300.0 })
+            .unwrap();
+        assert_eq!(&png[1..4], b"PNG");
+        assert_eq!(u32::from_be_bytes(png[16..20].try_into().unwrap()), 1004);
+    }
+
+    #[test]
+    fn summary_formats_become_error_bars() {
+        let mut t = Table::new(
+            "t".into(),
+            TableKind::Grouped,
+            "T".into(),
+            1,
+            SubcolumnFormat::MeanSdN,
+            1,
+        );
+        t.set_cell_raw(0, 0, "10").unwrap();
+        t.set_cell_raw(0, 1, "2").unwrap();
+        t.set_cell_raw(0, 2, "4").unwrap();
+        let mut spec = GraphSpec::new("t".into(), "column");
+        spec.mapping.error_bars = ErrorBars::Sem;
+        let d = extract(&spec, &t);
+        assert_eq!(d.series[0].y, vec![10.0]);
+        assert_eq!(d.series[0].error, vec![(9.0, 11.0)]);
+        spec.mapping.error_bars = ErrorBars::Sd;
+        assert_eq!(extract(&spec, &t).series[0].error, vec![(8.0, 12.0)]);
     }
 
     #[test]
