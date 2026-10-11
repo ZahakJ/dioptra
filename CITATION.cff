@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use Dioptra in published work, please cite it as below."
+title: "Dioptra: data, statistics and publication graphs without the spreadsheet"
+type: software
+authors:
+  - family-names: "ZahakJ"
+    given-names: ""
+repository-code: "https://github.com/ZahakJ/dioptra"
+url: "https://zahakj.github.io/dioptra/"
+license: MIT
+version: 0.1.0
+date-released: "2026-10-11"
+keywords:
+  - statistics
+  - data analysis
+  - scientific graphics
+  - GraphPad Prism
+abstract: >-
+  Dioptra is a cross-platform desktop application for scientific data: a spreadsheet-like
+  grid with a formula language, a statistical engine tested against NIST StRD certified
+  values and SciPy/statsmodels/lifelines oracles, and a publication-quality plotting engine
+  that exports SVG, PDF and PNG.
