@@ -2,6 +2,7 @@
 // in column mode, the column formula. Enter commits, Escape reverts.
 import { useEffect, useReducer, useRef } from 'react';
 import { FormulaIcon } from '../app/icons';
+import { TableTools } from '../app/tableTools';
 import * as cmd from '../engine/commands';
 import type { TableMeta } from '../engine/types';
 import { mutate } from '../store/sync';
@@ -134,6 +135,7 @@ export function FormulaBar({ meta }: { meta: TableMeta }) {
       {mode === 'column' && column?.formula && (
         <span className="fb-note">Computed for every row</span>
       )}
+      <TableTools tableId={tableId} />
     </div>
   );
 }

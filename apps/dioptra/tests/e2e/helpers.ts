@@ -33,3 +33,32 @@ export async function pasteIntoGrid(page: Page, text: string): Promise<void> {
 }
 
 export const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+/** A column table "Table 1" with three groups of three values (means 2, 5 and 8.1667). */
+export async function threeGroupTable(page: Page): Promise<void> {
+  await newColumnTable(page, 'column');
+  await clickCell(page, 0, 0);
+  await pasteIntoGrid(page, '1\t4\t7\n2\t5\t8\n3\t6\t9.5');
+  await expect(cell(page, 2, 2)).toHaveText('9.5');
+}
+
+/** New graph of the active table in a family, through the Graph tool button. */
+export async function newGraphOf(page: Page, family = 'column'): Promise<void> {
+  await page.getByTestId('tool-graph').click();
+  await expect(page.getByTestId('new-graph-dialog')).toBeVisible();
+  await page.getByTestId(`family-${family}`).click();
+  await page.getByTestId('new-graph-create').click();
+  await expect(page.locator('[data-testid="graph-svg"] svg')).toBeVisible();
+}
+
+/** Whether the engine computes an analysis kind yet (the statistics glue may be pending). */
+export async function analysisImplemented(page: Page, kind: string): Promise<boolean> {
+  return page.evaluate(async (k) => {
+    const d = window.__dioptra!;
+    const p = (await d.dispatch({ type: 'get_project' })) as { items: { id: string; kind: string }[] };
+    const t = p.items.find((i) => i.kind === 'table');
+    if (!t) return false;
+    const r = (await d.dispatch({ type: 'list_analyses', table: t.id, range: null })) as { analyses: { kind: string; implemented: boolean }[] };
+    return !!r.analyses.find((a) => a.kind === k)?.implemented;
+  }, kind);
+}
