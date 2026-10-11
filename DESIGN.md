@@ -236,5 +236,41 @@ language, cloud sync, collaboration, WebGL rendering for >10⁶ points, plugin s
 
 ## 11. Complaint map
 
-_Filled after research/02-complaints.md; each row names the complaint, the answer and the
-plan phase that delivers it._
+Complaints P1–P29 are stated with evidence in `research/02-complaints.md`; K1–K10 there are
+the things people like, kept on purpose. Phases refer to PLAN.md.
+
+| # | Complaint (short) | Dioptra's answer | Phase |
+|---|---|---|---|
+| P1 | Price and subscription licensing | MIT licence, free binaries for every platform, no account | 7 |
+| P2 | Effect sizes and formulas locked behind tiers | Effect sizes with CIs in every results sheet; formulas on every table | 2, 3 |
+| P3 | No Linux | AppImage, deb and rpm built on every release; developed on Linux | 7 |
+| P4 | Windows and Mac differ | One Rust engine and one UI; the same SVG/PDF/PNG bytes on every OS (bundled fonts) | 4 |
+| P5 | Excel round trips corrupt data (gene names to dates) | No Excel step: paste raw text; text is kept as text, never coerced; import reads cell values, not display | 3 |
+| P6 | Paste copies displayed, rounded values | Full precision stored; display decimals are a column property; `v` and `d` are separate in the viewport | 3 |
+| P7 | Contingency/survival tables rewrite "1.23" as "123" | Tables never rewrite; the analysis validates and says what it expected | 3 |
+| P8 | Direct Excel import fragile and Windows-only | Pure-Rust XLSX/XLS/ODS reader, same on every OS and in the browser build | 3 |
+| P9 | Choosing the table format is hard | Kinds are explained in one sentence each with a sketch; `ImportText` suggests a kind from the data; Variables is the safe default | 5 |
+| P10 | Replicates laid out differently per table | Transforms convert between layouts (stack, pivot, average replicates) with the recipe stored | 3 |
+| P11 | Long/tidy data must be reshaped by hand | Variables tables are first-class; pivot long↔wide is a one-command derived table | 3 |
+| P12 | No formulas where expected | Column and cell formulas in a formula bar, dependency tracked, recomputed on edit | 3 |
+| P13 | Missing values break designs | Missing is a value; analyses state how they handle it (listwise, mixed-model deferred) rather than failing silently | 2, 3 |
+| P14 | P-hacking by dialog | Every analysis is an object in the project and in `history.jsonl`; tried-and-deleted analyses stay in the log | 3 |
+| P15 | Assumptions documented, not checked | Assumption checks run with the analysis, shown first, with the alternative offered | 2, 5 |
+| P16 | Asterisks and "significant" as default | Default p-value style APA with exact values; summary sentence leads with estimate and CI; asterisks optional | 3, 5 |
+| P17 | Methods under-reported | Results sheets include a methods sentence (test, factors, correction, software version) ready to paste | 3 |
+| P18 | Estimation came late and only for t tests | Estimation plots and bootstrap CIs for t tests and one-way designs in v0.1 | 2, 4 |
+| P19 | Hierarchical data analysed as independent | Nested tables plot the biological replicate by default; analyses on nested tables average within unit and say so | 2, 4 |
+| P20 | No scripted record | History log, formulas, specs in JSON; `dioptra` CLI re-runs a project file | 3, 6 |
+| P21 | Opaque file format | `.dioptra` is documented JSON in a zip (docs/FILE-FORMAT.md) | 3 |
+| P22 | Version lock-in | Format versioned, readers open every older version; export to CSV/XLSX always | 3 |
+| P23 | No version control | Pretty-printed, stable-ordered JSON diffs after `unzip`; history is line-oriented | 3 |
+| P24 | Collaboration is file passing | Open format makes git-based collaboration possible; realtime sync deferred (docs/DEFERRED.md) | — |
+| P25 | Export needs Illustrator workarounds | Clean SVG with real text, PDF with embedded subset fonts, no clipping masks, no invisible objects | 4 |
+| P26 | Figures finished elsewhere | Typographic control in points and mm, journal width presets, multi-panel layouts in the app | 4, 5 |
+| P27 | Limited colour and theme control | Designed themes, colour-blind-safe palettes, per-dataset overrides, light and dark | 4 |
+| P28 | Modern distribution plots late, bars default | Violin, raincloud, estimation, before-after and SuperPlot-style nested points in v0.1; column graphs show points by default | 4 |
+| P29 | Slow or unstable with large tables | Columnar f64 storage, viewport fetches, 10⁶-cell paste under 1.5 s, measured in docs/PERFORMANCE.md | 3 |
+
+Kept from Prism (K1–K10): guided analyses by table kind, results linked to data and
+recomputed on change, publication-quality defaults, analysis checklists, graphs that follow
+the data, one file for data + analyses + graphs.
