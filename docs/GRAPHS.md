@@ -109,7 +109,7 @@ Notes:
 
 | Field | Default | Used by |
 |---|---|---|
-| `summary` | `mean` | column, strip, superplot, before_after (`mean` or `median`) |
+| `summary` | `mean` | column, strip, box (`both` lines), superplot (`mean` or `median`) |
 | `arrangement` | `grouped` | column on grouped tables (`grouped`, `stacked`, `percent`) |
 | `connect` | `false` | scatter: join points |
 | `notch` | `false` | box |
@@ -119,7 +119,7 @@ Notes:
 | `bin_width`, `bins` | Freedman–Diaconis | histogram |
 | `density` | `false` | histogram: density instead of counts |
 | `jitter` | `0.5` | column, box, strip, raincloud, estimation, superplot |
-| `mean_line` | `true` | before_after |
+| `mean_line` | `true` | the retired `before_after` family (read when a 1.0 file is migrated) |
 | `bootstrap`, `seed` | `5000`, `20261011` | estimation (and the jitter phase) |
 | `cluster_rows`, `cluster_columns` | `false` | heatmap |
 | `cell_values` | `false` | heatmap |
@@ -127,6 +127,39 @@ Notes:
 | `fc_threshold`, `p_threshold`, `label_top` | `1`, `0.05`, `5` | volcano |
 | `reference` | 0 (1 on log axes) | forest |
 | `donut_hole` | `0.55` | donut |
+| `connecting` | off | column, strip, box, violin: connecting lines (below) |
+| `orientation` | `vertical` | column, strip, box, violin (`vertical`, `horizontal`; `axes.y` stays the value axis) |
+| `error_direction` | `both` | column, strip (`both`, `above`, `below`) |
+| `cap_pt` | family default (5 or 6) | column, strip: error-bar cap width in points, 0 for none |
+| `bar_width` | family default | column, strip (summary line), box, violin: width as a fraction of the slot |
+| `group_width` | `0.84` | column, strip, box, violin: slot width as a fraction of the category spacing |
+| `bar_fill` | `tint` | column (`tint`, `solid`, `empty`) |
+| `summary_line` | `true` | strip: draw the mean or median line |
+
+Per data set, `style.datasets[].pattern` draws a fill pattern over bars: `hatch`,
+`back_hatch`, `crosshatch`, `horizontal`, `vertical`, `dots`. Patterns are clipped strokes,
+so SVG, PDF and PNG carry the same geometry.
+
+### Connecting lines (`options.connecting`)
+
+| Field | Default | Meaning |
+|---|---|---|
+| `connect` | `none` | `individuals` (a line per row), `means`, `medians`, `both` (subjects and the graph's `summary`) |
+| `style` | `solid` | subject lines: `solid`, `dashed`, `dotted`, `dash_dot`, `none` |
+| `width_pt` | theme axis width | subject line width |
+| `colour_by` | `single` | `single` (`colour`, or the axis colour), `dataset` (each segment the colour of the bar it leaves), `subject` (each row from `palette`), `group` (rows coloured by the values of table data set `group_column`, with a legend; that column is not plotted) |
+| `opacity` | `0.55` | subject line opacity |
+| `missing` | `gap` | `gap`: a missing value breaks the line; `skip`: join the values either side |
+| `direction` | `within_groups` | grouped tables: subcolumn k of each data set in a group is subject k (`within_groups`), or each data set's subcolumn k is joined across the groups (`across_groups`, Prism's "each replicate") |
+| `summary_style`, `summary_width_pt`, `summary_colour` | solid, 2 × data width, axis colour | the mean or median line (on `across_groups`, the data set's colour) |
+
+Subjects are matched by row, as in Prism. Lines attach to the jittered point positions, so
+lines and points always meet; with `jitter: 0` the points sit on the category centre (the
+aligned before–after look). Drawing order: bars, boxes or violins; subject lines; points and
+error bars; the summary line. Lines are cut where they cross an axis break. Stacked bars draw
+no lines. Each subject line is an editor target (`subject-<row>`, `subject-g<group>-<row>` or
+`subject-s<data set>-<row>`) pointing at `/options/connecting`; the summary line is
+`connect-summary`.
 
 ## Families
 
@@ -150,7 +183,8 @@ As scatter with every series joined by a line in its line style, markers on.
 Bars of the mean or median with error bars and the points on top (default). Column
 tables give one bar per dataset; grouped tables give clusters by row with a legend;
 `arrangement` stacks them or scales stacks to 100%. On log Y axes bars start at the
-axis. Dark bars get upward error bars only.
+axis. Dark bars get upward error bars only. `connecting` joins each row's points across
+the bars and/or the means; `orientation: horizontal` lays the bars sideways.
 `{"source": "t2", "family": "column", "mapping": {"error_bars": "sd", "points": true}}`
 
 ### box
@@ -172,10 +206,13 @@ mean or median line and error bars.
 Half violin (cloud), slim box and jittered points (rain) per category.
 `{"source": "t2", "family": "raincloud"}`
 
-### before_after
-Paired values: each row is a subject joined across datasets by a grey line; the mean (or
-median) is a heavy line. Rows must align (column tables keep empty cells in place).
-`{"source": "t3", "family": "before_after", "options": {"mean_line": true}}`
+### before_after (retired)
+Format 1.0's paired family. A spec naming it is drawn, and on open migrated, as the `strip`
+spec with the same picture: `jitter: 0`, no error bars, no summary tick,
+`connecting.connect: individuals` (or `both` when `mean_line` was on). New graphs use the
+`paired` preset (column bars with subject lines) or the `before_after` preset, both of which
+`create_graph` accepts as family names.
+`{"source": "t3", "family": "column", "options": {"jitter": 0, "connecting": {"connect": "individuals"}}}`
 
 ### estimation
 Gardner–Altman: raw data with mean ± SD as a gapped line beside each group; on the

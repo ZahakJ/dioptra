@@ -146,7 +146,16 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
         kind: table.kind,
         ..Default::default()
     };
-    let wanted = |i: usize| spec.mapping.datasets.is_empty() || spec.mapping.datasets.contains(&i);
+    // A column that holds subject groups for connecting lines is not plotted itself.
+    let group_col = spec
+        .options
+        .connecting
+        .group_column
+        .filter(|_| spec.options.connecting.colour_by == ConnectColour::Group);
+    let wanted = |i: usize| {
+        (spec.mapping.datasets.is_empty() || spec.mapping.datasets.contains(&i))
+            && Some(i) != group_col
+    };
     // Forest plots show confidence intervals whatever the error-bar setting says.
     let eb = if spec.family == "forest" {
         ErrorBars::Ci95
@@ -324,6 +333,12 @@ pub fn extract(spec: &GraphSpec, table: &Table) -> GraphData {
         }
         _ => {
             // Column, Nested and Variables without an X: one category per dataset.
+            // Subject groups for connecting lines coloured by a column.
+            if let Some(gc) = group_col {
+                if let Some(c) = table.datasets.get(gc).and_then(|d| d.subcolumns.first()) {
+                    d.row_groups = (0..rows).map(|r| text_or_value(c, r)).collect();
+                }
+            }
             let nested = table.kind == TableKind::Nested;
             let mut max_sub = 0;
             for (i, ds) in table

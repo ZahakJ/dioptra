@@ -58,8 +58,8 @@ function AnalysisSection({ ctx }: { ctx: InspectorContext }) {
         <Button size="sm" onClick={() => void editAnalysisOptions(item.id)} testId="insp-analysis-options">
           Options…
         </Button>
-        <Button size="sm" onClick={() => void makeGraphFromAnalysis(item.id)}>
-          Make graph
+        <Button size="sm" onClick={() => void makeGraphFromAnalysis(item.id)} testId="insp-make-graph" tipText={sheet?.graph_family === 'paired' ? 'Bars of the mean with a line joining each subject’s values' : undefined}>
+          {sheet?.graph_family === 'paired' ? 'Graph with connecting lines' : 'Make graph'}
         </Button>
       </div>
     </div>

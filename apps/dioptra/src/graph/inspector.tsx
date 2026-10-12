@@ -16,13 +16,25 @@ import {
   MARKERS,
   PALETTES,
   paletteColours,
+  PRESETS,
   SIZE_PRESETS,
   THEMES,
 } from './families';
 import { CheckField, ColourField, NumField, Row, SelectField, TextField } from './fields';
-import { selectedPointer, setGraphValue, useGraph } from './store';
+import { graphState, selectedPointer, setGraphValue, useGraph } from './store';
 import { describeTarget } from './targets';
+import { BarFields, BarsSection, ConnectingFields, ConnectingSection, isCategorical } from './connecting';
 import { PlusIcon } from '../app/icons';
+
+const PATTERNS = [
+  { value: 'none', label: 'None' },
+  { value: 'hatch', label: 'Diagonal ／' },
+  { value: 'back_hatch', label: 'Diagonal ＼' },
+  { value: 'crosshatch', label: 'Crosshatch' },
+  { value: 'horizontal', label: 'Horizontal lines' },
+  { value: 'vertical', label: 'Vertical lines' },
+  { value: 'dots', label: 'Dots' },
+];
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -61,6 +73,8 @@ function SelectionSection({ ctx }: { ctx: InspectorContext }) {
   else if (pointer === '/legend') body = <LegendFields graph={id} spec={spec} />;
   else if (pointer === '/axes/frame' || pointer === '/axes/grid') body = <FrameFields graph={id} spec={spec} />;
   else if (pointer === '/style/palette') body = <PaletteField graph={id} spec={spec} />;
+  else if (pointer.startsWith('/options/connecting')) body = <ConnectingFields graph={id} spec={spec} meta={meta} />;
+  else if (pointer.startsWith('/options') && isCategorical(spec)) body = <BarFields graph={id} spec={spec} />;
   else body = <MappingFields graph={id} spec={spec} />;
   return (
     <div className="g-sel" data-testid="graph-selection" data-target={pointer}>
@@ -81,7 +95,8 @@ function GraphSection({ ctx }: { ctx: InspectorContext }) {
   const meta = useSourceMeta(spec);
   if (!spec) return null;
   const s = spec.style.size_mm;
-  const families = familiesFor(meta?.kind);
+  // Presets make new graphs; an existing graph switches between real families.
+  const families = familiesFor(meta?.kind).filter((f) => !PRESETS.includes(f));
   const fam = families.includes(spec.family) ? families : [spec.family, ...families];
   return (
     <div className="g-list">
@@ -394,6 +409,17 @@ function DatasetFields({ graph, spec, dataset, meta }: { graph: Id; spec: GraphS
         />
       </Row>
       <NumField graph={graph} path="" value={style.line_pt} label="Line width" unit="pt" min={0.1} max={10} placeholder="Theme" onCommit={(v) => set({ line_pt: v ?? undefined })} />
+      {(spec.family === 'column' || spec.family === 'bar') && (
+        <Row label="Pattern">
+          <Select
+            label="Fill pattern"
+            testId="ds-pattern"
+            value={style.pattern ?? 'none'}
+            options={PATTERNS}
+            onChange={(v) => set({ pattern: v === 'none' ? undefined : (v as DatasetStyle['pattern']) })}
+          />
+        </Row>
+      )}
       <DatasetLabel value={style.label} placeholder={names[k]?.name ?? ''} onCommit={(v) => set({ label: v || undefined })} />
     </div>
   );
@@ -610,9 +636,18 @@ function ExportSection({ ctx }: { ctx: InspectorContext }) {
   );
 }
 
+function ConnectingSectionWithMeta({ ctx }: { ctx: InspectorContext }) {
+  const { spec } = useGraph(ctx.item!.id);
+  const meta = useSourceMeta(spec);
+  return <ConnectingSection ctx={ctx} meta={meta} />;
+}
+
 export function registerGraphInspector(): void {
   registerInspectorSection({ id: 'graph-selection', title: 'Selected', order: 40, when: isGraph, component: SelectionSection });
   registerInspectorSection({ id: 'graph', title: 'Graph', order: 42, when: isGraph, component: GraphSection });
+  const categorical = (c: InspectorContext) => isGraph(c) && isCategorical(graphState(c.item!.id).spec);
+  registerInspectorSection({ id: 'graph-connecting', title: 'Connecting lines', order: 43, when: categorical, component: ConnectingSectionWithMeta });
+  registerInspectorSection({ id: 'graph-bars', title: 'Bars and points', order: 43.5, when: categorical, component: BarsSection, collapsed: true });
   registerInspectorSection({ id: 'graph-axes', title: 'Axes', order: 44, when: isGraph, component: AxesSection, collapsed: true });
   registerInspectorSection({ id: 'graph-datasets', title: 'Data sets', order: 46, when: isGraph, component: DatasetsSection, collapsed: true });
   registerInspectorSection({ id: 'graph-legend', title: 'Legend', order: 48, when: isGraph, component: LegendSection, collapsed: true });

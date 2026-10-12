@@ -12,6 +12,7 @@
     - [Analysis reference](analyses/reference.md)
     - [Methods and references](analyses/METHODS.md)
 - [Graphs](graphs/editor.md)
+    - [Connecting lines and paired graphs](graphs/connecting-lines.md)
     - [Graph reference](graphs/reference.md)
 - [File format](file-format.md)
 - [Correctness](correctness.md)

@@ -579,9 +579,9 @@ fn paired(ctx: &AnalysisContext<'_>, spec: &TTestSpec) -> Result<ResultsSheet, S
         g(my),
         g(sy)
     ));
-    let mut ag = graph_for("before_after", &[ka, kb]);
+    let mut ag = graph_for("paired", &[ka, kb]);
     add_bracket(&mut ag, ka, kb, r.p_two_sided);
-    s.graph_family = Some("before_after".into());
+    s.graph_family = Some("paired".into());
     s.graph = Some(ag);
     Ok(s)
 }

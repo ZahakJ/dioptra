@@ -64,6 +64,8 @@ pub struct Cats {
     pub clustered: bool,
     /// Number of series.
     pub k: usize,
+    /// Width of each category's slot as a fraction of the category spacing.
+    pub total: f64,
 }
 
 impl Cats {
@@ -113,6 +115,7 @@ impl Cats {
             labels,
             clustered,
             k: data.series.len().max(1),
+            total: 0.84,
         }
     }
 
@@ -124,13 +127,22 @@ impl Cats {
     /// Centre and width of the slot of series `j` at X value `x`.
     pub fn slot(&self, j: usize, x: f64) -> Option<(f64, f64)> {
         let c = self.index(x)?;
+        let total = self.total;
         if self.clustered && self.k > 1 {
-            let total = 0.84;
             let w = total / self.k as f64;
             Some((c - total / 2.0 + w * (j as f64 + 0.5), w))
         } else {
-            Some((c, 0.84))
+            Some((c, total))
         }
+    }
+
+    /// Categories with the slot width a spec asks for (`options.group_width`).
+    pub fn for_spec(data: &GraphData, spec: &crate::spec::GraphSpec) -> Cats {
+        let mut c = Cats::of(data);
+        if let Some(w) = spec.options.group_width.filter(|w| w.is_finite()) {
+            c.total = w.clamp(0.2, 1.0);
+        }
+        c
     }
 }
 
@@ -183,6 +195,42 @@ pub fn jitter(values: &[f64], half: f64, seed: u64) -> Vec<f64> {
         out[i] = (u - 0.5) * 2.0 * half * dens * spread;
     }
     out
+}
+
+/// Row-aligned jitter offsets: the offsets [`jitter`] gives the finite values (in row
+/// order), put back in their rows; missing rows get 0. Points and connecting lines both
+/// read these, so a line always meets its point.
+pub fn row_jitter(raw: &[f64], half: f64, seed: u64) -> Vec<f64> {
+    let finite: Vec<f64> = raw.iter().copied().filter(|v| v.is_finite()).collect();
+    let off = jitter(&finite, half, seed);
+    let mut it = off.into_iter();
+    raw.iter()
+        .map(|v| {
+            if v.is_finite() {
+                it.next().unwrap_or(0.0)
+            } else {
+                0.0
+            }
+        })
+        .collect()
+}
+
+/// Row-aligned values of a series at X index `i` (NaN kept): the replicates, or the
+/// single Y value.
+pub fn row_values(s: &Series, i: usize) -> Vec<f64> {
+    match s.replicates.get(i) {
+        Some(r) => r.clone(),
+        None => s.y.get(i).copied().into_iter().collect(),
+    }
+}
+
+/// Error bounds trimmed to the halves `options.error_direction` asks for, around `c`.
+pub fn directed(lo: f64, hi: f64, c: f64, d: crate::spec::ErrorDirection) -> (f64, f64) {
+    match d {
+        crate::spec::ErrorDirection::Both => (lo, hi),
+        crate::spec::ErrorDirection::Above => (c, hi),
+        crate::spec::ErrorDirection::Below => (lo, c),
+    }
 }
 
 /// A layer for series `i` (editor target: its dataset style).

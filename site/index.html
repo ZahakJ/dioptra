@@ -222,16 +222,24 @@
           <h2 id="pub-title">The figure on screen is the file you send</h2>
         </header>
         <div class="prose figure-row">
+          <div class="plot-pair">
           <figure class="plot">
             <img src="assets/figure-estimation.png" width="669" height="551" loading="lazy"
                  alt="An estimation plot exported from Dioptra: grip strength of control and treated groups as points, and the mean difference of about 11 newtons with its bootstrap 95% confidence interval on a second axis.">
             <figcaption>An estimation plot as exported: both groups' points and the mean difference with its bootstrap 95% CI.</figcaption>
           </figure>
+          <figure class="plot">
+            <img src="assets/figure-connecting.png" width="669" height="551" loading="lazy"
+                 alt="Systolic pressure of ten subjects at baseline, week 4 and week 8 as bars of the mean with SEM, each subject's three points joined by a thin grey line and the means joined by a heavy line; one subject's line is missing where a visit was missed.">
+            <figcaption>Paired data drawn as pairs: bars of the mean, a line per subject across the bars, and the mean line.</figcaption>
+          </figure>
+          </div>
           <ul class="checks">
             <li><strong>SVG and PDF that stay editable.</strong> Real text, named layers, no clipping masks; PDF embeds its fonts. PNG at any resolution.</li>
             <li><strong>Millimetres and points.</strong> 85 mm for a single column, 174 mm for a double; type and lines in points.</li>
             <li><strong>The same bytes everywhere.</strong> Fonts are bundled, so a figure made on Linux is identical on a Mac.</li>
             <li><strong>Colour-blind-safe palettes.</strong> Okabe–Ito by default; Tol, viridis and cividis besides. Points shown on every column graph.</li>
+            <li><strong>Connecting lines.</strong> On bar, dot, box and violin graphs: a line per subject, the means or medians, coloured by subject or group; the default graph of every paired test.</li>
             <li><strong>Twenty-three families.</strong> Violin, raincloud, estimation, before–after, SuperPlot, Kaplan–Meier, volcano, forest and more, in three themes.</li>
           </ul>
         </div>

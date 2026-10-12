@@ -81,7 +81,15 @@ pub fn bracket_text(p: f64, style: PValueStyle) -> String {
 fn categorical(family: &str) -> bool {
     matches!(
         family,
-        "column" | "bar" | "box" | "violin" | "strip" | "raincloud" | "before_after" | "superplot"
+        "column"
+            | "bar"
+            | "box"
+            | "violin"
+            | "strip"
+            | "raincloud"
+            | "before_after"
+            | "paired"
+            | "superplot"
     )
 }
 

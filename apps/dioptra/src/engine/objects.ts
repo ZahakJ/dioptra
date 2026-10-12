@@ -92,6 +92,7 @@ export interface DatasetStyle {
   line_style?: 'solid' | 'dashed' | 'dotted' | 'dash_dot' | 'none';
   line_pt?: number;
   label?: string;
+  pattern?: 'none' | 'hatch' | 'back_hatch' | 'crosshatch' | 'horizontal' | 'vertical' | 'dots';
 }
 
 export type Annotation =

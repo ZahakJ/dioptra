@@ -11,7 +11,7 @@ import type { Annotation, GraphSpecT } from '../engine/objects';
 import type { Id, JsonValue, Target } from '../engine/types';
 import { useTableMeta } from '../store/table';
 import { addBracket, addReferenceLine, addText, customSize, exportGraphDialog, sourceTableId, tableMeta } from './actions';
-import { ERROR_BARS, familiesFor, familyName, PALETTES, paletteColours, SIZE_PRESETS, THEMES } from './families';
+import { ERROR_BARS, familiesFor, familyName, PALETTES, PRESETS, paletteColours, SIZE_PRESETS, THEMES } from './families';
 import { getPath } from './patch';
 import { loadGraph, listenForGraphChanges, selectTarget, setGraphValue, setZoom, useGraph, type Zoom } from './store';
 import { axisMap, moveBy, tidy } from './svgAxes';
@@ -49,7 +49,7 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
     if (t && !meta) void tableMeta(t);
   }, [spec, meta]);
   if (!spec) return <div className="graph-toolbar" />;
-  const families = familiesFor(meta?.kind);
+  const families = familiesFor(meta?.kind).filter((f) => !PRESETS.includes(f));
   const fam = families.includes(spec.family) ? families : [spec.family, ...families];
   const s = spec.style.size_mm;
   const preset = SIZE_PRESETS.find((p) => p.width === s.width && p.height === s.height);

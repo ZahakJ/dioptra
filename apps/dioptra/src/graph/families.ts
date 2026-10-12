@@ -5,11 +5,12 @@ export const FAMILY_NAMES: Record<string, string> = {
   scatter: 'Scatter (XY)',
   line: 'Line',
   column: 'Column (bar)',
+  paired: 'Bars with connecting lines',
   box: 'Box',
   violin: 'Violin',
   strip: 'Strip (points)',
   raincloud: 'Raincloud',
-  before_after: 'Before–after',
+  before_after: 'Before–after (points)',
   estimation: 'Estimation',
   superplot: 'SuperPlot',
   histogram: 'Histogram',
@@ -28,15 +29,23 @@ export const FAMILY_NAMES: Record<string, string> = {
 };
 
 const BY_KIND: Record<TableKind, string[]> = {
-  column: ['column', 'box', 'violin', 'strip', 'raincloud', 'before_after', 'estimation', 'histogram', 'density', 'qq', 'roc', 'bland_altman', 'pie', 'donut'],
+  column: ['column', 'paired', 'box', 'violin', 'strip', 'raincloud', 'before_after', 'estimation', 'histogram', 'density', 'qq', 'roc', 'bland_altman', 'pie', 'donut'],
   xy: ['scatter', 'line', 'residuals'],
-  grouped: ['column', 'box', 'strip', 'heatmap', 'forest'],
+  grouped: ['column', 'paired', 'box', 'strip', 'heatmap', 'forest'],
   contingency: ['column', 'heatmap', 'pie', 'donut'],
   survival: ['kaplan_meier'],
   parts: ['pie', 'donut', 'column'],
   variables: ['scatter', 'correlation_matrix', 'heatmap', 'volcano', 'histogram', 'density', 'box', 'column', 'qq', 'forest'],
   nested: ['superplot', 'column', 'box', 'strip'],
 };
+
+/**
+ * Presets offered beside the families when a graph is made. They create ordinary specs:
+ * `paired` is a column graph with a line per subject, `before_after` a strip graph of
+ * unjittered points joined per subject with the mean line (connecting lines are options of
+ * the column, strip, box and violin families, not families of their own).
+ */
+export const PRESETS = ['paired', 'before_after'];
 
 /** Families that draw a table of this kind, the natural one first. */
 export function familiesFor(kind: TableKind | string | undefined): string[] {
@@ -61,7 +70,7 @@ export function familyForAnalysis(kind: string): string {
     case 'wilcoxon':
     case 'repeated_measures_anova':
     case 'friedman':
-      return 'before_after';
+      return 'paired';
     case 'correlation':
     case 'linear_regression':
     case 'nonlinear_regression':

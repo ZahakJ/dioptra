@@ -21,7 +21,31 @@ The theme is designs that 0.1 cannot analyse properly.
   regression interface.)
 - **Interpolation from standard curves**, area under the curve, and row statistics.
 
-## Version 0.3: extension and scale
+## Shipped in 0.3.0: connecting lines and the bar-graph pass
+
+Prism's before–after lines, "connect each replicate" and summary connecting lines, as an
+option of every categorical graph rather than a family of its own (research:
+`research/06-connecting-lines.md`).
+
+- **Connecting lines** on column, strip (dot plot, mean ± error), box and violin graphs:
+  subjects (rows), means, medians or both; style, width, opacity; one colour, by data set,
+  per subject from a palette, or by a grouping column with a legend; gap or join across a
+  missing value; within groups or across groups on grouped tables; lines attached to the
+  jittered points; cut at axis breaks; each subject line selectable in the editor.
+- **Paired analyses graph with connecting lines by default** (paired and ratio-paired t,
+  Wilcoxon, repeated-measures ANOVA, Friedman).
+- Closed while comparing with Prism's column and grouped Format Graph:
+  **horizontal orientation** (column, strip, box, violin), **error-bar direction** (both,
+  above, below) and **cap width**, **bar width** and **slot width** (the gap between bars
+  and between groups), **bar fill** (tint, solid, outline), **fill patterns** per data set,
+  **open markers** on column graphs (they were drawn filled), the **strip graph without points**
+  (mean ± SD/SEM/CI only) and **without its mean line**, and a **Bars and points** inspector
+  section for options that had no control (summary, jitter).
+- File format 1.1 with a migration for the retired `before_after` family.
+
+Deferred from this pass, with reasons, in the table below.
+
+## Version 0.4: extension and scale
 
 - **A scripting surface** (Python or Lua) once the analysis API has been stable for a
   release.
@@ -46,6 +70,15 @@ The theme is designs that 0.1 cannot analyse properly.
 | Plugin system | Premature before the analysis API settles | Version 0.3 |
 | System font picker in figures | Bundled Inter keeps output identical on every system | The interface work |
 | Localised interface | English only so far | Translators |
+| Arrowheads on connecting lines | Prism offers them; needs a marker primitive in the scene and in the PDF path | A request |
+| "Leave gap at symbols" for connecting lines | Points are drawn over the lines, which reads the same at journal sizes | A case where it does not |
+| Geometric mean as a summary and for summary lines | Needs a log-scale summary through extraction, error bars and the inspector together | A request |
+| Different styles per data set on one graph (bars for A, dots for B) | Families draw every data set alike; mixing needs per-data-set family overrides | Real figures that need it |
+| Fill patterns on boxes and violins | Boxes and notched boxes are polygons; patterns are clipped to rectangles today | Clipping to polygons |
+| Space before the first and after the last category, space for blank cells | `group_width` covers the gap between categories | A request |
+| Labels of points by row title on before–after graphs | Callouts exist for scatter and volcano; categorical families do not use them yet | A request |
+| Error-bar cap styles beyond a width (Prism's short/long) and error-bar line style | `cap_pt` covers the width; a dashed error bar is rare | A request |
+| Axis origin options beyond "at the edges" and "at zero" | Prism also offers "custom" crossing points | A request |
 
 Suggestions are welcome as GitHub issues. A request that comes with a data set and the
 answer another program gives is the easiest kind to act on.

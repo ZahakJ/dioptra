@@ -17,7 +17,9 @@ detail, and the specification format.
   one for the table kind: scatter for XY, Kaplan–Meier for survival, SuperPlot for nested,
   column with points for the others.
 - From a results sheet: **Make graph**. Brackets for the comparisons, fitted curves and
-  their confidence bands come from the analysis and stay linked to it.
+  their confidence bands come from the analysis and stay linked to it. Paired and
+  repeated-measures analyses offer **Graph with connecting lines**: bars with a line per
+  subject ([Connecting lines and paired graphs](connecting-lines.md)).
 
 A column graph shows every data point by default, with the error bar you choose (SD, SEM,
 95% CI, range or IQR). A bar alone hides the distribution: two groups with the same mean

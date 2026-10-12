@@ -1,11 +1,11 @@
 //! Graph families. Each module turns the spec and data into a [`crate::plot::Plot`]
 //! (or, for pie and donut, a scene directly).
 
-pub mod before_after;
 pub mod bland_altman;
 pub mod boxplot;
 pub mod column;
 pub mod common;
+pub mod connect;
 pub mod density;
 pub mod estimation;
 pub mod forest;
@@ -66,7 +66,15 @@ pub fn build(ctx: &Ctx<'_>) -> Option<Scene> {
         "violin" => violin::plot(ctx),
         "strip" => strip::plot(ctx),
         "raincloud" => raincloud::plot(ctx),
-        "before_after" => before_after::plot(ctx),
+        "before_after" => {
+            // The retired family (format 1.0) is drawn as the strip spec it became.
+            let mut spec = ctx.spec.clone();
+            spec.upgrade_legacy();
+            let legacy = Ctx::new(&spec, ctx.data);
+            let mut plot = strip::plot(&legacy);
+            plot.layers.extend(annotation_layers(&legacy));
+            return Some(render(&legacy, plot));
+        }
         "estimation" => estimation::plot(ctx),
         "superplot" => superplot::plot(ctx),
         "histogram" => histogram::plot(ctx),

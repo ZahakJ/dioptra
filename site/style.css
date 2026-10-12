@@ -433,6 +433,14 @@ h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.005em; }
 /* ---- Publication ---- */
 
 .figure-row { max-width: none; }
+.plot-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.plot-pair .plot { margin: 0; max-width: none; }
+.plot-pair .plot img { width: 100%; height: auto; }
 .plot {
   margin: 0 0 24px;
   max-width: 420px;

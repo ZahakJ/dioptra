@@ -277,6 +277,31 @@ pub struct DatasetStyle {
     /// Legend label.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// Fill pattern drawn over bars and boxes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pattern: Option<FillPattern>,
+}
+
+/// A fill pattern for bars and boxes, drawn as clipped strokes so SVG, PDF and PNG carry
+/// the same geometry (no SVG `<pattern>` element).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FillPattern {
+    /// No pattern.
+    #[default]
+    None,
+    /// Diagonal lines rising to the right (`/`).
+    Hatch,
+    /// Diagonal lines falling to the right (`\`).
+    BackHatch,
+    /// Both diagonals.
+    Crosshatch,
+    /// Horizontal lines.
+    Horizontal,
+    /// Vertical lines.
+    Vertical,
+    /// A grid of dots.
+    Dots,
 }
 
 /// Visual style of a graph. Fields left out are supplied by the theme.
@@ -403,6 +428,175 @@ pub enum ViolinInner {
     None,
 }
 
+/// What connecting lines join on column, strip, box and violin graphs (Prism's
+/// before–after lines and "connect means").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Connect {
+    /// No connecting lines.
+    #[default]
+    None,
+    /// One line per subject: the values of a row (Prism's convention) joined across the
+    /// categories, drawn beneath the points.
+    Individuals,
+    /// The means joined across the categories, drawn above everything else.
+    Means,
+    /// The medians joined across the categories.
+    Medians,
+    /// Subject lines and the summary line (mean, or median when the graph's summary is
+    /// the median).
+    Both,
+}
+
+impl Connect {
+    /// Whether subject lines are drawn.
+    pub fn individuals(self) -> bool {
+        matches!(self, Connect::Individuals | Connect::Both)
+    }
+}
+
+/// How subject lines are coloured.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectColour {
+    /// One colour for every line (`colour`, or the axis colour).
+    #[default]
+    Single,
+    /// Each segment takes the colour of the data set it starts from.
+    Dataset,
+    /// Each subject (row) its own colour from `palette`.
+    Subject,
+    /// Subjects coloured by the value of a grouping column (`group_column`), with a legend.
+    Group,
+}
+
+/// What a missing value does to a line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MissingLines {
+    /// Leave a gap where a value is missing.
+    #[default]
+    Gap,
+    /// Join the values on either side of the missing one.
+    Skip,
+}
+
+/// Which way lines run on grouped graphs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectDirection {
+    /// Within each group (row), across its data sets: subcolumn k of every data set is
+    /// subject k.
+    #[default]
+    WithinGroups,
+    /// Across the groups, separately for each data set: Prism's "connect each replicate".
+    AcrossGroups,
+}
+
+/// Connecting lines.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ConnectingLines {
+    /// What is joined.
+    pub connect: Connect,
+    /// Subject line style.
+    pub style: LineStyle,
+    /// Subject line width in points (`None`: the theme's axis width).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width_pt: Option<f64>,
+    /// Subject line colouring.
+    pub colour_by: ConnectColour,
+    /// Colour for `single` (`#rrggbb`; `None`: the axis colour).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub colour: Option<String>,
+    /// Palette for `subject` and `group` (`None`: the graph's palette).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub palette: Option<String>,
+    /// Table data set holding the subject groups for `group` (column tables).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_column: Option<usize>,
+    /// Opacity of subject lines (0–1).
+    pub opacity: f64,
+    /// Missing values.
+    pub missing: MissingLines,
+    /// Direction on grouped graphs.
+    pub direction: ConnectDirection,
+    /// Summary line style.
+    pub summary_style: LineStyle,
+    /// Summary line width in points (`None`: twice the theme's data width).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_width_pt: Option<f64>,
+    /// Summary line colour (`None`: the axis colour, or the data set's on grouped graphs
+    /// joined across groups).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_colour: Option<String>,
+}
+
+impl Default for ConnectingLines {
+    fn default() -> Self {
+        ConnectingLines {
+            connect: Connect::None,
+            style: LineStyle::Solid,
+            width_pt: None,
+            colour_by: ConnectColour::Single,
+            colour: None,
+            palette: None,
+            group_column: None,
+            opacity: 0.55,
+            missing: MissingLines::Gap,
+            direction: ConnectDirection::WithinGroups,
+            summary_style: LineStyle::Solid,
+            summary_width_pt: None,
+            summary_colour: None,
+        }
+    }
+}
+
+impl ConnectingLines {
+    /// True when nothing is drawn (left out of saved specs).
+    pub fn is_off(&self) -> bool {
+        *self == ConnectingLines::default()
+    }
+}
+
+/// Which way categorical graphs run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    /// Categories along X, values up the Y axis.
+    #[default]
+    Vertical,
+    /// Categories down the left, values along the bottom. `axes.y` still describes the
+    /// value axis and `axes.x` the category axis, as in Prism.
+    Horizontal,
+}
+
+/// Which half of an error bar is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorDirection {
+    /// Both halves (on a dark bar fill only the upper half shows).
+    #[default]
+    Both,
+    /// Away from zero only (above a positive bar).
+    Above,
+    /// Toward zero only.
+    Below,
+}
+
+/// How bars are filled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BarFill {
+    /// The data-set colour lightened toward the background (default).
+    #[default]
+    Tint,
+    /// The data-set colour itself.
+    Solid,
+    /// No fill: the outline only.
+    Empty,
+}
+
 /// Family-specific options. Every field has a default; families ignore what they do not use.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -461,6 +655,39 @@ pub struct GraphOptions {
     pub reference: Option<f64>,
     /// Donut hole as a fraction of the radius.
     pub donut_hole: f64,
+    /// Connecting lines (column, strip, box, violin).
+    #[serde(skip_serializing_if = "ConnectingLines::is_off")]
+    pub connecting: ConnectingLines,
+    /// Vertical or horizontal (column, strip, box, violin).
+    #[serde(skip_serializing_if = "is_default")]
+    pub orientation: Orientation,
+    /// Error-bar halves drawn (column, strip).
+    #[serde(skip_serializing_if = "is_default")]
+    pub error_direction: ErrorDirection,
+    /// Error-bar cap width in points (`None`: the family's default; 0: no caps).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cap_pt: Option<f64>,
+    /// Bar (or box) width as a fraction of its slot, 0.05–1 (`None`: the family's default).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bar_width: Option<f64>,
+    /// Width of each category's slot as a fraction of the category spacing, 0.2–1; the
+    /// rest is the gap between categories or groups (`None`: 0.84).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_width: Option<f64>,
+    /// Bar fill.
+    #[serde(skip_serializing_if = "is_default")]
+    pub bar_fill: BarFill,
+    /// Draw the mean (or median) line on strip graphs.
+    #[serde(skip_serializing_if = "is_true")]
+    pub summary_line: bool,
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
+fn is_default<T: Default + PartialEq>(v: &T) -> bool {
+    *v == T::default()
 }
 
 impl Default for GraphOptions {
@@ -491,6 +718,14 @@ impl Default for GraphOptions {
             label_top: 5,
             reference: None,
             donut_hole: 0.55,
+            connecting: ConnectingLines::default(),
+            orientation: Orientation::Vertical,
+            error_direction: ErrorDirection::Both,
+            cap_pt: None,
+            bar_width: None,
+            group_width: None,
+            bar_fill: BarFill::Tint,
+            summary_line: true,
         }
     }
 }
@@ -590,7 +825,30 @@ pub struct GraphSpec {
 impl GraphSpec {
     /// Defaults for a family: individual points are shown over summaries (column graphs
     /// show their points); box plots show outliers only and violins carry a slim box.
+    ///
+    /// Two presets are accepted as well as family names: `paired` (bars of the mean with
+    /// the points and a line per subject — the default graph of paired and repeated-measures
+    /// analyses) and `before_after` (points joined per subject with the mean line, no bars:
+    /// Prism's before–after graph). Both become ordinary specs of the `column` and `strip`
+    /// families with connecting lines.
     pub fn new(source: Id, family: &str) -> Self {
+        match family {
+            "paired" => {
+                let mut s = GraphSpec::base(source, "column");
+                s.options.connecting.connect = Connect::Individuals;
+                s.options.jitter = 0.0;
+                s
+            }
+            "before_after" => {
+                let mut s = GraphSpec::base(source, "before_after");
+                s.upgrade_legacy();
+                s
+            }
+            _ => GraphSpec::base(source, family),
+        }
+    }
+
+    fn base(source: Id, family: &str) -> Self {
         GraphSpec {
             source,
             family: family.to_string(),
@@ -605,6 +863,29 @@ impl GraphSpec {
             options: GraphOptions::default(),
             annotations: Vec::new(),
         }
+    }
+
+    /// Rewrite a spec of the retired `before_after` family (file format 1.0) as the `strip`
+    /// spec that draws the same graph: unjittered points, a line per subject, the mean (or
+    /// median) line when `mean_line` was on, no error bars and no per-category summary tick.
+    /// Returns whether anything changed. Specs of other families are left alone.
+    pub fn upgrade_legacy(&mut self) -> bool {
+        if self.family != "before_after" {
+            return false;
+        }
+        self.family = "strip".into();
+        self.mapping.points = true;
+        self.mapping.error_bars = ErrorBars::None;
+        let o = &mut self.options;
+        o.jitter = 0.0;
+        o.summary_line = false;
+        o.connecting.connect = if o.mean_line {
+            Connect::Both
+        } else {
+            Connect::Individuals
+        };
+        o.connecting.opacity = 0.4;
+        true
     }
 
     /// Style override for a dataset, if any.

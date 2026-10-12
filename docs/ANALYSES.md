@@ -49,7 +49,7 @@ or `"auto"`.
 - **Outputs:** Descriptive, Test (t, df, two-sided P, one-sided P with its direction),
   Difference (estimate, SE, CI), Effect size (Cohen's d, Hedges' g with approximate CIs,
   R²), Normality, Equal variances, Ratio (ratio paired), Pairing. Brackets: the two groups.
-  Graph: `column` (unpaired, one-sample), `before_after` (paired).
+  Graph: `column` (unpaired, one-sample), `paired` preset (paired): bars with a line per subject.
 - **Method:** [ttest](METHODS.md#ttest).
 - **Example:**
   - Data: the `sleep` data, drug1 and drug2 as columns, paired by row.
@@ -86,7 +86,7 @@ or `"auto"`.
 - **Checks:** values used, sample size (6 pairs), symmetric differences (skewness), exact or
   approximate P, independence.
 - **Outputs:** Descriptive (medians of each column and of the differences), Test (W+, W−,
-  W, zeros dropped, z, P), Pseudo-median (Hodges–Lehmann with CI). Graph: `before_after`
+  W, zeros dropped, z, P), Pseudo-median (Hodges–Lehmann with CI). Graph: the `paired` preset (bars with connecting lines)
   (paired) or `box`.
 - **Method:** [wilcoxon](METHODS.md#rank-mannwhitney-wilcoxon).
 - **Example:**
@@ -128,7 +128,7 @@ or `"auto"`.
   and uncorrected tests (none, Greenhouse–Geisser, Huynh–Feldt, lower bound, with ε),
   Sphericity (Mauchly W, χ², df, P), Effect size (partial η²), paired multiple comparisons
   (paired t tests with Holm–Šidák, or the adjustment asked; CIs for Bonferroni and Šidák),
-  Normality. Graph: `before_after` with brackets.
+  Normality. Graph: the `paired` preset (bars with connecting lines) with brackets.
 - **Method:** [anova `rm_anova`](METHODS.md#anova), [posthoc `p_adjust`](METHODS.md#posthoc).
 - **Example:**
   - Data: 6 subjects × Pre, Mid, Post.
@@ -185,7 +185,7 @@ or `"auto"`.
 - **Checks:** values used (incomplete rows dropped), chi-square approximation (10 subjects),
   independence.
 - **Outputs:** Descriptive (medians, mean ranks), Test (χ², df, P, Kendall's W, subjects
-  used and dropped), Dunn's comparisons (Holm). Graph: `before_after`.
+  used and dropped), Dunn's comparisons (Holm). Graph: the `paired` preset (bars with connecting lines).
 - **Method:** [anova `friedman`](METHODS.md#anova), [posthoc `dunn_friedman`](METHODS.md#posthoc).
 - **Example:**
   - Data: 6 subjects × Pre, Mid, Post.

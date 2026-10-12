@@ -198,4 +198,7 @@ pub struct GraphData {
     pub y_label: String,
     /// Kind of the source table.
     pub kind: TableKind,
+    /// Subject group of each row (row-aligned), for connecting lines coloured by group.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub row_groups: Vec<String>,
 }
