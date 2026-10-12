@@ -8,6 +8,15 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#F4F2ED" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#141716" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Dioptra">
+  <meta property="og:description" content="Data, statistics and publication graphs without the spreadsheet. Free and open source, for Linux, Windows and macOS.">
+  <meta property="og:url" content="https://zahakj.github.io/dioptra/">
+  <meta property="og:image" content="https://zahakj.github.io/dioptra/assets/banner.png">
+  <meta property="og:image:width" content="1640">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Dioptra: the mark, the name, and the grid and graph editor in dark mode">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/icon-small.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
@@ -46,6 +55,7 @@
   </header>
 
   <main id="main">
+    <div class="hero-desk">
     <section class="hero wrap" aria-labelledby="hero-title">
       <p class="eyebrow">Free and open source · Linux, Windows, macOS</p>
       <h1 id="hero-title">From the instrument to the figure, without the spreadsheet.</h1>
@@ -63,7 +73,14 @@
         <line x1="0" y1="23.5" x2="1000" y2="23.5"/>
         <g id="ticks"></g>
       </svg>
+      <figure class="hero-shot">
+        <img class="img-light" src="assets/graph-editor-light.png" width="1440" height="900"
+             alt="The graph editor: a column graph of four dose groups on white paper with millimetre rulers, the Y axis selected and its properties in the inspector.">
+        <img class="img-dark" src="assets/graph-editor-dark.png" width="1440" height="900"
+             alt="The graph editor in dark mode: the figure on white paper over the graphite desk, millimetre rulers, the Y axis selected and its properties in the inspector.">
+      </figure>
     </section>
+    </div>
 
     <section id="download" class="band" aria-labelledby="download-title">
       <div class="wrap">
@@ -119,23 +136,29 @@
     <section class="wrap captures" aria-labelledby="captures-title">
       <header class="section-head">
         <p class="label"><span class="num">02</span> The instrument</p>
-        <h2 id="captures-title">Grid, results sheet, graph editor</h2>
+        <h2 id="captures-title">Grid, results sheet, graph editor, in light and dark</h2>
       </header>
       <figure class="capture wide">
-        <img src="assets/grid-light.png" width="1440" height="900" loading="lazy"
-             alt="The Dioptra window: a column table of a cytokine study, with the inspector showing where the selected cell came from.">
-        <figcaption><strong>The grid.</strong> A million cells pasted in a fraction of a second. Select any cell and the inspector says where it came from: typed, pasted, imported, or computed.</figcaption>
+        <img class="img-light" src="assets/grid-light.png" width="1440" height="900" loading="lazy"
+             alt="The Dioptra window: a bounded column table of a cytokine study with a colour swatch on each data set, a selection, and the inspector showing where the selected cell came from.">
+        <img class="img-dark" src="assets/grid-dark.png" width="1440" height="900" loading="lazy"
+             alt="The same window in dark mode, on graphite.">
+        <figcaption><strong>The grid.</strong> A bounded sheet, not an endless spreadsheet. Each data set wears the colour its graph will use, and the inspector says where any cell came from: typed, pasted, imported, or computed.</figcaption>
       </figure>
       <div class="capture-pair">
         <figure class="capture">
-          <img src="assets/results-light.png" width="1440" height="900" loading="lazy"
-               alt="A results sheet beside its table: an assumptions line, one APA-style sentence per group, a table of descriptive statistics and a checklist headed Before you report this.">
+          <img class="img-light" src="assets/results-light.png" width="1440" height="900" loading="lazy"
+             alt="A one-way ANOVA results sheet: assumption checks with their marks, APA-style sentences and the statistics table in a reading column.">
+        <img class="img-dark" src="assets/results-dark.png" width="1440" height="900" loading="lazy"
+             alt="The same results sheet in dark mode.">
           <figcaption><strong>The results sheet.</strong> Assumption checks first, then sentences you can paste, then the numbers at full precision, then what the test cannot check for you.</figcaption>
         </figure>
         <figure class="capture">
-          <img src="assets/graph-editor-light.png" width="1440" height="900" loading="lazy"
-               alt="The graph editor: a column graph with every data point shown, the Y axis title selected, and its properties in the inspector on the right.">
-          <figcaption><strong>The graph editor.</strong> Click an axis, a label or a series and edit it in the inspector. Sizes in millimetres, type in points.</figcaption>
+          <img class="img-light" src="assets/dose-response-light.png" width="1440" height="900" loading="lazy"
+             alt="Dose-response curves for three compounds fitted with four-parameter logistic models, with confidence bands, on white paper in the graph editor.">
+        <img class="img-dark" src="assets/dose-response-dark.png" width="1440" height="900" loading="lazy"
+             alt="The same dose-response graph in dark mode, the paper white on the graphite desk.">
+          <figcaption><strong>The graph editor.</strong> Click an axis, a label or a series and edit it in the inspector. Sizes in millimetres, type in points, the paper white on a dark desk.</figcaption>
         </figure>
       </div>
     </section>

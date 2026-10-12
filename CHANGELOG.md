@@ -3,6 +3,47 @@
 All notable changes to Dioptra. Versions follow [semantic versioning](https://semver.org/);
 the file format has its own version (see the manual's File format chapter).
 
+## 0.2.0 — 2026-10-12
+
+The design release: the same engine, a redesigned instrument.
+
+### Interface
+
+- A design system (`DESIGN.md` §12): warm paper neutrals in light, deep graphite in dark,
+  one verdigris accent, Inter for the interface and JetBrains Mono with tabular figures for
+  every number, an 8-pt spacing scale, Lucide icons, designed focus rings and thin themed
+  scrollbars. Every text/background pair meets WCAG AA in both themes
+  (`docs/DESIGN-AUDIT.md`, `scripts/contrast.mjs`).
+- No native form control anywhere: own Select, Segmented, Toggle, Checkbox, NumberField
+  with unit suffixes, ColorSwatch, Menu, Dialog and Tooltip.
+- The in-window menu bar is gone. A slim top bar carries the mark, the project title
+  (click to rename), the command field and the theme control; the menu tree lives in a
+  compact Menu popover and the command palette. macOS gets a native system menu.
+- Dark mode follows the operating system (and the Tauri window theme) by default, with a
+  light/dark/system control in the top bar, View and the palette; every surface is designed
+  for dark rather than inverted.
+- The grid is a bounded sheet: rows end where the data ends plus a margin, with "+ rows"
+  and "+ Data set" affordances; data-set headers carry a kind glyph and the colour swatch
+  the graph will use; a designed selection with corner handles; comfortable and compact
+  density; a first-class formula bar; human-readable provenance times.
+- Results sheets in a reading column with the type system, hairline tables, mono numbers,
+  assumption cards with designed marks and the alternative on a second line.
+- The graph editor is a desk with millimetre rulers, a paper choice (white, theme,
+  transparent), a designed zoom control, hover halos and a selection frame on targets, and
+  collapsible inspector sections that remember their state.
+- A designed first launch: paste data, open the bundled sample project, or read the manual.
+- A new icon set from the dioptra mark; window size, position and panel widths are
+  remembered.
+- The paste dialog's segmented choices sit at their own width instead of stretching across
+  the column.
+- A designed README banner (also the landing page's Open Graph image), and a landing page
+  whose captures follow its light or dark theme.
+
+### Engine
+
+- `SetProjectTitle` command (undoable); the risk-difference Wald interval is clamped to
+  [-1, 1].
+
 ## 0.1.0 — 2026-10-11
 
 The first public release.

@@ -166,7 +166,7 @@ pub struct ResultsSheet {
     #[serde(default)]
     pub stale: bool,
     /// A methods sentence ready to paste: test, sidedness, correction, CI level, software
-    /// version ("Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.1.0.").
+    /// version ("Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.2.0.").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub methods: Option<String>,
     /// The graph family `CreateGraph` picks for this analysis when none is named.

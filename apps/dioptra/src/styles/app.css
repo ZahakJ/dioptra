@@ -1410,6 +1410,12 @@ h3 {
   gap: 6px;
 }
 
+.import-kind > .hint-line {
+  margin: 0 0 4px;
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
 .kind-grid.is-compact .kind-card {
   padding: 7px 8px 8px;
   gap: 4px;
@@ -1636,6 +1642,10 @@ h3 {
   gap: 6px;
   min-width: 0;
   align-content: start;
+}
+
+.field > .seg:not(.seg-full) {
+  justify-self: start;
 }
 
 .field > .select,
