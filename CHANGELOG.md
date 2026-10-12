@@ -3,6 +3,17 @@
 All notable changes to Dioptra. Versions follow [semantic versioning](https://semver.org/);
 the file format has its own version (see the manual's File format chapter).
 
+## 0.2.1 — 2026-10-12
+
+### Fixed
+
+- macOS: the app opened as "Dioptra is damaged and can't be opened". The bundle is now
+  ad-hoc signed as a whole (`bundle.macOS.signingIdentity: "-"`), and the release job fails
+  unless `codesign --verify --deep --strict` passes on the `.app` and on the copy inside the
+  `.dmg`. The app is still not notarized: the first launch needs right-click → Open (macOS 15
+  and later: Privacy & Security → Open Anyway) or `xattr -cr /Applications/Dioptra.app`.
+  See `docs/macos-gatekeeper.md`.
+
 ## 0.2.0 — 2026-10-12
 
 The design release: the same engine, a redesigned instrument.
