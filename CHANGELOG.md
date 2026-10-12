@@ -9,7 +9,7 @@ the file format has its own version (see the manual's File format chapter).
 
 - macOS: the app opened as "Dioptra is damaged and can't be opened". The bundle is now
   ad-hoc signed as a whole (`bundle.macOS.signingIdentity: "-"`), and the release job fails
-  unless `codesign --verify --deep --strict` passes on the `.app` and on the copy inside the
+  unless `codesign --verify --deep --strict` passes on the `.app` inside the
   `.dmg`. The app is still not notarized: the first launch needs right-click → Open (macOS 15
   and later: Privacy & Security → Open Anyway) or `xattr -cr /Applications/Dioptra.app`.
   See `docs/macos-gatekeeper.md`.
