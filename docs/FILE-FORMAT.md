@@ -20,7 +20,7 @@ history.jsonl            command log: one JSON object per line, newest last
 ## manifest.json
 
 ```json
-{ "format": "dioptra/1", "app": "0.2.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
+{ "format": "dioptra/1.1", "app": "0.3.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
 ```
 
 Readers must accept any `dioptra/1.x`; unknown keys are preserved on round trip where
@@ -59,6 +59,45 @@ possible and ignored otherwise.
 Each line is `{ "at": "…", "command": { … }, "label": "Paste 3×120 into Table 1" }`. The
 engine replays nothing from it on open; it is an audit trail and the source of the undo
 timeline in the UI.
+
+## `graphs/<id>.json`
+
+```json
+{
+  "id": "…", "title": "Graph of Paired t test of Table 1",
+  "spec": {
+    "source": "…", "family": "column",
+    "mapping": { "datasets": [0, 1], "error_bars": "sem", "points": true },
+    "style": { "theme": "instrument", "size_mm": { "width": 85, "height": 70 },
+               "datasets": [{ "dataset": 1, "pattern": "hatch" }] },
+    "axes": { … }, "legend": { "position": "auto" },
+    "options": { "jitter": 0, …,
+                 "connecting": { "connect": "individuals", "style": "solid", "colour_by": "single",
+                                 "opacity": 0.55, "missing": "gap", "direction": "within_groups",
+                                 "summary_style": "solid" } },
+    "annotations": [{ "kind": "significance_bracket", "from": 0, "to": 1, "text": "p = .002" }]
+  }
+}
+```
+
+Every field of the spec is listed in docs/GRAPHS.md. Fields at their defaults may be left
+out; `connecting`, `orientation`, `error_direction`, `bar_fill` and `summary_line` are
+written only when they differ from the default, so a graph without connecting lines is
+written exactly as format 1.0 wrote it.
+
+## Versions and migrations
+
+| Format | Dioptra | Change |
+|---|---|---|
+| `dioptra/1` | 0.1, 0.2 | First format |
+| `dioptra/1.1` | 0.3 | Graph specs gain `options.connecting`, `orientation`, `error_direction`, `cap_pt`, `bar_width`, `group_width`, `bar_fill`, `summary_line` and `style.datasets[].pattern`. The `before_after` family is retired. |
+
+Migration 1.0 → 1.1 runs when a file is opened: a graph whose family is `before_after`
+becomes the `strip` spec that draws the same picture (`jitter: 0`, `error_bars: none`,
+`summary_line: false`, `connecting.connect` `both` when `mean_line` was on and `individuals`
+otherwise, opacity 0.4). Nothing else changes; saving writes format 1.1. A 0.2 reader opens a
+1.1 file (the minor number is additive) and ignores the new fields, so it draws such a graph
+without its connecting lines.
 
 ## Compatibility promise
 

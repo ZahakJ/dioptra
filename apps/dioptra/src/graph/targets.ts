@@ -36,6 +36,12 @@ export function describeTarget(t: Target | undefined): string {
   if (p.startsWith('/style/datasets/')) return `Data set ${Number(p.split('/')[3]) + 1}`;
   if (p.startsWith('/annotations/')) return `Annotation ${Number(p.split('/')[2]) + 1}`;
   if (p === '/mapping') return 'Data';
+  if (p === '/options/connecting') {
+    if (t.id === 'connect-summary') return 'Summary line';
+    const m = t.id.match(/^subject-(?:[gs](\d+)-)?(\d+)$/);
+    if (m) return `Subject line ${m[2]}` + (m[1] !== undefined ? (t.id.startsWith('subject-g') ? `, group ${Number(m[1]) + 1}` : `, data set ${Number(m[1]) + 1}`) : '');
+    return 'Connecting lines';
+  }
   if (p.startsWith('/options')) return 'Family options';
   if (p === '/style/palette') return 'Colour scale';
   return t.id.replace(/-/g, ' ');

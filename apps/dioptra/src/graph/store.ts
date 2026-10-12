@@ -11,6 +11,7 @@ import { notifyError } from '../store/notices';
 import { useProject } from '../store/project';
 import { applyChanged, onChanged } from '../store/sync';
 import { applyMergePatch, combinePatches, patchAt } from './patch';
+import { refreshInspector } from '../app/inspector';
 
 export type Zoom = number | 'fit';
 
@@ -32,9 +33,14 @@ interface Store {
   set(id: Id, s: Partial<GraphState>): void;
 }
 
-export const useGraphs = create<Store>((set) => ({
+export const useGraphs = create<Store>((set, get) => ({
   graphs: {},
-  set: (id, s) => set((st) => ({ graphs: { ...st.graphs, [id]: { ...(st.graphs[id] ?? EMPTY), ...s } } })),
+  set: (id, s) => {
+    const before = get().graphs[id]?.spec?.family;
+    set((st) => ({ graphs: { ...st.graphs, [id]: { ...(st.graphs[id] ?? EMPTY), ...s } } }));
+    // Sections that depend on the family (connecting lines, bars) appear and disappear.
+    if (s.spec && s.spec.family !== before) refreshInspector();
+  },
 }));
 
 export function useGraph(id: Id | null | undefined): GraphState {

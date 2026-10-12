@@ -7,26 +7,26 @@ set, describe it, test it, draw it, export it, save it. It takes about ten minut
 
 Every release is published on the
 [releases page](https://github.com/ZahakJ/dioptra/releases/latest). Pick the file for your
-system. The names below are those of version 0.2.1; later versions change only the number.
+system. The names below are those of version 0.3.0; later versions change only the number.
 
 | System | File | What it is |
 |---|---|---|
-| Linux, any distribution | `Dioptra_0.2.1_amd64.AppImage` | One self-contained file. Make it executable and run it. |
-| Debian, Ubuntu, Mint | `Dioptra_0.2.1_amd64.deb` | A package; installs a menu entry and pulls in WebKitGTK. |
-| Fedora, RHEL, openSUSE | `Dioptra-0.2.1-1.x86_64.rpm` | The same, for rpm-based systems. |
-| Windows 10 and 11 | `Dioptra_0.2.1_x64_en-US.msi` | The usual Windows installer. |
-| Windows, per-user | `Dioptra_0.2.1_x64-setup.exe` | Installs without administrator rights. |
-| macOS, Apple silicon (M1 and later) | `Dioptra_0.2.1_aarch64.dmg` | Open, drag Dioptra to Applications. |
-| macOS, Intel | `Dioptra_0.2.1_x64.dmg` | The same, for Intel Macs. |
+| Linux, any distribution | `Dioptra_0.3.0_amd64.AppImage` | One self-contained file. Make it executable and run it. |
+| Debian, Ubuntu, Mint | `Dioptra_0.3.0_amd64.deb` | A package; installs a menu entry and pulls in WebKitGTK. |
+| Fedora, RHEL, openSUSE | `Dioptra-0.3.0-1.x86_64.rpm` | The same, for rpm-based systems. |
+| Windows 10 and 11 | `Dioptra_0.3.0_x64_en-US.msi` | The usual Windows installer. |
+| Windows, per-user | `Dioptra_0.3.0_x64-setup.exe` | Installs without administrator rights. |
+| macOS, Apple silicon (M1 and later) | `Dioptra_0.3.0_aarch64.dmg` | Open, drag Dioptra to Applications. |
+| macOS, Intel | `Dioptra_0.3.0_x64.dmg` | The same, for Intel Macs. |
 
 ### Linux
 
 The AppImage needs nothing installed:
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.AppImage
-chmod +x Dioptra_0.2.1_amd64.AppImage
-./Dioptra_0.2.1_amd64.AppImage
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.AppImage
+chmod +x Dioptra_0.3.0_amd64.AppImage
+./Dioptra_0.3.0_amd64.AppImage
 ```
 
 If it refuses to start with a message about FUSE, your distribution does not ship
@@ -36,20 +36,20 @@ or use the `.deb`.
 On Debian and Ubuntu:
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.deb
-sudo apt install ./Dioptra_0.2.1_amd64.deb
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.deb
+sudo apt install ./Dioptra_0.3.0_amd64.deb
 ```
 
 On Fedora and other rpm systems:
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.2.1-1.x86_64.rpm
-sudo dnf install ./Dioptra-0.2.1-1.x86_64.rpm
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.3.0-1.x86_64.rpm
+sudo dnf install ./Dioptra-0.3.0-1.x86_64.rpm
 ```
 
 ### Windows
 
-Download `Dioptra_0.2.1_x64_en-US.msi` and run it. Windows may show a SmartScreen notice
+Download `Dioptra_0.3.0_x64_en-US.msi` and run it. Windows may show a SmartScreen notice
 because the installer is not signed with a paid certificate; choose *More info*, then
 *Run anyway*. Dioptra uses the WebView2 runtime that ships with Windows 10 and 11.
 
@@ -67,7 +67,7 @@ xattr -cr /Applications/Dioptra.app
 ```
 
 macOS remembers the choice. Version 0.2.0 was not signed as a bundle and macOS called it
-"damaged"; 0.2.1 fixes that ([details](https://github.com/ZahakJ/dioptra/blob/main/docs/macos-gatekeeper.md)).
+"damaged"; 0.3.0 fixes that ([details](https://github.com/ZahakJ/dioptra/blob/main/docs/macos-gatekeeper.md)).
 
 ## Paste your first data
 

@@ -347,7 +347,7 @@ pub fn wilcoxon(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
         p_dir(r.p, spec.alternative, style),
         if r.exact { " (exact)" } else { "" }
     ));
-    let fam = if one { "box" } else { "before_after" };
+    let fam = if one { "box" } else { "paired" };
     let mut ag = graph_for(fam, &keys);
     if !one {
         add_bracket(&mut ag, keys[0], keys[1], r.p_two_sided);
@@ -531,7 +531,7 @@ pub fn friedman(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
         p_phrase(r.p, style),
         unit(r.kendall_w, style)
     ));
-    let mut ag = graph_for("before_after", &keys);
+    let mut ag = graph_for("paired", &keys);
     if spec.dunn {
         let ph = dunn_friedman(&mx.m, None, Adjust::Holm, 0.05).map_err(|e| e.to_string())?;
         let (sec, rows) = posthoc_table(
@@ -579,7 +579,7 @@ pub fn friedman(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, String> {
     s.assumptions.push(independence(
         "Each row must be one subject (or matched set), independent of the other rows.",
     ));
-    s.graph_family = Some("before_after".into());
+    s.graph_family = Some("paired".into());
     s.graph = Some(ag);
     Ok(s)
 }

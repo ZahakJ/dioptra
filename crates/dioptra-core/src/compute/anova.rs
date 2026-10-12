@@ -622,7 +622,7 @@ pub fn repeated_measures(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, Stri
             String::new()
         }
     ));
-    let mut ag = graph_for("before_after", &keys);
+    let mut ag = graph_for("paired", &keys);
     let mut mnote = String::new();
     if let Some(mc) = &spec.post_hoc {
         let (p, mut pn) = plan(mc, &keys, &names)?;
@@ -756,7 +756,7 @@ pub fn repeated_measures(ctx: &AnalysisContext<'_>) -> Result<ResultsSheet, Stri
     s.assumptions.push(independence(
         "Each row must be one subject (or matched set), independent of the other rows.",
     ));
-    s.graph_family = Some("before_after".into());
+    s.graph_family = Some("paired".into());
     s.graph = Some(ag);
     Ok(s)
 }

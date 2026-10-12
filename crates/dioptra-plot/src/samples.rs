@@ -434,7 +434,207 @@ pub fn sample(family: &str) -> Option<(GraphSpec, GraphData)> {
                 ..Default::default()
             }
         }
+        "paired" => {
+            // Ten subjects measured three times; subject 4 missed week 4.
+            let mut cols = vec![Vec::new(), Vec::new(), Vec::new()];
+            for _ in 0..10 {
+                let base = g.norm(118.0, 11.0);
+                for (k, drop) in [0.0, 8.0, 12.0].iter().enumerate() {
+                    cols[k].push(Gen::round(base - drop + g.norm(0.0, 5.0), 1));
+                }
+            }
+            cols[1][3] = f64::NAN;
+            spec.axes.y.title = Some("Systolic pressure (mmHg)".into());
+            let mut d = column(
+                &["Baseline", "Week 4", "Week 8"],
+                cols,
+                "Systolic pressure (mmHg)",
+            );
+            d.row_groups = (0..10)
+                .map(|r| if r % 3 == 0 { "Male" } else { "Female" }.to_string())
+                .collect();
+            d
+        }
+        "paired_grouped" => {
+            spec.family = "column".into();
+            spec.options.connecting.connect = crate::spec::Connect::Individuals;
+            spec.options.jitter = 0.0;
+            let rows = ["Day 1", "Day 7", "Day 14"];
+            let mut series = Vec::new();
+            let subjects: Vec<f64> = (0..5).map(|_| g.norm(0.0, 0.25)).collect();
+            for (k, (name, slope)) in [("Saline", 0.1), ("Drug", 0.55)].iter().enumerate() {
+                let reps: Vec<Vec<f64>> = (0..3)
+                    .map(|r| {
+                        subjects
+                            .iter()
+                            .map(|b| Gen::round(1.0 + b + slope * r as f64 + g.norm(0.0, 0.12), 2))
+                            .collect()
+                    })
+                    .collect();
+                series.push(Series {
+                    name: name.to_string(),
+                    dataset: k,
+                    x: vec![1.0, 2.0, 3.0],
+                    y: reps.iter().map(|r| crate::stats::mean(r)).collect(),
+                    replicates: reps,
+                    ..Default::default()
+                });
+            }
+            // One missing value: subject 3 on day 7 under the drug.
+            series[1].replicates[1][2] = f64::NAN;
+            GraphData {
+                series,
+                categories: rows.iter().map(|s| s.to_string()).collect(),
+                x_label: "Day".into(),
+                y_label: "Grip strength (kg)".into(),
+                kind: TableKind::Grouped,
+                ..Default::default()
+            }
+        }
         _ => return None,
     };
     Some((spec, data))
+}
+
+/// The connecting-line matrix the snapshot tests and the manual draw: every categorical
+/// style with every connect mode, then missing values, jitter, colour modes, horizontal,
+/// log and broken axes, and grouped graphs in both directions. Names are file stems.
+pub fn connecting_matrix() -> Vec<(String, GraphSpec, GraphData)> {
+    use crate::spec::{
+        AxisBreak, BarFill, Connect, ConnectColour, ConnectDirection, ErrorBars, ErrorDirection,
+        FillPattern, LineStyle, MissingLines, Orientation, Scale, Summary,
+    };
+    let (base, data) = sample("paired").expect("paired sample");
+    let mut out = Vec::new();
+    let styles: [(&str, &str, bool); 6] = [
+        ("bar_points", "column", true),
+        ("bar", "column", false),
+        ("dot", "strip", true),
+        ("mean_sd", "strip", false),
+        ("box", "box", true),
+        ("violin", "violin", true),
+    ];
+    let modes = [
+        ("individuals", Connect::Individuals),
+        ("means", Connect::Means),
+        ("medians", Connect::Medians),
+        ("both", Connect::Both),
+    ];
+    for (sname, family, points) in styles {
+        for (mname, mode) in modes {
+            let mut s = base.clone();
+            s.family = family.into();
+            s.mapping.points = points;
+            if sname == "mean_sd" {
+                s.mapping.error_bars = ErrorBars::Sd;
+            }
+            s.options.connecting.connect = mode;
+            out.push((format!("connect-{sname}-{mname}"), s, data.clone()));
+        }
+    }
+    let variant = |name: &str, f: &dyn Fn(&mut GraphSpec)| {
+        let mut s = base.clone();
+        f(&mut s);
+        (format!("connect-{name}"), s, data.clone())
+    };
+    out.push(variant("missing-skip", &|s| {
+        s.options.connecting.missing = MissingLines::Skip;
+    }));
+    out.push(variant("jitter", &|s| {
+        s.options.jitter = 0.8;
+        s.options.connecting.connect = Connect::Both;
+    }));
+    out.push(variant("jitter-strip", &|s| {
+        s.family = "strip".into();
+        s.options.jitter = 1.0;
+    }));
+    out.push(variant("colour-dataset", &|s| {
+        s.options.connecting.colour_by = ConnectColour::Dataset;
+        s.options.connecting.opacity = 0.8;
+    }));
+    out.push(variant("colour-subject", &|s| {
+        s.family = "strip".into();
+        s.options.connecting.colour_by = ConnectColour::Subject;
+        s.options.connecting.palette = Some("tol_muted".into());
+        s.options.connecting.opacity = 0.9;
+        s.options.connecting.width_pt = Some(1.0);
+    }));
+    out.push(variant("colour-group", &|s| {
+        s.options.connecting.colour_by = ConnectColour::Group;
+        s.options.connecting.opacity = 0.9;
+        s.options.connecting.style = LineStyle::Dashed;
+    }));
+    out.push(variant("single-colour-dotted", &|s| {
+        s.options.connecting.connect = Connect::Both;
+        s.options.summary = Summary::Median;
+        s.options.connecting.colour = Some("#c0392b".into());
+        s.options.connecting.style = LineStyle::Dotted;
+        s.options.connecting.summary_style = LineStyle::Dashed;
+        s.options.connecting.summary_width_pt = Some(1.5);
+    }));
+    out.push(variant("horizontal", &|s| {
+        s.options.orientation = Orientation::Horizontal;
+        s.options.connecting.connect = Connect::Both;
+    }));
+    out.push(variant("horizontal-box", &|s| {
+        s.family = "box".into();
+        s.mapping.points = true;
+        s.options.jitter = 0.6;
+        s.options.orientation = Orientation::Horizontal;
+    }));
+    out.push(variant("log", &|s| {
+        s.axes.y.scale = Scale::Log10;
+        s.options.connecting.connect = Connect::Both;
+    }));
+    out.push(variant("broken", &|s| {
+        s.axes.y.breaks = vec![AxisBreak {
+            from: 20.0,
+            to: 80.0,
+        }];
+        s.axes.y.min = Some(0.0);
+        s.options.connecting.connect = Connect::Both;
+    }));
+    out.push(variant("bar-options", &|s| {
+        s.options.bar_fill = BarFill::Solid;
+        s.options.bar_width = Some(0.5);
+        s.options.group_width = Some(0.7);
+        s.options.cap_pt = Some(0.0);
+        s.options.error_direction = ErrorDirection::Above;
+        s.style.datasets = vec![
+            crate::spec::DatasetStyle {
+                dataset: 1,
+                pattern: Some(FillPattern::Hatch),
+                marker: Some("square_open".into()),
+                ..Default::default()
+            },
+            crate::spec::DatasetStyle {
+                dataset: 2,
+                pattern: Some(FillPattern::Crosshatch),
+                marker: Some("triangle".into()),
+                ..Default::default()
+            },
+        ];
+        s.options.bar_fill = BarFill::Empty;
+    }));
+    let (gspec, gdata) = sample("paired_grouped").expect("grouped sample");
+    out.push((
+        "connect-grouped-within".into(),
+        gspec.clone(),
+        gdata.clone(),
+    ));
+    let mut s = gspec.clone();
+    s.options.connecting.direction = ConnectDirection::AcrossGroups;
+    s.options.connecting.connect = Connect::Both;
+    s.options.connecting.colour_by = ConnectColour::Dataset;
+    out.push(("connect-grouped-across".into(), s, gdata.clone()));
+    let mut s = gspec.clone();
+    s.family = "strip".into();
+    s.options.connecting.connect = Connect::Both;
+    s.options.jitter = 0.7;
+    out.push(("connect-grouped-strip".into(), s, gdata.clone()));
+    let mut s = gspec;
+    s.options.orientation = Orientation::Horizontal;
+    s.options.connecting.connect = Connect::Both;
+    out.push(("connect-grouped-horizontal".into(), s, gdata));
+    out
 }

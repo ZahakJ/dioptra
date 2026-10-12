@@ -12,8 +12,17 @@ use crate::project::Project;
 use crate::results::ResultsSheet;
 use crate::table::Table;
 
-/// Format identifier written by this version.
-pub const FORMAT: &str = "dioptra/1";
+/// Format identifier written by this version. 1.1 (Dioptra 0.3) added connecting lines,
+/// orientation and bar options to graph specs and retired the `before_after` family.
+pub const FORMAT: &str = "dioptra/1.1";
+
+/// Bring a graph spec read from an older file up to this format: format 1.0 graphs of the
+/// retired `before_after` family become the `strip` spec with connecting lines that draws
+/// the same picture. Returns whether the spec changed.
+pub fn migrate_graph(format: &str, spec: &mut crate::graph::GraphSpec) -> bool {
+    let _ = format; // Every 1.x reader may meet a hand-written `before_after` spec.
+    spec.upgrade_legacy()
+}
 
 /// `manifest.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -121,7 +130,7 @@ pub fn open_bytes(bytes: &[u8]) -> Result<(Project, Vec<HistoryEntry>), String> 
     let manifest: Manifest =
         serde_json::from_str(&read("manifest.json")?.ok_or("manifest.json is missing")?)
             .map_err(|e| format!("manifest.json: {e}"))?;
-    if manifest.format != FORMAT && !manifest.format.starts_with("dioptra/1.") {
+    if manifest.format != "dioptra/1" && !manifest.format.starts_with("dioptra/1.") {
         return Err(format!(
             "this file is format {}, newer than this version of Dioptra reads ({FORMAT})",
             manifest.format
@@ -163,7 +172,8 @@ pub fn open_bytes(bytes: &[u8]) -> Result<(Project, Vec<HistoryEntry>), String> 
             let a: Analysis = serde_json::from_str(&read(n)?).map_err(|e| format!("{n}: {e}"))?;
             p.analyses.insert(a.id.clone(), a);
         } else if n.starts_with("graphs/") {
-            let g: Graph = serde_json::from_str(&read(n)?).map_err(|e| format!("{n}: {e}"))?;
+            let mut g: Graph = serde_json::from_str(&read(n)?).map_err(|e| format!("{n}: {e}"))?;
+            migrate_graph(&manifest.format, &mut g.spec);
             p.graphs.insert(g.id.clone(), g);
         } else if let Some(rest) = n
             .strip_prefix("results/")

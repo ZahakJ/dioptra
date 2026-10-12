@@ -3,7 +3,8 @@
 //! lines inside.
 
 use super::boxplot::tukey;
-use super::common::{fill_entry, jitter, series_layer, y_title, Cats};
+use super::common::{fill_entry, row_jitter, row_values, series_layer, y_title, Cats};
+use super::connect::{assemble, Placed};
 use crate::plot::{AxisPlan, Ctx, Mark, Plot};
 use crate::scene::{Dash, MarkerShape, Paint, Stroke};
 use crate::spec::ViolinInner;
@@ -76,17 +77,19 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
     let d = ctx.data;
     let spec = ctx.spec;
     let t = &ctx.theme;
-    let cats = Cats::of(d);
+    let cats = Cats::for_spec(d, spec);
     let mut p = Plot {
         x: AxisPlan::categorical(
             cats.labels.clone(),
             if cats.clustered { &d.x_label } else { "" },
         ),
         y: AxisPlan::continuous(&y_title(d)),
+        horizontal: spec.options.orientation == crate::spec::Orientation::Horizontal,
         ..Default::default()
     };
     let n = d.series.len();
     let o = &spec.options;
+    let (mut bodies, mut marks, mut placed) = (Vec::new(), Vec::new(), Vec::new());
     for (i, s) in d.series.iter().enumerate() {
         let st = ctx.style(i, n, s.dataset, &s.name);
         let fill = if t.mono {
@@ -96,15 +99,18 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
         };
         let line = if t.mono { t.axis } else { st.colour };
         let mut l = series_layer(i, s.dataset);
+        let mut over = series_layer(i, s.dataset);
         for (k, x) in s.x.iter().enumerate() {
             let Some((c, w)) = cats.slot(i, *x) else {
                 continue;
             };
             let v = s.values_at(k);
+            let raw = row_values(s, k);
             if v.len() < 2 {
+                placed.push(Placed::new(i, c, &raw, &vec![0.0; raw.len()]));
                 continue;
             }
-            let half = w * 0.45;
+            let half = w * o.bar_width.map_or(0.9, |b| b.clamp(0.05, 1.0)) / 2.0;
             let (poly, prof) = shape(&v, c, half, Side::Both, o.bandwidth, o.truncate);
             l.marks.push(Mark::Polygon {
                 pts: poly,
@@ -116,6 +122,9 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
             } else {
                 o.violin_inner
             };
+            if inner != ViolinInner::Strip {
+                placed.push(Placed::new(i, c, &raw, &vec![0.0; raw.len()]));
+            }
             match inner {
                 ViolinInner::Box => {
                     if let Some(tk) = tukey(&v) {
@@ -146,13 +155,26 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                     }
                 }
                 ViolinInner::Strip => {
-                    let off = jitter(&v, 1.0, o.seed.wrapping_add(i as u64 * 17 + k as u64));
-                    let pts = v
+                    let off: Vec<f64> =
+                        row_jitter(&raw, 1.0, o.seed.wrapping_add(i as u64 * 17 + k as u64))
+                            .iter()
+                            .zip(&raw)
+                            .map(|(f, y)| {
+                                if y.is_finite() {
+                                    f * width_at(&prof, *y) * 0.8
+                                } else {
+                                    0.0
+                                }
+                            })
+                            .collect();
+                    let pts = raw
                         .iter()
                         .zip(&off)
-                        .map(|(y, f)| (c + f * width_at(&prof, *y) * 0.8, *y))
+                        .filter(|(y, _)| y.is_finite())
+                        .map(|(y, f)| (c + f, *y))
                         .collect();
-                    l.marks.push(Mark::Points {
+                    placed.push(Placed::new(i, c, &raw, &off));
+                    over.marks.push(Mark::Points {
                         pts,
                         shape: st.marker.unwrap_or(MarkerShape::Circle),
                         size: st.size * 0.65,
@@ -178,10 +200,12 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 ViolinInner::None => {}
             }
         }
-        p.layers.push(l);
+        bodies.push(l);
+        marks.push(over);
         if cats.clustered {
             p.legend.push(fill_entry(ctx, &st, fill));
         }
     }
+    assemble(ctx, &mut p, &cats, bodies, marks, &placed);
     p
 }

@@ -273,6 +273,21 @@ pub enum Mark {
         /// Paint.
         paint: Paint,
     },
+    /// A fill pattern over a rectangle (drawn as clipped strokes or dots).
+    Hatch {
+        /// Left.
+        x0: f64,
+        /// Right.
+        x1: f64,
+        /// Bottom (NaN: the bottom of the axis).
+        y0: f64,
+        /// Top.
+        y1: f64,
+        /// Pattern.
+        pattern: crate::spec::FillPattern,
+        /// Stroke (dots use its colour).
+        stroke: Stroke,
+    },
     /// An error bar with caps of `cap` points.
     ErrorBar {
         /// Position on the other axis.
@@ -500,6 +515,9 @@ pub struct Plot {
     pub frame: Option<FrameStyle>,
     /// Notes for the SVG.
     pub notes: Vec<String>,
+    /// Draw transposed: the family's X (categories) runs down the left and its Y (values)
+    /// along the bottom. `axes.x` and `axes.y` keep describing the family's axes.
+    pub horizontal: bool,
 }
 
 /// Mapping from data to points along one axis, with breaks.
@@ -738,7 +756,10 @@ fn extents(layers: &[Layer], sx: Scale, sy: Scale) -> ((f64, f64), (f64, f64)) {
                 Mark::HLine { y, .. } => p(f64::NAN, *y, &mut ex, &mut ey),
                 Mark::VLine { x, .. } => p(*x, f64::NAN, &mut ex, &mut ey),
                 Mark::Tick { x, y, .. } => p(*x, *y, &mut ex, &mut ey),
-                Mark::Label { .. } | Mark::Callouts(_) | Mark::LineLabel { .. } => {}
+                Mark::Label { .. }
+                | Mark::Callouts(_)
+                | Mark::LineLabel { .. }
+                | Mark::Hatch { .. } => {}
             }
         }
     }
@@ -1147,6 +1168,193 @@ impl Mapper<'_> {
     }
 }
 
+/// The point rectangles of a data rectangle: clipped to the plot area and cut where either
+/// axis is broken. A NaN bottom (`y0`) or left (`x0`) means the edge of the plot area (bars
+/// on log axes).
+fn rect_pieces(mp: &Mapper<'_>, x0: f64, x1: f64, y0: f64, y1: f64) -> Vec<Rect> {
+    let c = &mp.clip;
+    let cl = c.inflate(0.5);
+    let a = if x0.is_nan() { c.x } else { mp.x.map(x0) };
+    let b = mp.x.map(x1);
+    let d = if y0.is_nan() {
+        c.bottom()
+    } else {
+        mp.y.map(y0)
+    };
+    let e = mp.y.map(y1);
+    if ![a, b, d, e].iter().all(|v| v.is_finite()) {
+        return Vec::new();
+    }
+    let (l, r) = (a.min(b).max(cl.x), a.max(b).min(cl.right()));
+    let (t, bt) = (d.min(e).max(cl.y), d.max(e).min(cl.bottom()));
+    if !(r > l && bt > t) {
+        return Vec::new();
+    }
+    let cut = |span: (f64, f64), gaps: Vec<(f64, f64)>| -> Vec<(f64, f64)> {
+        let mut pieces = vec![span];
+        for (g0, g1) in gaps {
+            let (g0, g1) = (g0.min(g1), g0.max(g1));
+            pieces = pieces
+                .into_iter()
+                .flat_map(|(a, b)| {
+                    if g0 >= b || g1 <= a {
+                        vec![(a, b)]
+                    } else {
+                        [(a, g0), (g1, b)]
+                            .into_iter()
+                            .filter(|(p, q)| q - p > 0.01)
+                            .collect()
+                    }
+                })
+                .collect();
+        }
+        pieces
+    };
+    let mut out = Vec::new();
+    for (xa, xb) in cut((l, r), mp.x.gaps()) {
+        for (ya, yb) in cut((t, bt), mp.y.gaps()) {
+            out.push(Rect::new(xa, ya, xb - xa, yb - ya));
+        }
+    }
+    out
+}
+
+/// Pattern strokes (or dots) filling a rectangle in points, spaced 3 pt apart.
+fn hatch_nodes(r: &Rect, pattern: crate::spec::FillPattern, stroke: Stroke, out: &mut Vec<Node>) {
+    use crate::spec::FillPattern as F;
+    const STEP: f64 = 3.0;
+    type Seg = ((f64, f64), (f64, f64));
+    let mut lines: Vec<Seg> = Vec::new();
+    let (w, h) = (r.width, r.height);
+    let diag = |sign: f64, lines: &mut Vec<Seg>| {
+        // Lines x = x0 + k*STEP ± (y - y0), spanning the rectangle, clipped to it.
+        let n = ((w + h) / STEP).ceil() as i64 + 1;
+        for k in -n..=n {
+            let x = r.x + k as f64 * STEP;
+            let (p1, p2) = if sign > 0.0 {
+                ((x, r.bottom()), (x + h, r.y))
+            } else {
+                ((x, r.y), (x + h, r.bottom()))
+            };
+            if let Some(seg) = clip_segment(p1, p2, r) {
+                lines.push(seg);
+            }
+        }
+    };
+    match pattern {
+        F::None => return,
+        F::Hatch => diag(1.0, &mut lines),
+        F::BackHatch => diag(-1.0, &mut lines),
+        F::Crosshatch => {
+            diag(1.0, &mut lines);
+            diag(-1.0, &mut lines);
+        }
+        F::Horizontal => {
+            let mut y = r.bottom() - STEP / 2.0;
+            while y > r.y {
+                lines.push(((r.x, y), (r.right(), y)));
+                y -= STEP;
+            }
+        }
+        F::Vertical => {
+            let mut x = r.x + STEP / 2.0;
+            while x < r.right() {
+                lines.push(((x, r.y), (x, r.bottom())));
+                x += STEP;
+            }
+        }
+        F::Dots => {
+            let mut pts = Vec::new();
+            let mut y = r.bottom() - STEP / 2.0;
+            let mut row = 0;
+            while y > r.y {
+                let mut x = r.x + STEP / 2.0 + if row % 2 == 1 { STEP / 2.0 } else { 0.0 };
+                while x < r.right() {
+                    pts.push((x, y));
+                    x += STEP;
+                }
+                y -= STEP;
+                row += 1;
+            }
+            out.push(Node::Markers {
+                shape: MarkerShape::Circle,
+                size: (stroke.width * 1.4).max(0.6),
+                paint: Paint::fill(stroke.color),
+                points: pts,
+            });
+            return;
+        }
+    }
+    for (a, b) in lines {
+        if (a.0 - b.0).abs() + (a.1 - b.1).abs() > 0.05 {
+            out.push(Node::Line {
+                p1: a,
+                p2: b,
+                stroke,
+            });
+        }
+    }
+}
+
+/// Split a polyline (in points) where it crosses an axis break: the stretch inside each
+/// gap is left out, so lines show the discontinuity as the axis does.
+fn cut_at_gaps(
+    pts: Vec<(f64, f64)>,
+    xgaps: &[(f64, f64)],
+    ygaps: &[(f64, f64)],
+) -> Vec<Vec<(f64, f64)>> {
+    if xgaps.is_empty() && ygaps.is_empty() {
+        return vec![pts];
+    }
+    let mut out: Vec<Vec<(f64, f64)>> = Vec::new();
+    let mut cur: Vec<(f64, f64)> = Vec::new();
+    let gaps: Vec<(bool, f64, f64)> = xgaps
+        .iter()
+        .map(|g| (true, g.0.min(g.1), g.0.max(g.1)))
+        .chain(ygaps.iter().map(|g| (false, g.0.min(g.1), g.0.max(g.1))))
+        .collect();
+    for (i, p) in pts.iter().enumerate() {
+        if i == 0 {
+            cur.push(*p);
+            continue;
+        }
+        let a = pts[i - 1];
+        // Parameter intervals of the segment inside any gap.
+        let mut cuts: Vec<(f64, f64)> = Vec::new();
+        for (on_x, g0, g1) in &gaps {
+            let (u, v) = if *on_x { (a.0, p.0) } else { (a.1, p.1) };
+            if (v - u).abs() < 1e-12 {
+                continue;
+            }
+            let t0 = (g0 - u) / (v - u);
+            let t1 = (g1 - u) / (v - u);
+            let (t0, t1) = (t0.min(t1).max(0.0), t0.max(t1).min(1.0));
+            if t1 > t0 && t0 < 1.0 && t1 > 0.0 {
+                cuts.push((t0, t1));
+            }
+        }
+        if cuts.is_empty() {
+            cur.push(*p);
+            continue;
+        }
+        cuts.sort_by(|x, y| x.0.total_cmp(&y.0));
+        let at = |t: f64| (a.0 + (p.0 - a.0) * t, a.1 + (p.1 - a.1) * t);
+        for (t0, t1) in cuts {
+            cur.push(at(t0));
+            if cur.len() >= 2 {
+                out.push(std::mem::take(&mut cur));
+            }
+            cur.clear();
+            cur.push(at(t1));
+        }
+        cur.push(*p);
+    }
+    if cur.len() >= 2 {
+        out.push(cur);
+    }
+    out
+}
+
 fn mark_nodes(
     m: &Mark,
     mp: &Mapper<'_>,
@@ -1203,7 +1411,10 @@ fn mark_nodes(
             if *step {
                 v = step_pts(&v);
             }
-            for piece in clip_polyline(&v, &cl) {
+            for piece in cut_at_gaps(v, &mp.x.gaps(), &mp.y.gaps())
+                .iter()
+                .flat_map(|p| clip_polyline(p, &cl))
+            {
                 out.push(Node::Poly {
                     points: piece,
                     closed: false,
@@ -1264,40 +1475,23 @@ fn mark_nodes(
             y1,
             paint,
         } => {
-            let (a, b) = (mp.x.map(*x0), mp.x.map(*x1));
-            let (d, e) = (mp.y.map(*y0), mp.y.map(*y1));
-            // A NaN base means "from the bottom of the axis" (bars on log axes).
-            let d = if y0.is_nan() { c.bottom() } else { d };
-            if ![a, b, d, e].iter().all(|v| v.is_finite()) {
-                return;
+            for rect in rect_pieces(mp, *x0, *x1, *y0, *y1) {
+                out.push(Node::Rect {
+                    rect,
+                    paint: *paint,
+                });
             }
-            let (l, r) = (a.min(b).max(cl.x), a.max(b).min(cl.right()));
-            let (t, bt) = (d.min(e).max(cl.y), d.max(e).min(cl.bottom()));
-            if r > l && bt > t {
-                // Bars are cut where the Y axis is broken.
-                let mut pieces = vec![(t, bt)];
-                for (g0, g1) in mp.y.gaps() {
-                    let (g0, g1) = (g0.min(g1), g0.max(g1));
-                    pieces = pieces
-                        .into_iter()
-                        .flat_map(|(a, b)| {
-                            if g0 >= b || g1 <= a {
-                                vec![(a, b)]
-                            } else {
-                                [(a, g0), (g1, b)]
-                                    .into_iter()
-                                    .filter(|(p, q)| q - p > 0.01)
-                                    .collect()
-                            }
-                        })
-                        .collect();
-                }
-                for (a, b) in pieces {
-                    out.push(Node::Rect {
-                        rect: Rect::new(l, a, r - l, b - a),
-                        paint: *paint,
-                    });
-                }
+        }
+        Mark::Hatch {
+            x0,
+            x1,
+            y0,
+            y1,
+            pattern,
+            stroke,
+        } => {
+            for r in rect_pieces(mp, *x0, *x1, *y0, *y1) {
+                hatch_nodes(&r, *pattern, *stroke, out);
             }
         }
         Mark::ErrorBar {
@@ -1833,6 +2027,18 @@ pub fn render(ctx: &Ctx<'_>, mut plot: Plot) -> Scene {
     // Significance brackets become marks before the ranges are fixed.
     let (_, ey0) = extents(&plot.layers, sx, sy);
     add_brackets(ctx, &mut plot, sy, ey0);
+    // Horizontal graphs: everything was laid out with categories along X; turn it so the
+    // categories run down the left, and let the spec's value axis (`axes.y`) style the
+    // bottom axis.
+    let horizontal = plot.horizontal;
+    let swapped;
+    let (spec, sx, sy) = if horizontal {
+        transpose(&mut plot);
+        swapped = swap_axes(spec);
+        (&swapped, sy, sx)
+    } else {
+        (spec, sx, sy)
+    };
     let (ex, ey) = extents(&plot.layers, sx, sy);
 
     let x_title = spec
@@ -2704,6 +2910,9 @@ pub fn render(ctx: &Ctx<'_>, mut plot: Plot) -> Scene {
         root.push(Node::Group(g));
     }
 
+    if horizontal {
+        swap_targets(&mut root);
+    }
     let mut scene = Scene {
         width: w,
         height: h,
@@ -2717,6 +2926,100 @@ pub fn render(ctx: &Ctx<'_>, mut plot: Plot) -> Scene {
     };
     scene.notes = notes;
     scene
+}
+
+/// Swap X and Y of every mark and axis plan (horizontal graphs). The category axis moves
+/// to the left and runs top to bottom.
+fn transpose(plot: &mut Plot) {
+    let sw = |p: &mut (f64, f64)| *p = (p.1, p.0);
+    for l in &mut plot.layers {
+        for m in &mut l.marks {
+            match m {
+                Mark::Points { pts, .. } | Mark::Line { pts, .. } | Mark::Polygon { pts, .. } => {
+                    pts.iter_mut().for_each(sw)
+                }
+                Mark::Band { .. } => {}
+                Mark::Rect { x0, x1, y0, y1, .. } | Mark::Hatch { x0, x1, y0, y1, .. } => {
+                    std::mem::swap(x0, y0);
+                    std::mem::swap(x1, y1);
+                }
+                Mark::ErrorBar { horizontal, .. } => *horizontal = !*horizontal,
+                Mark::Segment { p1, p2, .. } => {
+                    sw(p1);
+                    sw(p2);
+                }
+                Mark::HLine { y, stroke } => {
+                    *m = Mark::VLine {
+                        x: *y,
+                        stroke: *stroke,
+                    }
+                }
+                Mark::VLine { x, stroke } => {
+                    *m = Mark::HLine {
+                        y: *x,
+                        stroke: *stroke,
+                    }
+                }
+                Mark::Tick { x, y, .. } => std::mem::swap(x, y),
+                Mark::Callouts(list) => {
+                    for c in list {
+                        std::mem::swap(&mut c.x, &mut c.y);
+                    }
+                }
+                Mark::LineLabel { vertical, .. } => *vertical = !*vertical,
+                Mark::Label {
+                    x,
+                    y,
+                    dx,
+                    dy,
+                    anchor,
+                    baseline,
+                    ..
+                } => {
+                    std::mem::swap(x, y);
+                    let (a, b) = (*dx, *dy);
+                    *dx = -b;
+                    *dy = a;
+                    if *anchor == Anchor::Middle && *baseline == Baseline::Alphabetic {
+                        // A label above a bracket goes to its right.
+                        *anchor = Anchor::Start;
+                        *baseline = Baseline::Middle;
+                    }
+                }
+            }
+        }
+    }
+    std::mem::swap(&mut plot.x, &mut plot.y);
+    if !plot.y.categories.is_empty() {
+        plot.y.reverse = true;
+    }
+}
+
+/// The spec with its X and Y axes exchanged (horizontal graphs).
+fn swap_axes(spec: &GraphSpec) -> GraphSpec {
+    let mut s = spec.clone();
+    std::mem::swap(&mut s.axes.x, &mut s.axes.y);
+    s
+}
+
+/// Point the axis groups of a horizontal graph at the spec axis they draw.
+fn swap_targets(g: &mut Group) {
+    if let Some(t) = &g.target {
+        let swapped = if let Some(rest) = t.strip_prefix("/axes/x") {
+            Some(format!("/axes/y{rest}"))
+        } else {
+            t.strip_prefix("/axes/y")
+                .map(|rest| format!("/axes/x{rest}"))
+        };
+        if swapped.is_some() {
+            g.target = swapped;
+        }
+    }
+    for c in &mut g.children {
+        if let Node::Group(cg) = c {
+            swap_targets(cg);
+        }
+    }
 }
 
 fn axis_line(g: &mut Group, map: &AxisMap, horizontal: bool, at: f64, a: f64, b: f64, s: Stroke) {

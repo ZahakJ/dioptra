@@ -3,6 +3,54 @@
 All notable changes to Dioptra. Versions follow [semantic versioning](https://semver.org/);
 the file format has its own version (see the manual's File format chapter).
 
+## 0.3.0 — 2026-10-12
+
+Connecting lines: Prism's before–after graphs, made an option of every bar graph.
+
+### Graphs
+
+- **Connecting lines** on column, strip, box and violin graphs (`options.connecting`): a
+  line per subject joining the values of each row across the bars, the means or medians
+  joined across the bars, or both. Lines are drawn above bars, boxes and violins and beneath
+  the points; the summary line on top. Style (solid, dashed, dotted), width, opacity and
+  colour: one colour, by data set, per subject from a palette, or by a grouping column with a
+  legend. A missing value leaves a gap (or the line joins across it). On grouped tables the
+  lines run within each group across its data sets (matched subcolumns) or along each data
+  set across the groups. With jitter on, each line ends at its own jittered point. Lines
+  are cut where they cross an axis break. Every subject line is a target in the graph
+  editor.
+- **Paired t, ratio paired t, Wilcoxon, repeated-measures ANOVA and Friedman** now graph as
+  bars with connecting lines; the results sheet's button says **Graph with connecting
+  lines**. The New graph dialog offers **Bars with connecting lines** and **Before–after
+  (points)** as presets for column and grouped tables.
+- **Horizontal** column, strip, box and violin graphs (`options.orientation`); `axes.y`
+  stays the value axis, as in Prism.
+- Bar options from a comparison with Prism's Format Graph: error-bar **direction** (both,
+  above, below) and **cap width**; **bar width** and **slot width** (the gaps between bars
+  and between groups); **bar fill** (tint, solid, outline); **fill patterns** per data set
+  (diagonals, crosshatch, horizontal, vertical, dots), drawn as geometry so SVG, PDF and PNG
+  agree; strip graphs without points (mean ± error only) or without the mean line.
+- Open markers (`circle_open` and friends) now draw open on column graphs.
+- Any line now breaks where it crosses an axis break, and horizontal bars are cut at breaks
+  of the value axis.
+- New inspector sections: **Connecting lines** and **Bars and points** (orientation,
+  summary, jitter, fill, widths, error-bar direction and caps); a pattern control per data
+  set.
+
+### File format
+
+- Format **1.1**. Graph specs gain the fields above; defaults are not written, so graphs
+  without them are saved as before. The `before_after` family is retired: opening a 1.0
+  file turns such graphs into the strip spec that draws the same picture (unjittered points,
+  subject lines, the mean line when it was on). `docs/FILE-FORMAT.md` documents the
+  migration.
+
+### Research and docs
+
+- `research/06-connecting-lines.md`: what Prism's column, grouped and categorical graphs
+  offer for connecting lines, with sources, and how Dioptra maps each option.
+- Manual: **Connecting lines and paired graphs**, with a worked example.
+
 ## 0.2.1 — 2026-10-12
 
 ### Fixed

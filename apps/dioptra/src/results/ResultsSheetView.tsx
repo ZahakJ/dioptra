@@ -155,9 +155,9 @@ function SheetPane({
               <Copy size={16} strokeWidth={1.5} aria-hidden="true" />
               <span className="btn-text">Copy sheet</span>
             </button>
-            <button type="button" className="btn btn-sm btn-quiet" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph" data-tip="A graph of this result">
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph" data-tip={sheet.graph_family === 'paired' ? 'Bars of the mean with a line joining each subject’s values' : 'A graph of this result'}>
               <ChartColumn size={16} strokeWidth={1.5} aria-hidden="true" />
-              <span className="btn-text">Make graph</span>
+              <span className="btn-text">{sheet.graph_family === 'paired' ? 'Graph with connecting lines' : 'Make graph'}</span>
             </button>
           </div>
         </div>

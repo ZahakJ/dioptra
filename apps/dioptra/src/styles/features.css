@@ -1092,6 +1092,11 @@
   flex: 1;
 }
 
+.seg-tight .seg-btn {
+  min-width: 0;
+  padding-inline: 2px;
+}
+
 .g-pair {
   display: flex;
   gap: 4px;
@@ -1101,6 +1106,15 @@
 .g-pair > .select {
   flex: 1;
   min-width: 0;
+}
+
+.g-subhead {
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+  color: var(--fg);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
 .g-sel {

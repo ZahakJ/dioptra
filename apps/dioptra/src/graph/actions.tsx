@@ -61,7 +61,9 @@ export async function newGraph(source: Id | null = graphSource()): Promise<void>
   const item = itemById(source);
   const meta = await tableMeta(sourceTableId(source));
   const families = familiesFor(meta?.kind);
-  const initial = item?.kind === 'analysis' ? familyForAnalysis(item.subtype ?? '') : families[0]!;
+  // An analysis names its natural graph (a paired t test: bars with connecting lines).
+  const sheetFamily = item?.kind === 'analysis' ? (await query((e) => obj.getResults(e, source)))?.graph_family : undefined;
+  const initial = item?.kind === 'analysis' ? (sheetFamily ?? familyForAnalysis(item.subtype ?? '')) : families[0]!;
   const family = await openDialog<string | null>(
     (close) => <FamilyDialog title={item?.title ?? ''} families={families} initial={families.includes(initial) ? initial : families[0]!} close={close} />,
     null,

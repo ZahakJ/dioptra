@@ -52,38 +52,38 @@ answers is the [complaint map](https://zahakj.github.io/dioptra/manual/complaint
 ## Install
 
 Download links always point at the latest release. The file names below are those of
-version 0.2.1.
+version 0.3.0.
 
 **Linux (AppImage, any distribution)**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.AppImage
-chmod +x Dioptra_0.2.1_amd64.AppImage && ./Dioptra_0.2.1_amd64.AppImage
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.AppImage
+chmod +x Dioptra_0.3.0_amd64.AppImage && ./Dioptra_0.3.0_amd64.AppImage
 ```
 
 **Debian, Ubuntu**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.deb
-sudo dpkg -i Dioptra_0.2.1_amd64.deb || sudo apt-get -f install
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.deb
+sudo dpkg -i Dioptra_0.3.0_amd64.deb || sudo apt-get -f install
 ```
 
 **Fedora, RHEL, openSUSE**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.2.1-1.x86_64.rpm
-sudo rpm -i Dioptra-0.2.1-1.x86_64.rpm
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.3.0-1.x86_64.rpm
+sudo rpm -i Dioptra-0.3.0-1.x86_64.rpm
 ```
 
 **Windows:** download and run
-[`Dioptra_0.2.1_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64_en-US.msi)
-(or [`Dioptra_0.2.1_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64-setup.exe)
+[`Dioptra_0.3.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64_en-US.msi)
+(or [`Dioptra_0.3.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64-setup.exe)
 to install without administrator rights).
 
 **macOS:** download the disk image for your processor,
-[`Dioptra_0.2.1_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_aarch64.dmg)
+[`Dioptra_0.3.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_aarch64.dmg)
 for Apple silicon or
-[`Dioptra_0.2.1_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64.dmg)
+[`Dioptra_0.3.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64.dmg)
 for Intel, and drag Dioptra to Applications. The app is ad-hoc signed but not notarized, so
 the first launch needs right-click → Open (on macOS 15 and later: System Settings → Privacy &
 Security → Open Anyway), or once in Terminal: `xattr -cr /Applications/Dioptra.app`
@@ -98,12 +98,13 @@ says what to click.
 
 ## What it does
 
-| Area | In version 0.2.1 |
+| Area | In version 0.3.0 |
 |---|---|
 | Tables | Eight kinds (XY, Column, Grouped, Contingency, Survival, Parts of whole, Multiple variables, Nested); replicate or mean/SD/N entry; a million-cell grid; text kept as text; excluded values kept and struck through; provenance for every cell |
 | Formulas | Column and cell formulas with fill-down, summaries, series functions, unit and mass-to-molar conversion; derived tables for pivot, transpose, filter, baseline removal and normalisation |
 | Analyses | Twenty, from t tests and ANOVA to nonlinear regression, survival, ROC, Bland–Altman and PCA; assumption checks first, effect sizes with confidence intervals, APA sentences and a methods line |
 | Graphs | Twenty-three families including violin, raincloud, estimation, SuperPlot, Kaplan–Meier and volcano; an interactive editor; three themes; colour-blind-safe palettes; multi-panel layouts |
+| Paired graphs | Connecting lines on bar, dot, box and violin graphs: a line per subject, the means or medians, or both; colour by data set, subject or a grouping column; a gap or a join at a missing value; grouped tables within or across groups; horizontal graphs; the default graph of paired and repeated-measures tests ([manual](https://zahakj.github.io/dioptra/manual/graphs/connecting-lines.html)) |
 | Export | SVG with real text, PDF with embedded fonts, PNG at any resolution; sizes in mm and points; identical bytes on every platform; tables to CSV, TSV and XLSX |
 | Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS and Prism `.pzfx` data |
 | File format | `.dioptra`: a zip of documented JSON with data, formulas, specifications and the command history ([format](docs/FILE-FORMAT.md)) |

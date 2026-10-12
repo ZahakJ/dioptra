@@ -43,6 +43,11 @@ export function inspectorSections(): InspectorSection[] {
   return [...sections.values()].sort((a, b) => a.order - b.order);
 }
 
+/** Re-evaluate every section's `when` (e.g. after a graph's family changed). */
+export function refreshInspector(): void {
+  bump();
+}
+
 function bump() {
   version++;
   for (const l of listeners) l();

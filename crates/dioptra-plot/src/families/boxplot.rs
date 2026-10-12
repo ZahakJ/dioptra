@@ -1,7 +1,8 @@
 //! `box`: Tukey box plots (hinges at the quartiles, whiskers to the most extreme value
 //! within 1.5 IQR, outliers as points), optional notches (median ± 1.58 IQR/√n).
 
-use super::common::{fill_entry, jitter, series_layer, y_title, Cats};
+use super::common::{fill_entry, row_jitter, row_values, series_layer, y_title, Cats};
+use super::connect::{assemble, Placed};
 use crate::plot::{AxisPlan, Ctx, Layer, Mark, Plot, SeriesStyle};
 use crate::scene::{Color, MarkerShape, Paint, Stroke};
 use crate::stats::{quantile_sorted, sorted};
@@ -144,16 +145,18 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
     let d = ctx.data;
     let spec = ctx.spec;
     let t = &ctx.theme;
-    let cats = Cats::of(d);
+    let cats = Cats::for_spec(d, spec);
     let mut p = Plot {
         x: AxisPlan::categorical(
             cats.labels.clone(),
             if cats.clustered { &d.x_label } else { "" },
         ),
         y: AxisPlan::continuous(&y_title(d)),
+        horizontal: spec.options.orientation == crate::spec::Orientation::Horizontal,
         ..Default::default()
     };
     let n = d.series.len();
+    let (mut bodies, mut marks, mut placed) = (Vec::new(), Vec::new(), Vec::new());
     for (i, s) in d.series.iter().enumerate() {
         let st = ctx.style(i, n, s.dataset, &s.name);
         let fill = if t.mono {
@@ -163,25 +166,42 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
         };
         let line = outline(ctx, &st);
         let mut l = series_layer(i, s.dataset);
+        let mut over = series_layer(i, s.dataset);
         for (k, x) in s.x.iter().enumerate() {
             let Some((c, w)) = cats.slot(i, *x) else {
                 continue;
             };
             let v = s.values_at(k);
-            let bw = if cats.clustered { w * 0.8 } else { w * 0.6 };
+            let bw = w * spec
+                .options
+                .bar_width
+                .map_or(if cats.clustered { 0.8 } else { 0.6 }, |b| {
+                    b.clamp(0.05, 1.0)
+                });
             let Some(tk) = draw_box(&mut l, &v, c, bw, fill, line, t.axis_pt, spec.options.notch)
             else {
                 continue;
             };
             let shape = st.marker.unwrap_or(MarkerShape::Circle);
-            if spec.mapping.points {
-                let off = jitter(
-                    &v,
+            let raw = row_values(s, k);
+            let off = if spec.mapping.points {
+                row_jitter(
+                    &raw,
                     bw * 0.6 * spec.options.jitter,
                     spec.options.seed.wrapping_add(i as u64 * 13 + k as u64),
-                );
-                l.marks.push(Mark::Points {
-                    pts: v.iter().zip(&off).map(|(y, o)| (c + o, *y)).collect(),
+                )
+            } else {
+                vec![0.0; raw.len()]
+            };
+            placed.push(Placed::new(i, c, &raw, &off));
+            if spec.mapping.points {
+                over.marks.push(Mark::Points {
+                    pts: raw
+                        .iter()
+                        .zip(&off)
+                        .filter(|(y, _)| y.is_finite())
+                        .map(|(y, o)| (c + o, *y))
+                        .collect(),
                     shape,
                     size: st.size * 0.7,
                     paint: Paint::fill(line.alpha(0.75)),
@@ -192,7 +212,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                     .filter(|y| **y < tk.lo || **y > tk.hi)
                     .map(|y| (c, *y))
                     .collect();
-                l.marks.push(Mark::Points {
+                over.marks.push(Mark::Points {
                     pts: out,
                     shape,
                     size: st.size * 0.8,
@@ -200,10 +220,12 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 });
             }
         }
-        p.layers.push(l);
+        bodies.push(l);
+        marks.push(over);
         if cats.clustered {
             p.legend.push(fill_entry(ctx, &st, fill));
         }
     }
+    assemble(ctx, &mut p, &cats, bodies, marks, &placed);
     p
 }
