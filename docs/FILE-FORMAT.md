@@ -20,7 +20,7 @@ history.jsonl            command log: one JSON object per line, newest last
 ## manifest.json
 
 ```json
-{ "format": "dioptra/1", "app": "0.1.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
+{ "format": "dioptra/1", "app": "0.2.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
 ```
 
 Readers must accept any `dioptra/1.x`; unknown keys are preserved on round trip where

@@ -133,12 +133,25 @@ element has the 2 px accent focus ring at a 2 px offset.
 ## 5. Captures
 
 Made with `.scratch/design/capture.mjs` against the production build (`vite preview`), with the
-real WebAssembly engine and the Cytokine study data. Every capture was looked at in both themes.
+real WebAssembly engine and the Cytokine study data. Every capture was looked at in both themes
+before v0.2.0 was tagged.
 
 - Before the design round: `.scratch/design/before/`.
 - After round 1: `.scratch/design/after-round1/`.
-- After round 2: `.scratch/design/after/` — `empty`, `grid`, `results`, `graph`, `palette`,
-  `dialog-analyze`, `export`, `survival`, `dose-response`, `layout` and `grid-compact`, each as
-  `<name>-<light|dark>-<1440|1024>.png`.
-- The README and landing set: `.scratch/final2/` — `grid.png`, `results.png`, `graph.png`,
-  `graph-dark.png`, `dose-response.png`, `survival.png`, `palette.png`, `empty.png` (1440 × 900).
+- v0.2.0: `.scratch/design/after/` — `empty`, `grid`, `results`, `graph`, `palette`,
+  `dialog-analyze`, `export`, `survival`, `dose-response`, `layout`, `grid-compact` and
+  `paste-import`, each as `<name>-<light|dark>-<1440|1024>.png`; the landing page as
+  `site-<light|dark>-<1440|390>.png` and `site-captures-<theme>-1440.png`.
+- The README, manual and landing set: `.scratch/final3/` (1440 × 900, both themes) and the
+  2× set `.scratch/final3-2x/` the banner crops come from.
+
+## 6. The GitHub presence
+
+- `docs/media/banner.png` (1640 × 640, drawn for 820 × 320 at 2×) heads the README and is the
+  landing page's Open Graph image (`site/assets/banner.png`). Its source is
+  `docs/media/banner.svg` with two real dark-mode crops of v0.2.0
+  (`banner-crop-grid.png`, `banner-crop-graph.png`); `node scripts/make-banner.mjs` renders it.
+- The README carries the release, licence, CI and platform badges and a strip of the grid,
+  results sheet and graph editor in both themes (`docs/media/*-light.png`, `*-dark.png`).
+- The landing page's hero sits on the same millimetre desk as the banner, and every capture on
+  it follows the page's theme (system by default, or the toggle).

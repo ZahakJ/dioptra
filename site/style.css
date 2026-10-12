@@ -522,3 +522,52 @@ h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.005em; }
 
 /* Tabular figures where numbers align or are compared. */
 .figures, .sheet, .dl-meta, .term, .tnum { font-variant-numeric: tabular-nums; }
+
+/* ---- v0.2.0: the desk behind the hero, captures that follow the theme ---- */
+
+.img-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .img-light { display: none; }
+  :root:not([data-theme="light"]) .img-dark { display: block; }
+}
+:root[data-theme="dark"] .img-light { display: none; }
+:root[data-theme="dark"] .img-dark { display: block; }
+
+.hero-desk {
+  --grid-line: rgba(29, 33, 32, 0.045);
+  --grid-major: rgba(29, 33, 32, 0.07);
+  --glow: rgba(46, 125, 120, 0.10);
+  background:
+    radial-gradient(ellipse 70% 60% at 75% 70%, var(--glow), transparent 70%),
+    linear-gradient(var(--grid-major) 1px, transparent 1px) 0 0 / 100px 100px,
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px) 0 0 / 100px 100px,
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 20px 20px;
+  border-bottom: 1px solid var(--rule);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero-desk {
+    --grid-line: rgba(228, 225, 218, 0.03);
+    --grid-major: rgba(228, 225, 218, 0.055);
+    --glow: rgba(95, 179, 173, 0.14);
+  }
+}
+:root[data-theme="dark"] .hero-desk {
+  --grid-line: rgba(228, 225, 218, 0.03);
+  --grid-major: rgba(228, 225, 218, 0.055);
+  --glow: rgba(95, 179, 173, 0.14);
+}
+.hero-desk .hero { padding-bottom: 72px; }
+.hero-desk + .band { border-top: 0; }
+
+.hero-shot { margin: 48px 0 0; }
+.hero-shot img {
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+@media (max-width: 600px) {
+  .hero-shot { margin-top: 32px; }
+  .hero-shot img { border-radius: 6px; }
+}

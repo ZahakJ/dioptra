@@ -348,7 +348,7 @@ quantities bounded by 1 (r, η², R², AUC) drop the leading zero in APA style.
 
 **Methods line.** Test, sidedness, correction or adjustment, CI level, data form (for
 example "computed from the entered mean, SD and N") and the software version, ready to
-paste: "Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.1.0."
+paste: "Welch's unpaired t test, two-sided, 95% CI. Dioptra 0.2.0."
 
 **Graphs.** A sheet names a default graph family (`graph_family`) and carries runtime
 graph material: the analysed data sets, significance brackets (adjusted p of each

@@ -1,12 +1,41 @@
-# Dioptra
+<p align="center">
+  <img src="docs/media/banner.png" alt="Dioptra — data, statistics and publication graphs without the spreadsheet" width="820">
+</p>
+
+<p align="center">
+  <a href="https://github.com/ZahakJ/dioptra/releases/latest"><img src="https://img.shields.io/github/v/release/ZahakJ/dioptra?color=2e7d78&label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-2e7d78" alt="MIT licence"></a>
+  <a href="https://github.com/ZahakJ/dioptra/actions/workflows/ci.yml"><img src="https://github.com/ZahakJ/dioptra/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20Windows%20%C2%B7%20macOS-2e7d78" alt="Linux, Windows, macOS">
+</p>
+
+<p align="center">
+  <a href="https://zahakj.github.io/dioptra/"><b>Website</b></a> ·
+  <a href="https://zahakj.github.io/dioptra/manual/"><b>Manual</b></a> ·
+  <a href="https://github.com/ZahakJ/dioptra/releases/latest"><b>Download</b></a>
+</p>
 
 Dioptra is a free desktop program for scientific data: paste raw numbers, test them with
 every assumption checked, and export a journal-ready figure. It runs on Linux, Windows and
 macOS.
 
-**[Website](https://zahakj.github.io/dioptra/)** ·
-**[Manual](https://zahakj.github.io/dioptra/manual/)** ·
-**[Download](https://github.com/ZahakJ/dioptra/releases/latest)**
+<table>
+  <tr>
+    <td width="33%"><img src="docs/media/grid-light.png" alt="The grid in light mode: a bounded sheet of four dose groups with colour swatches in the headers, a selection, and the inspector showing where the cell came from"></td>
+    <td width="33%"><img src="docs/media/results-light.png" alt="A one-way ANOVA results sheet in light mode: assumption checks, APA-style sentences and the statistics table"></td>
+    <td width="33%"><img src="docs/media/graph-editor-light.png" alt="The graph editor in light mode: a column graph on white paper with millimetre rulers and the Y axis selected"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/media/grid-dark.png" alt="The same grid in dark mode, on graphite"></td>
+    <td><img src="docs/media/results-dark.png" alt="The same results sheet in dark mode"></td>
+    <td><img src="docs/media/graph-editor-dark.png" alt="The graph editor in dark mode: the figure on white paper over the graphite desk"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>The grid.</b> Every cell knows where it came from.</sub></td>
+    <td align="center"><sub><b>The results sheet.</b> Assumptions first, then sentences to paste.</sub></td>
+    <td align="center"><sub><b>The graph editor.</b> Millimetres and points.</sub></td>
+  </tr>
+</table>
 
 ## Why
 
@@ -23,59 +52,51 @@ answers is the [complaint map](https://zahakj.github.io/dioptra/manual/complaint
 ## Install
 
 Download links always point at the latest release. The file names below are those of
-version 0.1.0.
+version 0.2.0.
 
 **Linux (AppImage, any distribution)**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_amd64.AppImage
-chmod +x Dioptra_0.1.0_amd64.AppImage && ./Dioptra_0.1.0_amd64.AppImage
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_amd64.AppImage
+chmod +x Dioptra_0.2.0_amd64.AppImage && ./Dioptra_0.2.0_amd64.AppImage
 ```
 
 **Debian, Ubuntu**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_amd64.deb
-sudo dpkg -i Dioptra_0.1.0_amd64.deb || sudo apt-get -f install
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_amd64.deb
+sudo dpkg -i Dioptra_0.2.0_amd64.deb || sudo apt-get -f install
 ```
 
 **Fedora, RHEL, openSUSE**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.1.0-1.x86_64.rpm
-sudo rpm -i Dioptra-0.1.0-1.x86_64.rpm
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.2.0-1.x86_64.rpm
+sudo rpm -i Dioptra-0.2.0-1.x86_64.rpm
 ```
 
 **Windows:** download and run
-[`Dioptra_0.1.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_x64_en-US.msi)
-(or [`Dioptra_0.1.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_x64-setup.exe)
+[`Dioptra_0.2.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64_en-US.msi)
+(or [`Dioptra_0.2.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64-setup.exe)
 to install without administrator rights).
 
 **macOS:** download the disk image for your processor,
-[`Dioptra_0.1.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_aarch64.dmg)
+[`Dioptra_0.2.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_aarch64.dmg)
 for Apple silicon or
-[`Dioptra_0.1.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.1.0_x64.dmg)
+[`Dioptra_0.2.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64.dmg)
 for Intel, and drag Dioptra to Applications.
 
 The builds are not signed with a paid certificate, so Windows and macOS ask once before
 the first launch; [Getting started](https://zahakj.github.io/dioptra/manual/getting-started.html)
 says what to click.
 
-## A look
-
-<!-- screenshots: replace with final captures before tagging -->
-
-![The grid holding a cytokine study, with the inspector showing where the selected cell came from](docs/manual/src/images/grid-light.png)
-
-![A results sheet: assumption checks, APA-style sentences, the statistics table and a reporting checklist](docs/manual/src/images/results-light.png)
-
-![The graph editor with the Y axis title selected and its properties in the inspector](docs/manual/src/images/graph-editor-light.png)
+## A figure, as exported
 
 ![An exported estimation plot: both groups' points and the mean difference with its bootstrap 95% CI](docs/manual/src/images/figure-estimation.png)
 
 ## What it does
 
-| Area | In version 0.1.0 |
+| Area | In version 0.2.0 |
 |---|---|
 | Tables | Eight kinds (XY, Column, Grouped, Contingency, Survival, Parts of whole, Multiple variables, Nested); replicate or mean/SD/N entry; a million-cell grid; text kept as text; excluded values kept and struck through; provenance for every cell |
 | Formulas | Column and cell formulas with fill-down, summaries, series functions, unit and mass-to-molar conversion; derived tables for pivot, transpose, filter, baseline removal and normalisation |
