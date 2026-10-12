@@ -52,39 +52,41 @@ answers is the [complaint map](https://zahakj.github.io/dioptra/manual/complaint
 ## Install
 
 Download links always point at the latest release. The file names below are those of
-version 0.2.0.
+version 0.2.1.
 
 **Linux (AppImage, any distribution)**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_amd64.AppImage
-chmod +x Dioptra_0.2.0_amd64.AppImage && ./Dioptra_0.2.0_amd64.AppImage
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.AppImage
+chmod +x Dioptra_0.2.1_amd64.AppImage && ./Dioptra_0.2.1_amd64.AppImage
 ```
 
 **Debian, Ubuntu**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_amd64.deb
-sudo dpkg -i Dioptra_0.2.0_amd64.deb || sudo apt-get -f install
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_amd64.deb
+sudo dpkg -i Dioptra_0.2.1_amd64.deb || sudo apt-get -f install
 ```
 
 **Fedora, RHEL, openSUSE**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.2.0-1.x86_64.rpm
-sudo rpm -i Dioptra-0.2.0-1.x86_64.rpm
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.2.1-1.x86_64.rpm
+sudo rpm -i Dioptra-0.2.1-1.x86_64.rpm
 ```
 
 **Windows:** download and run
-[`Dioptra_0.2.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64_en-US.msi)
-(or [`Dioptra_0.2.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64-setup.exe)
+[`Dioptra_0.2.1_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64_en-US.msi)
+(or [`Dioptra_0.2.1_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64-setup.exe)
 to install without administrator rights).
 
 **macOS:** download the disk image for your processor,
-[`Dioptra_0.2.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_aarch64.dmg)
+[`Dioptra_0.2.1_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_aarch64.dmg)
 for Apple silicon or
-[`Dioptra_0.2.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.0_x64.dmg)
-for Intel, and drag Dioptra to Applications.
+[`Dioptra_0.2.1_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.2.1_x64.dmg)
+for Intel, and drag Dioptra to Applications. The app is ad-hoc signed but not notarized, so
+the first launch needs right-click → Open (on macOS 15 and later: System Settings → Privacy &
+Security → Open Anyway), or once in Terminal: `xattr -cr /Applications/Dioptra.app`
 
 The builds are not signed with a paid certificate, so Windows and macOS ask once before
 the first launch; [Getting started](https://zahakj.github.io/dioptra/manual/getting-started.html)
@@ -96,7 +98,7 @@ says what to click.
 
 ## What it does
 
-| Area | In version 0.2.0 |
+| Area | In version 0.2.1 |
 |---|---|
 | Tables | Eight kinds (XY, Column, Grouped, Contingency, Survival, Parts of whole, Multiple variables, Nested); replicate or mean/SD/N entry; a million-cell grid; text kept as text; excluded values kept and struck through; provenance for every cell |
 | Formulas | Column and cell formulas with fill-down, summaries, series functions, unit and mass-to-molar conversion; derived tables for pivot, transpose, filter, baseline removal and normalisation |

@@ -969,7 +969,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-app"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dioptra-core",
  "log",
@@ -986,7 +986,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -999,7 +999,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "calamine",
  "csv",
@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-plot"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "fontdb",
  "libm",
@@ -1034,7 +1034,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-stats"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "libm",
  "nalgebra",
@@ -1045,7 +1045,7 @@ dependencies = [
 
 [[package]]
 name = "dioptra-wasm"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dioptra-core",
  "getrandom 0.3.4",

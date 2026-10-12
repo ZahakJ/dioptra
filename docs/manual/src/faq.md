@@ -103,7 +103,7 @@ into APA or BibTeX. Cite the version you used (it is in every methods sentence),
 example:
 
 > ZahakJ. Dioptra: data, statistics and publication graphs without the spreadsheet
-> (version 0.2.0) [Computer software]. 2026. https://github.com/ZahakJ/dioptra
+> (version 0.2.1) [Computer software]. 2026. https://github.com/ZahakJ/dioptra
 
 ## How can I help?
 
