@@ -1,4 +1,8 @@
-# Analyses
+# Statistical analyses: t tests, ANOVA, regression and more
+
+How to run a statistical test in Dioptra: select the data, press Analyze (Ctrl-Shift-A),
+choose the test and its options, and read the results sheet, which shows the assumption
+checks first and the effect size with its confidence interval.
 
 An analysis in Dioptra is an object in your project, like a table or a graph. It holds a
 **specification** (which table, which test, which options) and a **results sheet**

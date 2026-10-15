@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dioptra vs GraphPad Prism: a free Prism alternative, also on Linux</title>
+  <meta name="description" content="Dioptra compared with GraphPad Prism: price, Linux support, effect sizes, formulas, curve fitting, graphs and file formats. A free, open-source GraphPad Prism alternative for Linux, Windows and macOS.">
+  <link rel="canonical" href="https://zahakj.github.io/dioptra/compare/prism.html">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F4F2ED" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141716" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Dioptra">
+  <meta property="og:title" content="Dioptra vs GraphPad Prism: a free Prism alternative, also on Linux">
+  <meta property="og:description" content="Dioptra compared with GraphPad Prism: price, Linux support, effect sizes, formulas, curve fitting, graphs and file formats. A free, open-source GraphPad Prism alternative for Linux, Windows and macOS.">
+  <meta property="og:url" content="https://zahakj.github.io/dioptra/compare/prism.html">
+  <meta property="og:image" content="https://zahakj.github.io/dioptra/assets/banner.png">
+  <meta property="og:image:width" content="1640">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Dioptra: the mark, the name, and the grid and graph editor in dark mode">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="../assets/icon-small.svg" type="image/svg+xml">
+  <link rel="preload" href="../assets/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../style.css">
+  <script>
+    // Apply a saved theme before first paint, so the page does not flash.
+    try {
+      var t = localStorage.getItem('dioptra-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* storage unavailable: follow the system */ }
+  </script>
+  <script src="../main.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <nav class="wrap nav" aria-label="Main">
+      <a class="brand" href="../" aria-label="Dioptra home">
+        <img src="../assets/icon-small.svg" alt="" width="28" height="28">
+        <span>Dioptra</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="../manual/">Manual</a></li>
+        <li><a href="../pricing.html">Pricing</a></li>
+        <li class="nav-wide"><a href="../compare/" aria-current="page">Compare</a></li>
+        <li class="nav-wide"><a href="https://github.com/ZahakJ/dioptra">GitHub</a></li>
+        <li><a href="../#download" class="nav-cta">Download</a></li>
+        <li>
+          <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" title="Switch theme">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M10 2.75a7.25 7.25 0 0 1 0 14.5z" fill="currentColor"/>
+            </svg>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="page-head" aria-labelledby="title">
+      <div class="wrap">
+        <p class="crumbs"><a href="./">Compare</a> / GraphPad Prism</p>
+        <h1 id="title">Dioptra vs GraphPad Prism</h1>
+        <p class="lede">Dioptra is a free, open-source alternative to GraphPad Prism for Linux, Windows and macOS. It covers the common Prism work: tables, t tests, ANOVA, curve fitting, survival and publication graphs. Prism has decades of polish and a larger analysis library; Dioptra is free, runs on Linux, and puts effect sizes and formulas in the base product.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="s01-t">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="label"><span class="num">01</span> Side by side</p>
+          <h2 id="s01-t">Feature comparison</h2>
+        </header>
+        <div class="table-scroll">
+          <table class="compare-table">
+            <thead><tr><th scope="col"></th><th scope="col">Dioptra 0.3</th><th scope="col">GraphPad Prism 11</th></tr></thead>
+            <tbody>
+            <tr><th scope="row">Price</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Free, MIT licence; optional Lab license from $49 a year</td><td data-label="GraphPad Prism 11">$260 a year academic, $520 corporate, $142 student [1]</td></tr>
+            <tr><th scope="row">Linux</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> AppImage, deb and rpm</td><td data-label="GraphPad Prism 11">No; GraphPad has no plans for Linux and does not support Wine [2]</td></tr>
+            <tr><th scope="row">Windows and macOS</th><td data-label="Dioptra 0.3">Yes, the same features and the same exported bytes on both</td><td data-label="GraphPad Prism 11">Yes; some import and export features are Windows-only [3]</td></tr>
+            <tr><th scope="row">Effect sizes for ANOVA (η², partial η², Cohen's f)</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Every results sheet</td><td data-label="GraphPad Prism 11">Pro and Enterprise plans [4]</td></tr>
+            <tr><th scope="row">Formulas in the data table</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Column and cell formulas in every table kind</td><td data-label="GraphPad Prism 11">Since Prism 11, Multiple variables tables, Pro and Enterprise plans [4]</td></tr>
+            <tr><th scope="row">Assumption checks</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Run with the test and shown first on the results sheet</td><td data-label="GraphPad Prism 11">Analysis checklists in the guide, read beside the results [5]</td></tr>
+            <tr><th scope="row">Estimation plots</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Two-group, paired and multi-group, bootstrap CIs</td><td data-label="GraphPad Prism 11">t tests only [6]</td></tr>
+            <tr><th scope="row">Analysis library</th><td data-label="Dioptra 0.3">Twenty analyses, from t tests to nonlinear regression, survival, ROC and PCA</td><td data-label="GraphPad Prism 11" class="better"><span class="mark" aria-hidden="true">●</span> Much larger: mixed-effects models for repeated measures with missing values [7], three-way ANOVA, multiple and logistic regression, and more</td></tr>
+            <tr><th scope="row">Nonlinear regression</th><td data-label="Dioptra 0.3">Equation library, shared parameters, constraints, F test and AICc comparison, ROUT, profile CIs</td><td data-label="GraphPad Prism 11" class="better"><span class="mark" aria-hidden="true">●</span> Larger equation library, refined over decades [8]</td></tr>
+            <tr><th scope="row">Graph editing</th><td data-label="Dioptra 0.3">Graph editor with sizes in mm and points; 23 families</td><td data-label="GraphPad Prism 11" class="better"><span class="mark" aria-hidden="true">●</span> Decades of polish and a very large user base</td></tr>
+            <tr><th scope="row">Export</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> SVG with real text, PDF with embedded fonts, PNG; identical on every system</td><td data-label="GraphPad Prism 11">Many formats; EPS text and fonts need workarounds for Illustrator [9]</td></tr>
+            <tr><th scope="row">File format</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> <code>.dioptra</code>: documented JSON in a zip, diffable</td><td data-label="GraphPad Prism 11"><code>.pzfx</code> analyses and graphs unreadable outside Prism; <code>.prism</code> without a published schema [10]</td></tr>
+            <tr><th scope="row">Prism files</th><td data-label="Dioptra 0.3">Opens the data tables in <code>.pzfx</code> and <code>.prism</code> files</td><td data-label="GraphPad Prism 11">Native</td></tr>
+            <tr><th scope="row">Command line</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> <code>dioptra</code> runs, renders and exports a project</td><td data-label="GraphPad Prism 11">Scripting automates import and export; the analysis lives in the file [11]</td></tr>
+            <tr><th scope="row">Site licenses</th><td data-label="Dioptra 0.3" class="better"><span class="mark" aria-hidden="true">●</span> Department $990, institution $2,900 a year (Lab)</td><td data-label="GraphPad Prism 11">Not offered [12]</td></tr>
+            <tr><th scope="row">Support and documentation</th><td data-label="Dioptra 0.3">Manual and GitHub issues; priority email with Lab</td><td data-label="GraphPad Prism 11" class="better"><span class="mark" aria-hidden="true">●</span> Statistics and curve-fitting guides that teach the reasoning; commercial support</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-key">A dot marks the stronger side of a row, where there is one.</p>
+        <p class="table-key">Prism facts are from GraphPad's own pages, numbered below, as of October 2026.</p>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="s02-t">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="label"><span class="num">02</span> In short</p>
+          <h2 id="s02-t">Which to use</h2>
+        </header>
+        <div class="prose">
+          <h3>Prism is the better choice when</h3>
+          <ul>
+            <li>you need an analysis Dioptra does not have yet, such as mixed-effects models, three-way ANOVA, multiple or logistic regression;</li>
+            <li>your lab's templates, methods and years of files live in Prism and work well;</li>
+            <li>you want commercial support and GraphPad's statistics guides at hand.</li>
+          </ul>
+          <h3>Dioptra is the better choice when</h3>
+          <ul>
+            <li>you need a free GraphPad Prism alternative, for a course, a thesis, or a lab whose license was not renewed;</li>
+            <li>you work on Linux, where Prism does not run;</li>
+            <li>you want effect sizes, formulas and assumption checks without a higher plan;</li>
+            <li>you want an open file you can inspect, diff and re-run from the command line.</li>
+          </ul>
+          <h3>Moving from Prism</h3>
+          <p>Open a <code>.pzfx</code> or <code>.prism</code> file and Dioptra reads its data tables, with replicates, row titles and exclusions. Analyses and graphs are rebuilt in Dioptra: Prism encrypts those parts of its files. The table kinds have the same names as Prism's, so the layout carries over. Reading Prism files is free and stays free.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="s03-t">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="label"><span class="num">03</span> Prism on Linux</p>
+          <h2 id="s03-t">Running Prism work on Linux</h2>
+        </header>
+        <div class="prose">
+          <p>GraphPad does not make Prism for Linux and does not support it under Wine [2]. Dioptra is built and tested on Linux first, and ships an AppImage for any distribution, a <code>.deb</code> for Debian and Ubuntu and an <code>.rpm</code> for Fedora and openSUSE. The same project file and the same exported figure come out byte for byte on Windows and macOS, so a Linux user and a Mac user in the same lab can share files.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="s04-t">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="label"><span class="num">04</span> Sources</p>
+          <h2 id="s04-t">Sources</h2>
+        </header>
+        <ol class="sources">
+          <li><a href="https://www.graphpad.com/how-to-buy/">GraphPad: How to buy</a></li>
+          <li><a href="https://www.graphpad.com/support/faq/will-you-port-prism-or-instat-to-linux-does-prism-work-with-the-windows-emulator-wine/">GraphPad FAQ: Linux and Wine</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/user-guide/features-in-windows-but-not-ma.htm">Prism guide: Features in Windows but not Mac</a></li>
+          <li><a href="https://www.graphpad.com/support/faq/restricted-features/">GraphPad FAQ: Restricted features</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/statistics/analysis_checklists2.htm">Prism guide: Analysis checklists</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/statistics/stat_estimation_plots.htm">Prism guide: Estimation plots</a></li>
+          <li><a href="https://graphpad.com/guides/prism/latest/statistics/stat_anova-approach-vs_-mixed-model.htm">Prism guide: ANOVA approach vs. mixed model</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/curve-fitting/reg_models_built-in_to_prism.htm">Prism guide: Built-in equations</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/user-guide/exporting_to_journals.htm">Prism guide: Exporting to journals</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/user-guide/pzf_vs__pzfx_file_format.htm">Prism guide: .pzf and .pzfx file formats</a></li>
+          <li><a href="https://www.graphpad.com/guides/prism/latest/user-guide/using_scripts.htm">Prism guide: Using scripts</a></li>
+          <li><a href="https://www.graphpad.com/support/faq/are-network-or-site-licenses-available-for-graphpad-software">GraphPad FAQ: Network or site licenses</a></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="try-t">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="try-t">Try it on your own data</h2>
+          <p class="section-note">Dioptra is free for any use, with no account. Install it next to what you use now and run one experiment through both.</p>
+        </header>
+        <p class="hero-actions">
+          <a class="button primary" href="../#download">Download Dioptra</a>
+          <a class="button" href="../manual/getting-started.html">Read the ten-minute start</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <img src="../assets/icon-small.svg" alt="" width="24" height="24">
+        <p>Dioptra, named for Hero of Alexandria's sighting instrument.</p>
+      </div>
+      <ul class="foot-links">
+        <li><a href="../manual/">Manual</a></li>
+        <li><a href="../pricing.html">Pricing</a></li>
+        <li><a href="../compare/">Compare</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra">GitHub</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/releases">Releases</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/blob/main/LICENSE">Licence (MIT)</a></li>
+        <li><a href="https://github.com/ZahakJ/dioptra/blob/main/CITATION.cff">Cite Dioptra</a></li>
+        <li><a href="../manual/changelog.html">Changelog</a></li>
+      </ul>
+      <p class="foot-note">Set in Inter, under the <a href="../assets/fonts/LICENSE-Inter.txt">SIL Open Font License</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

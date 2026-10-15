@@ -1,4 +1,4 @@
-# Methods
+# Statistical methods and references
 
 One line per public function of `dioptra-stats`: what it computes, the reference it
 implements, and the conventions that differ between Prism and SciPy. Conventions that hold

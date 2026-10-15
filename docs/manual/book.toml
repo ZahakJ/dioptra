@@ -1,6 +1,6 @@
 [book]
 title = "Dioptra manual"
-description = "How to use Dioptra: data tables, formulas, analyses, graphs, the file format and the correctness record."
+description = "The Dioptra manual: entering data, formulas, t tests, ANOVA, curve fitting, survival analysis and publication graphs in a free GraphPad Prism alternative for Linux, Windows and macOS."
 authors = ["The Dioptra contributors"]
 language = "en"
 src = "src"
