@@ -2013,3 +2013,28 @@ mark.hl {
 .chev.is-open {
   transform: rotate(90deg);
 }
+
+/* Help → Dioptra Lab */
+.lab-license {
+  margin-bottom: var(--s4);
+}
+
+.lab-standing {
+  margin: 0 0 var(--s4);
+}
+
+.lab-key-label {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: var(--fs-sm);
+  color: var(--fg-muted);
+}
+
+.lab-fine {
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-sm);
+}
+
+.modal-foot .lab-remove {
+  margin-right: auto;
+}

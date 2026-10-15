@@ -19,6 +19,7 @@ pub mod formula;
 pub mod graph;
 pub mod history;
 pub mod import;
+pub mod lab;
 pub mod numerics;
 pub mod project;
 pub mod results;

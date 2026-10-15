@@ -611,6 +611,20 @@ pub enum Command {
     },
     /// Recompute everything that is stale.
     RecomputeAll,
+
+    // ---- Dioptra Lab ----
+    /// Set the license key (`None` removes it); returns `Response::License`.
+    SetLicense {
+        /// The key as pasted.
+        key: Option<String>,
+        /// Today's date, `YYYY-MM-DD`, from the UI's clock.
+        today: String,
+    },
+    /// The license and whether Lab features are on today.
+    GetLicense {
+        /// Today's date, `YYYY-MM-DD`.
+        today: String,
+    },
 }
 
 /// What one cell looks like in a viewport.
@@ -733,6 +747,8 @@ pub enum Response {
         /// Columns in the grid.
         columns: usize,
     },
+    /// License state.
+    License(crate::lab::LicenseView),
     /// History entries, newest first. (A struct variant: serde cannot tag a bare list.)
     History {
         /// Entries.
@@ -747,6 +763,7 @@ pub struct Session {
     pub(crate) history: crate::history::History,
     pub(crate) renderer: Box<dyn crate::graph::Renderer>,
     pub(crate) engine: crate::analysis::AnalysisEngine,
+    pub(crate) lab: crate::lab::LabState,
 }
 
 impl Session {

@@ -323,7 +323,9 @@ export type Command =
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'get_history'; limit: number }
-  | { type: 'recompute_all' };
+  | { type: 'recompute_all' }
+  | { type: 'set_license'; key: string | null; today: string }
+  | { type: 'get_license'; today: string };
 
 export type CommandType = Command['type'];
 
@@ -346,7 +348,36 @@ export type Response =
   | { type: 'bytes'; name: string; mime: string; base64: string }
   | { type: 'text'; text: string }
   | { type: 'layout'; id: Id; title: string; graphs: Id[]; columns: number }
-  | { type: 'history'; entries: HistoryEntry[] };
+  | { type: 'history'; entries: HistoryEntry[] }
+  | ({ type: 'license' } & LicenseView);
+
+export type Plan = 'academic' | 'corporate' | 'site' | 'founding' | 'trial';
+
+export interface License {
+  id: string;
+  licensee: string;
+  email: string;
+  plan: Plan;
+  seats: number;
+  site?: string;
+  issued: string;
+  expires: string;
+  order?: string;
+}
+
+export type Standing =
+  | { state: 'not_yet_valid'; days: number }
+  | { state: 'active'; days_left: number }
+  | { state: 'grace'; days_left: number }
+  | { state: 'lapsed'; days_since: number };
+
+export interface LicenseView {
+  lab_enabled: boolean;
+  license?: License;
+  plan_label?: string;
+  standing?: Standing;
+  error?: string;
+}
 
 export type ResponseType = Response['type'];
 export type ResponseOf<T extends ResponseType> = Extract<Response, { type: T }>;

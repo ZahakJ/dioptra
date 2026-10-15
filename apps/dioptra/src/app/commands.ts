@@ -3,6 +3,7 @@
 // `commands.register(...)` (menus `Analyze` and `Graph` are reserved for it).
 import * as grid from '../grid/actions';
 import { useGrid } from '../grid/store';
+import { useLab } from '../store/lab';
 import { useProject } from '../store/project';
 import { nextTheme, resolveTheme, useUi } from '../store/ui';
 import * as app from './actions';
@@ -82,6 +83,7 @@ export const CORE_COMMANDS: AppCommand[] = [
   // ---- Help ----
   { id: 'help.manual', title: 'Read the manual', menu: 'Help', group: 'help', keywords: ['docs', 'documentation', 'guide', 'help'], run: app.openManual },
   { id: 'file.openSample', title: 'Open the sample project', menu: 'Help', group: 'sample', keywords: ['example', 'demo', 'cytokine', 'tutorial'], run: app.openSampleProject },
+  { id: 'help.lab', title: 'Dioptra Lab...', menu: 'Help', group: 'lab', keywords: ['license', 'key', 'activate', 'buy', 'pro'], inInputs: true, run: () => useLab.getState().setDialogOpen(true) },
   { id: 'help.shortcuts', title: 'Keyboard shortcuts', menu: 'Help', group: 'help', shortcut: 'F1', inInputs: true, keywords: ['keys', 'help'], run: () => useUi.getState().setShortcutsOpen(true) },
 ];
 

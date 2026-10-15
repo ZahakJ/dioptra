@@ -1,0 +1,32 @@
+Dioptra Lab License 1.0
+
+Copyright (c) 2026 ZahakJ
+
+This license covers the files that name it in their header or in their package manifest
+(the "Lab code"). Every other file in this repository is under the MIT license in LICENSE.
+
+1. You may read, copy, and modify the Lab code in order to study it, audit it, validate it,
+   report problems with it, or contribute changes back to this repository.
+
+2. You may run the Lab code, in the official builds or in builds you make yourself, only
+   while you hold a valid Dioptra Lab license key for each person using it, as described at
+   https://zahakj.github.io/dioptra/pricing.html. Running it during the grace period that
+   the software itself allows after a key ends is permitted.
+
+3. You may not remove, disable, or work around the license-key check in the Lab code, and
+   you may not distribute the Lab code, or builds that contain it, with that check removed,
+   disabled, or worked around.
+
+4. You may not sell, sublicense, or offer the Lab code as a service.
+
+5. Files you create with the Lab code (projects, figures, reports, templates, audit
+   trails) are yours, and this license places no restriction on them.
+
+6. THE LAB CODE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+   PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+   FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE LAB CODE OR THE USE OR OTHER
+   DEALINGS IN THE LAB CODE.
+
+Any violation of these terms ends your rights under this license.
