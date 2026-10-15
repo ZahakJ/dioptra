@@ -7,6 +7,7 @@ members = [
   "crates/dioptra-wasm",
   "crates/dioptra-cli",
   "crates/dioptra-license",
+  "crates/dioptra-lab",
   "apps/dioptra/src-tauri",
 ]
 
@@ -22,6 +23,7 @@ dioptra-stats = { path = "crates/dioptra-stats" }
 dioptra-core = { path = "crates/dioptra-core" }
 dioptra-plot = { path = "crates/dioptra-plot" }
 dioptra-license = { path = "crates/dioptra-license" }
+dioptra-lab = { path = "crates/dioptra-lab" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 thiserror = "2"

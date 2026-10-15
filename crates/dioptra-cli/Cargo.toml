@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 dioptra-core.workspace = true
+dioptra-lab.workspace = true
 dioptra-stats.workspace = true
 dioptra-plot.workspace = true
 clap.workspace = true

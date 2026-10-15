@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 dioptra-core.workspace = true
+dioptra-lab.workspace = true
 wasm-bindgen.workspace = true
 getrandom.workspace = true
 js-sys = "0.3"

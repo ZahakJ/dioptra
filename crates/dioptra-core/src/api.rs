@@ -772,6 +772,11 @@ impl Session {
         Self::default()
     }
 
+    /// Whether Dioptra Lab features are on, and the error to show when they are not.
+    pub fn require_lab(&self, feature: &str) -> Result<(), String> {
+        self.lab.require(feature)
+    }
+
     /// JSON-in, JSON-out convenience for the two bridges.
     pub fn dispatch_json(&mut self, json: &str) -> String {
         let response = match serde_json::from_str::<Command>(json) {

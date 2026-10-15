@@ -13,7 +13,7 @@ struct Engine(Mutex<Session>);
 #[tauri::command]
 fn dispatch(engine: State<'_, Engine>, json: String) -> String {
     let mut session = engine.0.lock().expect("engine mutex");
-    session.dispatch_json(&json)
+    dioptra_lab::dispatch_json(&mut session, &json)
 }
 
 /// One menu of the command tree, as the UI's registry describes it.
