@@ -358,6 +358,20 @@ walk up to its group. Targets, in drawing order:
 In layouts, panel `i` is `panel-{i}` → `/graphs/{i}` and every id inside it is prefixed
 `p{i}-` (`p1-axis-x`).
 
+## Layout style
+
+`update_layout` takes an optional `style` (absent: unchanged), and `get_layout` returns it:
+
+```json
+{"width_mm": 183, "font_pt": 6, "line_pt": 0.5, "letters": "lower", "letter_pt": 8}
+```
+
+`width_mm` resizes every panel, keeping its aspect ratio, so the columns and their letter
+gutters fill exactly that width; `font_pt` and `line_pt` replace each graph's own in every
+panel; `letters` is `upper` (default), `lower` or `none`, set bold at `letter_pt` (default
+10). Fonts and lines are never scaled with the panel. Setting anything but the default needs
+Dioptra Lab; files keep drawing as saved in every build.
+
 ## Determinism
 
 The same spec and data give the same bytes on every platform and in the browser:

@@ -14,6 +14,7 @@ import { mutate, query } from '../store/sync';
 import { useTables } from '../store/table';
 import { bracketsFromSheet, nextFreePair, placeBracket } from './brackets';
 import { ExportGraphDialog, type ExportChoice } from './ExportGraphDialog';
+import { exportTiff, saveLabFile } from './journal';
 import { familiesFor, familyForAnalysis, familyName } from './families';
 import { flushGraph, graphState, patchGraph, setGraphValue } from './store';
 import { axisMap, tidy, valueAt } from './svgAxes';
@@ -392,10 +393,21 @@ const FILTERS: Record<string, { name: string; extensions: string[] }> = {
   svg: { name: 'SVG image', extensions: ['svg'] },
   pdf: { name: 'PDF document', extensions: ['pdf'] },
   png: { name: 'PNG image', extensions: ['png'] },
+  tiff: { name: 'TIFF image', extensions: ['tiff', 'tif'] },
 };
 
 function formatOf(c: ExportChoice): GraphFormat {
-  return c.format === 'png' ? { format: 'png', dpi: Math.round(c.dpi) } : { format: c.format };
+  return c.format === 'png' ? { format: 'png', dpi: Math.round(c.dpi) } : c.format === 'tiff' ? { format: 'pdf' } : { format: c.format };
+}
+
+/** TIFF goes through Dioptra Lab. */
+async function exportTiffChoice(id: Id, c: ExportChoice): Promise<void> {
+  try {
+    const f = await withEngine((e) => exportTiff(e, id, Math.round(c.dpi), c.size));
+    await saveLabFile(f, c.filename);
+  } catch (err) {
+    notifyError(err);
+  }
 }
 
 export async function exportGraphDialog(graph: Id): Promise<void> {
@@ -414,6 +426,7 @@ export async function exportGraphDialog(graph: Id): Promise<void> {
   if (c.format === 'png' && c.transparent !== !!spec.style.transparent) {
     await setGraphValue(graph, '/style/transparent', c.transparent ? true : null);
   }
+  if (c.format === 'tiff') return exportTiffChoice(graph, c);
   const format = formatOf(c);
   try {
     if (desktop) {
@@ -450,6 +463,7 @@ export async function exportLayoutDialog(layout: Id, size: { width: number; heig
     null,
   );
   if (!c) return;
+  if (c.format === 'tiff') return exportTiffChoice(layout, c);
   try {
     if (desktop) {
       const path = await desktopSavePath(c.filename, [FILTERS[c.format]!]);

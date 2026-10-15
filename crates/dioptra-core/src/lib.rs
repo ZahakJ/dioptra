@@ -3,7 +3,7 @@
 //! The UI talks to [`api::Session`] through one JSON command at a time
 //! (`Session::dispatch_json`). Inside: [`table`] holds the data, [`formula`] computes
 //! columns, [`deps`] keeps them up to date, [`transform`] derives tables, [`import`] and
-//! [`export`] move data in and out, [`analysis`] and [`results`] produce results sheets,
+//! [`export`] move data in and out ([`plate`] reads plate-reader exports), [`analysis`] and [`results`] produce results sheets,
 //! [`graph`] describes figures, [`project`], [`file`] and [`history`] hold the document,
 //! its file and its undo stack.
 #![forbid(unsafe_code)]
@@ -21,7 +21,9 @@ pub mod history;
 pub mod import;
 pub mod lab;
 pub mod numerics;
+pub mod plate;
 pub mod project;
+pub mod replace;
 pub mod results;
 mod session;
 pub mod table;

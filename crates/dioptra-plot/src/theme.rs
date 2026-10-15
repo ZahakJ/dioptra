@@ -121,6 +121,13 @@ impl Theme {
         }
     }
 
+    /// A fixed outline width (marker rims, legend swatches) for this theme: as drawn by
+    /// default, and thicker in proportion when the axis lines are set heavier than 0.75 pt,
+    /// so a journal's minimum line width holds for every stroke.
+    pub fn fixed(&self, width: f64) -> f64 {
+        width * (self.axis_pt / 0.75).max(1.0)
+    }
+
     /// The theme for a spec with its style overrides applied.
     pub fn for_spec(spec: &GraphSpec) -> Theme {
         let mut t = Theme::named(&spec.style.theme);

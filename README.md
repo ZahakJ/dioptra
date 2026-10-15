@@ -52,38 +52,38 @@ answers is the [complaint map](https://zahakj.github.io/dioptra/manual/complaint
 ## Install
 
 Download links always point at the latest release. The file names below are those of
-version 0.3.0.
+version 0.4.0.
 
 **Linux (AppImage, any distribution)**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.AppImage
-chmod +x Dioptra_0.3.0_amd64.AppImage && ./Dioptra_0.3.0_amd64.AppImage
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_amd64.AppImage
+chmod +x Dioptra_0.4.0_amd64.AppImage && ./Dioptra_0.4.0_amd64.AppImage
 ```
 
 **Debian, Ubuntu**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_amd64.deb
-sudo dpkg -i Dioptra_0.3.0_amd64.deb || sudo apt-get -f install
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_amd64.deb
+sudo dpkg -i Dioptra_0.4.0_amd64.deb || sudo apt-get -f install
 ```
 
 **Fedora, RHEL, openSUSE**
 
 ```sh
-curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.3.0-1.x86_64.rpm
-sudo rpm -i Dioptra-0.3.0-1.x86_64.rpm
+curl -LO https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra-0.4.0-1.x86_64.rpm
+sudo rpm -i Dioptra-0.4.0-1.x86_64.rpm
 ```
 
 **Windows:** download and run
-[`Dioptra_0.3.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64_en-US.msi)
-(or [`Dioptra_0.3.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64-setup.exe)
+[`Dioptra_0.4.0_x64_en-US.msi`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_x64_en-US.msi)
+(or [`Dioptra_0.4.0_x64-setup.exe`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_x64-setup.exe)
 to install without administrator rights).
 
 **macOS:** download the disk image for your processor,
-[`Dioptra_0.3.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_aarch64.dmg)
+[`Dioptra_0.4.0_aarch64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_aarch64.dmg)
 for Apple silicon or
-[`Dioptra_0.3.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.3.0_x64.dmg)
+[`Dioptra_0.4.0_x64.dmg`](https://github.com/ZahakJ/dioptra/releases/latest/download/Dioptra_0.4.0_x64.dmg)
 for Intel, and drag Dioptra to Applications. The app is ad-hoc signed but not notarized, so
 the first launch needs right-click → Open (on macOS 15 and later: System Settings → Privacy &
 Security → Open Anyway), or once in Terminal: `xattr -cr /Applications/Dioptra.app`
@@ -98,7 +98,7 @@ says what to click.
 
 ## What it does
 
-| Area | In version 0.3.0 |
+| Area | In version 0.4.0 |
 |---|---|
 | Tables | Eight kinds (XY, Column, Grouped, Contingency, Survival, Parts of whole, Multiple variables, Nested); replicate or mean/SD/N entry; a million-cell grid; text kept as text; excluded values kept and struck through; provenance for every cell |
 | Formulas | Column and cell formulas with fill-down, summaries, series functions, unit and mass-to-molar conversion; derived tables for pivot, transpose, filter, baseline removal and normalisation |
@@ -106,14 +106,19 @@ says what to click.
 | Graphs | Twenty-three families including violin, raincloud, estimation, SuperPlot, Kaplan–Meier and volcano; an interactive editor; three themes; colour-blind-safe palettes; multi-panel layouts |
 | Paired graphs | Connecting lines on bar, dot, box and violin graphs: a line per subject, the means or medians, or both; colour by data set, subject or a grouping column; a gap or a join at a missing value; grouped tables within or across groups; horizontal graphs; the default graph of paired and repeated-measures tests ([manual](https://zahakj.github.io/dioptra/manual/graphs/connecting-lines.html)) |
 | Export | SVG with real text, PDF with embedded fonts, PNG at any resolution; sizes in mm and points; identical bytes on every platform; tables to CSV, TSV and XLSX |
-| Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS and Prism `.pzfx` and `.prism` data |
+| Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS, Prism `.pzfx` and `.prism` data, and plate-reader exports (SoftMax Pro, BMG MARS, Gen5, Magellan) with a plate map |
 | File format | `.dioptra`: a zip of documented JSON with data, formulas, specifications and the command history ([format](docs/FILE-FORMAT.md)) |
 | Command line | `dioptra analyze data.csv --kind column --test one_way_anova`; `run`, `render`, `export` and `bench` on a project file, for scripted pipelines |
 | Platforms | Linux (AppImage, deb, rpm), Windows (msi, exe), macOS (Apple silicon and Intel) |
 
+**Dioptra Lab** is a yearly license on top of the free program, for labs that run the same
+work every week: batch analysis and a watch folder for instruments, journal figure presets
+and checks, Word and PDF reports, Prism `.pzfx` export, and audit trails, electronic
+signatures and a validation pack for regulated labs. [Pricing](https://zahakj.github.io/dioptra/pricing.html).
+
 ## Correctness
 
-All 58 NIST StRD reference data sets used pass, and 8,327 comparisons against SciPy,
+All 58 NIST StRD reference data sets used pass, and 7,841 comparisons against SciPy,
 statsmodels, lifelines and scikit-learn agree within tolerance, with no failures; the full
 record is in the [correctness chapter](https://zahakj.github.io/dioptra/manual/correctness.html)
 ([source](docs/CORRECTNESS.md)).
@@ -140,4 +145,6 @@ in [CITATION.cff](CITATION.cff); GitHub's *Cite this repository* button formats 
 ## Licence
 
 [MIT](LICENSE), because it is the licence scientists and their institutions can accept
-without review. The bundled Inter typeface is under the SIL Open Font License.
+without review. The Dioptra Lab code (`crates/dioptra-lab`) is readable under the
+[Dioptra Lab License](LICENSE-LAB) and runs with a license key. The bundled Inter typeface
+is under the SIL Open Font License.

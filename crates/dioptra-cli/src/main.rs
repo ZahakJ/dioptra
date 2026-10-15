@@ -1,6 +1,7 @@
 //! `dioptra` command line: inspect project files, recompute and print results sheets,
 //! import data, run one analysis on a file, render graphs, export tables, measure the
-//! engine, and list the equation library.
+//! engine, and list the equation library. With a Dioptra Lab license, apply a template project
+//! to many data files (`batch`).
 //!
 //! Every subcommand drives the same `Session` the desktop app and the browser build use,
 //! through the same JSON commands, so what the CLI prints is what the app shows.
@@ -51,7 +52,8 @@ nonlinear regression can fit.",
     after_help = "Examples:\n  dioptra info study.dioptra\n  dioptra run study.dioptra --format markdown\n  \
 dioptra analyze plasma.csv --kind column --test one_way_anova\n  \
 dioptra render study.dioptra --graph \"Dose response\" --out fig1.pdf\n  \
-dioptra import plate.xlsx --kind xy --out plate.dioptra"
+dioptra import plate.xlsx --kind xy --out plate.dioptra\n  \
+dioptra batch assay.dioptra --table Plate exports/ --out results --format png"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -151,6 +153,64 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Apply a template project to many data files (Dioptra Lab): one recomputed project,
+    /// the graphs and a row of summary.csv per file.
+    Batch {
+        /// Template project (.dioptra).
+        template: PathBuf,
+        /// The table that receives each file's data (title or id).
+        #[arg(long)]
+        table: String,
+        /// Data files, or folders of data files.
+        #[arg(required = true)]
+        inputs: Vec<PathBuf>,
+        /// Output folder.
+        #[arg(long)]
+        out: PathBuf,
+        /// Figure format.
+        #[arg(long, value_enum, default_value_t = FigureFormat::Pdf)]
+        format: FigureFormat,
+        /// Resolution for PNG.
+        #[arg(long, default_value_t = 300.0)]
+        dpi: f64,
+        /// Plate map for plate-reader files (a grid or a well,label list).
+        #[arg(long)]
+        plate_map: Option<PathBuf>,
+    },
+    /// Convert Prism files to Dioptra projects, or Dioptra projects to Prism files
+    /// (Dioptra Lab): .pzfx and .prism become .dioptra; .dioptra becomes .pzfx.
+    Convert {
+        /// Files, or folders of files.
+        #[arg(required = true)]
+        inputs: Vec<PathBuf>,
+        /// Output folder.
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Run the operational qualification (Dioptra Lab): every NIST StRD and reference-library
+    /// check on this installation. Exits 0 when all pass.
+    Oq {
+        /// Write the report here: .pdf or .csv.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Show, set or remove the Dioptra Lab license key (shared with the desktop app;
+    /// $DIOPTRA_LICENSE takes precedence).
+    License {
+        /// Store this key.
+        #[arg(long, conflicts_with = "remove")]
+        set: Option<String>,
+        /// Remove the stored key.
+        #[arg(long)]
+        remove: bool,
+    },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum FigureFormat {
+    Pdf,
+    Png,
+    Svg,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -226,6 +286,26 @@ fn run(cmd: Cmd) -> Result<()> {
         Cmd::Export { file, table, out } => export(&file, &table, &out),
         Cmd::Bench { markdown } => bench(markdown),
         Cmd::Equations { json } => equations(json),
+        Cmd::Batch {
+            template,
+            table,
+            inputs,
+            out,
+            format,
+            dpi,
+            plate_map,
+        } => batch(
+            &template,
+            &table,
+            &inputs,
+            &out,
+            format,
+            dpi,
+            plate_map.as_deref(),
+        ),
+        Cmd::Convert { inputs, out } => convert(&inputs, &out),
+        Cmd::Oq { out } => oq(out.as_deref()),
+        Cmd::License { set, remove } => license(set.as_deref(), remove),
     }
 }
 
@@ -275,7 +355,7 @@ impl Engine {
 
     /// Send one command; an engine error becomes an `Err`.
     fn call(&mut self, cmd: Value) -> Result<Value> {
-        let out = self.s.dispatch_json(&cmd.to_string());
+        let out = dioptra_lab::dispatch_json(&mut self.s, &cmd.to_string());
         let v: Value = serde_json::from_str(&out).context("the engine answered with bad JSON")?;
         if v["type"] == "error" {
             bail!(
@@ -1090,6 +1170,318 @@ or write your own as equation.formula.",
             p.push_str(&format!("; derived: {}", d.join(", ")));
         }
         outln!("{p}");
+    }
+    Ok(())
+}
+
+// ---- Dioptra Lab ------------------------------------------------------------------------
+
+/// The desktop app's license file: `license.key` in the config directory of
+/// `io.github.zahakj.dioptra`.
+fn license_path() -> Result<PathBuf> {
+    const ID: &str = "io.github.zahakj.dioptra";
+    let env = |k: &str| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
+    let base = if cfg!(windows) {
+        env("APPDATA").ok_or_else(|| anyhow!("%APPDATA% is not set"))?
+    } else if cfg!(target_os = "macos") {
+        env("HOME")
+            .ok_or_else(|| anyhow!("$HOME is not set"))?
+            .join("Library/Application Support")
+    } else {
+        match env("XDG_CONFIG_HOME") {
+            Some(p) => p,
+            None => env("HOME")
+                .ok_or_else(|| anyhow!("$HOME is not set"))?
+                .join(".config"),
+        }
+    };
+    Ok(base.join(ID).join("license.key"))
+}
+
+/// Today in UTC, `YYYY-MM-DD`.
+fn today() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let (y, m, d) = dioptra_core::util::civil_from_days(secs.div_euclid(86_400));
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// The key from $DIOPTRA_LICENSE or the license file.
+fn stored_key() -> Result<Option<String>> {
+    if let Some(k) = std::env::var("DIOPTRA_LICENSE")
+        .ok()
+        .filter(|k| !k.trim().is_empty())
+    {
+        return Ok(Some(k));
+    }
+    match std::fs::read_to_string(license_path()?) {
+        Ok(k) => Ok(Some(k)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e).context("cannot read the license file"),
+    }
+}
+
+/// A session with the stored license applied.
+fn licensed_engine() -> Result<Engine> {
+    let mut e = Engine::new();
+    let key = stored_key()?;
+    e.call(json!({"type": "set_license", "key": key, "today": today()}))?;
+    Ok(e)
+}
+
+fn license(set: Option<&str>, remove: bool) -> Result<()> {
+    let path = license_path()?;
+    if remove {
+        match std::fs::remove_file(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                return Err(e).with_context(|| format!("cannot remove {}", path.display()))
+            }
+            _ => {}
+        }
+        outln!("Removed the license key.");
+        return Ok(());
+    }
+    let mut e = Engine::new();
+    let key = match set {
+        Some(k) => Some(k.trim().to_string()),
+        None => stored_key()?,
+    };
+    let v = e.call(json!({"type": "set_license", "key": key, "today": today()}))?;
+    if let Some(err) = v["error"].as_str() {
+        bail!("the key was refused: {err}");
+    }
+    if let Some(k) = set {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)
+                .with_context(|| format!("cannot create {}", dir.display()))?;
+        }
+        std::fs::write(&path, k.trim())
+            .with_context(|| format!("cannot write {}", path.display()))?;
+        outln!("Stored the key in {}.", path.display());
+    }
+    let l = &v["license"];
+    if l.is_null() {
+        outln!("No license key. Lab features are off.");
+        return Ok(());
+    }
+    outln!("Licensed to  {}", l["licensee"].as_str().unwrap_or(""));
+    outln!("Plan         {}", v["plan_label"].as_str().unwrap_or(""));
+    outln!(
+        "Valid        {} to {}",
+        l["issued"].as_str().unwrap_or(""),
+        l["expires"].as_str().unwrap_or("")
+    );
+    outln!(
+        "Lab          {}",
+        if v["lab_enabled"].as_bool() == Some(true) {
+            "on"
+        } else {
+            "off"
+        }
+    );
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn batch(
+    template: &Path,
+    table: &str,
+    inputs: &[PathBuf],
+    out: &Path,
+    format: FigureFormat,
+    dpi: f64,
+    plate_map: Option<&Path>,
+) -> Result<()> {
+    let e = licensed_engine()?;
+    e.s.require_lab("Batch analysis").map_err(|m| anyhow!(m))?;
+    let tpl =
+        std::fs::read(template).with_context(|| format!("cannot read {}", template.display()))?;
+    let plate_map = plate_map
+        .map(|p| std::fs::read_to_string(p).with_context(|| format!("cannot read {}", p.display())))
+        .transpose()?;
+    let opts = dioptra_lab::batch::BatchOptions {
+        format: match format {
+            FigureFormat::Pdf => dioptra_lab::batch::FigureFormat::Pdf,
+            FigureFormat::Png => dioptra_lab::batch::FigureFormat::Png,
+            FigureFormat::Svg => dioptra_lab::batch::FigureFormat::Svg,
+        },
+        dpi,
+        plate_map,
+        ..Default::default()
+    };
+    let mut files = Vec::new();
+    for p in inputs {
+        if p.is_dir() {
+            files.extend(
+                dioptra_lab::watch::data_files(p)
+                    .with_context(|| format!("cannot list {}", p.display()))?,
+            );
+        } else if p.is_file() {
+            files.push(p.clone());
+        } else {
+            bail!("no such file or folder: {}", p.display());
+        }
+    }
+    if files.is_empty() {
+        bail!("no data files to analyse");
+    }
+    let mut items = Vec::new();
+    for f in &files {
+        let item = dioptra_lab::watch::run_file(&tpl, table, f, out, &opts);
+        match &item.error {
+            Some(err) => outln!("{}: error: {err}", item.name),
+            None => outln!(
+                "{}: {} file{} written",
+                item.name,
+                item.written.len(),
+                if item.written.len() == 1 { "" } else { "s" }
+            ),
+        }
+        items.push(item);
+    }
+    let summary = dioptra_lab::watch::write_summary(out, &items).map_err(|m| anyhow!(m))?;
+    outln!("Summary: {}", summary.display());
+    let failed = items.iter().filter(|i| i.error.is_some()).count();
+    if failed > 0 {
+        bail!("{failed} of {} files could not be analysed", items.len());
+    }
+    Ok(())
+}
+
+fn convert(inputs: &[PathBuf], out: &Path) -> Result<()> {
+    licensed_engine()?
+        .s
+        .require_lab("Batch conversion")
+        .map_err(|m| anyhow!(m))?;
+    let ext = |p: &Path| {
+        p.extension()
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase)
+            .unwrap_or_default()
+    };
+    let wanted = |p: &Path| matches!(ext(p).as_str(), "pzfx" | "prism" | "dioptra");
+    let mut files = Vec::new();
+    for p in inputs {
+        if p.is_dir() {
+            let mut found: Vec<PathBuf> = std::fs::read_dir(p)
+                .with_context(|| format!("cannot list {}", p.display()))?
+                .filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|f| f.is_file() && wanted(f))
+                .collect();
+            found.sort();
+            files.extend(found);
+        } else if p.is_file() {
+            files.push(p.clone());
+        } else {
+            bail!("no such file or folder: {}", p.display());
+        }
+    }
+    if files.is_empty() {
+        bail!("no .pzfx, .prism or .dioptra files to convert");
+    }
+    std::fs::create_dir_all(out).with_context(|| format!("cannot create {}", out.display()))?;
+    let mut failed = 0;
+    for f in &files {
+        let stem = f
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let result = (|| -> Result<(PathBuf, Vec<String>)> {
+            let mut e = licensed_engine()?;
+            if ext(f) == "dioptra" {
+                e.call(json!({"type": "open_project_path", "path": abs(f)?}))?;
+                let r = e.call(json!({"type": "lab_export_pzfx"}))?;
+                let target = out.join(format!("{stem}.pzfx"));
+                use base64::Engine as _;
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(r["base64"].as_str().unwrap_or_default())
+                    .context("bad file from the engine")?;
+                std::fs::write(&target, bytes)
+                    .with_context(|| format!("cannot write {}", target.display()))?;
+                let notes = r["notes"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|n| n.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                Ok((target, notes))
+            } else {
+                let r = e.call(json!({"type": "import_path", "path": abs(f)?, "kind": null}))?;
+                let target = out.join(format!("{stem}.dioptra"));
+                e.call(json!({"type": "set_project_title", "title": stem}))?;
+                e.call(json!({"type": "save_project_path", "path": abs(&target)?}))?;
+                let notes = r["notes"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|n| n.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                Ok((target, notes))
+            }
+        })();
+        match result {
+            Ok((target, notes)) => {
+                outln!("{} → {}", f.display(), target.display());
+                for n in notes {
+                    outln!("  {n}");
+                }
+            }
+            Err(err) => {
+                failed += 1;
+                outln!("{}: error: {err:#}", f.display());
+            }
+        }
+    }
+    if failed > 0 {
+        bail!("{failed} of {} files could not be converted", files.len());
+    }
+    Ok(())
+}
+
+fn oq(out: Option<&Path>) -> Result<()> {
+    licensed_engine()?
+        .s
+        .require_lab("Validation pack")
+        .map_err(|m| anyhow!(m))?;
+    let r = dioptra_lab::oq::run_with(|i, n, title| {
+        eprintln!("[{}/{n}] {title}", i + 1);
+    });
+    outln!(
+        "Dioptra {} ({}) on {}: {} of {} checks passed in {:.1} s",
+        r.version,
+        r.target,
+        r.os,
+        r.totals.passed,
+        r.totals.checks,
+        r.seconds
+    );
+    outln!("Fixtures SHA-256 {}", r.fixtures_sha256);
+    outln!("Report SHA-256   {}", r.report_sha256);
+    for c in r.checks.iter().filter(|c| !c.pass) {
+        outln!("FAIL {} {}", c.id, c.reference);
+    }
+    if let Some(path) = out {
+        let bytes = match path.extension().and_then(|e| e.to_str()) {
+            Some("pdf") => dioptra_lab::oq::pdf(&r, None).map_err(|m| anyhow!(m))?,
+            Some("csv") => dioptra_lab::oq::csv(&r).into_bytes(),
+            _ => bail!("the report must end in .pdf or .csv"),
+        };
+        std::fs::write(path, bytes).with_context(|| format!("cannot write {}", path.display()))?;
+        outln!("Wrote {}", path.display());
+    }
+    if !r.pass {
+        bail!("the OQ failed");
     }
     Ok(())
 }

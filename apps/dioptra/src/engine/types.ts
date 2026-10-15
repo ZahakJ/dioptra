@@ -292,8 +292,10 @@ export type Command =
   | { type: 'get_cell_info'; table: Id; row: number; col: number }
   // import / export
   | { type: 'import_text'; text: string; kind: TableKind; title: string | null; options: PasteOptions }
-  | { type: 'import_path'; path: string; kind: TableKind | null }
-  | { type: 'import_bytes'; name: string; base64: string; kind: TableKind | null }
+  | { type: 'import_path'; path: string; kind: TableKind | null; plate_map?: string }
+  | { type: 'import_bytes'; name: string; base64: string; kind: TableKind | null; plate_map?: string }
+  | { type: 'inspect_plate'; name: string; base64?: string; path?: string }
+  | { type: 'replace_table_data'; table: Id; name: string; base64: string; plate_map?: string }
   | { type: 'export_table'; table: Id; format: TableFormat }
   | { type: 'export_table_path'; table: Id; format: TableFormat; path: string }
   // analyses
@@ -317,7 +319,7 @@ export type Command =
   | { type: 'render_layout'; id: Id }
   | { type: 'export_layout'; id: Id; format: GraphFormat }
   | { type: 'get_layout'; id: Id }
-  | { type: 'update_layout'; id: Id; graphs: Id[]; columns: number }
+  | { type: 'update_layout'; id: Id; graphs: Id[]; columns: number; style?: JsonObject }
   | { type: 'export_layout_path'; id: Id; format: GraphFormat; path: string }
   // history
   | { type: 'undo' }
@@ -347,9 +349,22 @@ export type Response =
   | { type: 'svg'; svg: string; width_mm: number; height_mm: number; targets: Target[] }
   | { type: 'bytes'; name: string; mime: string; base64: string }
   | { type: 'text'; text: string }
-  | { type: 'layout'; id: Id; title: string; graphs: Id[]; columns: number }
+  | { type: 'layout'; id: Id; title: string; graphs: Id[]; columns: number; style?: JsonObject }
   | { type: 'history'; entries: HistoryEntry[] }
-  | ({ type: 'license' } & LicenseView);
+  | ({ type: 'license' } & LicenseView)
+  | { type: 'plate'; plate: PlateSummary | null };
+
+/** What a plate-reader export holds (`inspect_plate`). */
+export interface PlateSummary {
+  vendor: 'soft_max_pro' | 'bmg_mars' | 'gen5' | 'magellan';
+  vendor_label: string;
+  reads: string[];
+  rows: number;
+  cols: number;
+  kinetic: boolean;
+  time_points: number;
+  notes: string[];
+}
 
 export type Plan = 'academic' | 'corporate' | 'site' | 'founding' | 'trial';
 

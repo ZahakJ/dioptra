@@ -441,3 +441,63 @@ fn missing_and_broken_project_files_fail_clearly() {
     let o = dioptra(&["render"]);
     assert_eq!(o.status.code(), Some(2));
 }
+
+fn dioptra_env(args: &[&str], env: &[(&str, &str)]) -> Output {
+    let mut c = Command::new(env!("CARGO_BIN_EXE_dioptra"));
+    c.args(args).env_remove("DIOPTRA_LICENSE");
+    for (k, v) in env {
+        c.env(k, v);
+    }
+    c.output().expect("run dioptra")
+}
+
+#[test]
+fn batch_needs_a_lab_license_and_license_manages_the_key() {
+    let d = tmp();
+    let cfg = p(d.path(), "config");
+    let home = s(&cfg);
+    let env = [("XDG_CONFIG_HOME", home), ("HOME", home), ("APPDATA", home)];
+    let proj = project(d.path());
+    let input = p(d.path(), "in.csv");
+    let out = p(d.path(), "out");
+    std::fs::write(&input, "x,y\n1,2\n2,4\n").unwrap();
+    let args = [
+        "batch",
+        s(&proj),
+        "--table",
+        "Plasma IL-6",
+        s(&input),
+        "--out",
+        s(&out),
+    ];
+    let e = fails(dioptra_env(&args, &env));
+    assert!(e.contains("Batch analysis is part of Dioptra Lab"), "{e}");
+    assert!(!p(d.path(), "out").exists());
+    // No key stored.
+    assert!(ok(dioptra_env(&["license"], &env)).contains("No license key"));
+    // A refused key is not stored.
+    let e = fails(dioptra_env(
+        &["license", "--set", "DIOPTRA-LAB-1.e30.AAAA"],
+        &env,
+    ));
+    assert!(e.contains("refused"), "{e}");
+    // The test key verifies, is stored where the desktop app keeps it, and has lapsed.
+    let o = ok(dioptra_env(
+        &["license", "--set", dioptra_license::TEST_KEY],
+        &env,
+    ));
+    assert!(o.contains("Lab          off"), "{o}");
+    let file = cfg.join("io.github.zahakj.dioptra/license.key");
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        dioptra_license::TEST_KEY
+    );
+    let e = fails(dioptra_env(&args, &env));
+    assert!(e.contains("part of Dioptra Lab"), "{e}");
+    ok(dioptra_env(&["license", "--remove"], &env));
+    assert!(!file.exists());
+    // $DIOPTRA_LICENSE is read too.
+    let mut with_env = env.to_vec();
+    with_env.push(("DIOPTRA_LICENSE", dioptra_license::TEST_KEY));
+    assert!(ok(dioptra_env(&["license"], &with_env)).contains("Licensed to"));
+}

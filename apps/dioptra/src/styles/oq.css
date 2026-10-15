@@ -1,0 +1,50 @@
+/* Records → Run OQ...: progress and the result. Tokens only. */
+
+.oq-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--fs-sm);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.oq-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.oq-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.oq-ident {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s1) var(--s3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.oq-ident dt {
+  color: var(--fg-muted);
+}
+
+.oq-ident dd {
+  margin: 0;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.oq-ident .mono {
+  font-family: var(--font-mono);
+}
+
+.oq .records-table tr.is-fail td {
+  background: var(--fail-soft);
+}

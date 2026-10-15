@@ -3,6 +3,53 @@
 All notable changes to Dioptra. Versions follow [semantic versioning](https://semver.org/);
 the file format has its own version (see the manual's File format chapter).
 
+## 0.4.0 — 2026-10-14
+
+Prism files both ways, plate readers, and Dioptra Lab.
+
+### Free
+
+- **Prism import** reads `.prism` files (Prism 10 and later) as well as `.pzfx`. Nested
+  and multiple-variables tables keep their kind; subcolumn titles are kept; CV, low–high
+  and limits formats are converted, with a note; calendar dates become row titles. Tested
+  on 53 real Prism files from Prism 6 to 11.
+- **Plate-reader import**: SoftMax Pro (`.txt`), BMG MARS (CSV), Agilent BioTek Gen5
+  (`.txt`) and Tecan Magellan (`.xlsx`), endpoint and kinetic, with an optional plate map
+  of wells to groups and doses. File → Import file… recognises them by content.
+- **Replace table data…** loads a new file into an existing table and keeps its formulas,
+  analyses and graphs.
+- **Verify records**: the audit trail and signatures of a regulated project can be checked,
+  viewed and exported without a license.
+- Fixed outlines (0.4–0.6 pt) now follow the graph's line width.
+
+### Dioptra Lab
+
+A yearly license for labs, core facilities and regulated groups; see the
+[pricing page](https://zahakj.github.io/dioptra/pricing.html). Keys are checked on the
+computer; nothing is sent anywhere. Help → Dioptra Lab… takes the key.
+
+- **Batch analysis**: apply a project as a template to many data files, with a summary
+  table and figures per file; a watch folder for instrument exports; `dioptra batch`.
+- **Journal figures**: presets for nine journals, a figure check (text size, line width,
+  resolution, colours colour-blind readers cannot tell apart, mismatched panels), TIFF
+  export, layouts at final size with panel letters, a methods paragraph, and a Word or PDF
+  report of the project.
+- **Prism export**: File → Export to Prism… writes data tables as `.pzfx`;
+  `dioptra convert` converts folders in either direction.
+- **Records for regulated labs**: users and roles, a hash-chained audit trail with reasons,
+  electronic signatures that lock a record, and a validation pack (compliance matrix,
+  traceability, IQ/OQ protocols) with an automated OQ of 8,212 checks (Records → Run OQ…,
+  `dioptra oq`).
+
+### File format
+
+`dioptra/1.2`: layouts gain `style`; files may carry `extensions/<name>`. Dioptra 0.3
+opens 1.2 files.
+
+### Command line
+
+`dioptra batch`, `dioptra convert`, `dioptra oq`, `dioptra license`.
+
 ## 0.3.0 — 2026-10-12
 
 Connecting lines: Prism's before–after graphs, made an option of every bar graph.
@@ -189,7 +236,7 @@ The first public release.
 ### Correctness and performance
 
 - All 58 NIST StRD data sets used (univariate, linear regression, ANOVA, nonlinear
-  regression) pass; 8,327 comparisons against SciPy, statsmodels, lifelines and
+  regression) pass; 7,841 comparisons against SciPy, statsmodels, lifelines and
   scikit-learn agree within tolerance.
 - A million-cell paste in about 0.13 s; a column formula over a million rows in under
   0.11 s.

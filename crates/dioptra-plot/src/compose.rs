@@ -1,7 +1,63 @@
 //! Multi-panel layouts: several scenes on one page in a grid, with bold panel letters.
 
+use serde::{Deserialize, Serialize};
+
 use crate::scene::{Anchor, Baseline, Group, Node, Paint, Rect, Scene};
 use crate::text::Weight;
+
+/// How panel letters are written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LetterCase {
+    /// A, B, C (the default; Cell Press, Science, PLOS, eLife).
+    #[default]
+    Upper,
+    /// a, b, c (Nature).
+    Lower,
+    /// No letters.
+    None,
+}
+
+/// Panel letters: case and size (bold, in the bundled font).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PanelLetters {
+    /// Case, or none.
+    pub case: LetterCase,
+    /// Size in points.
+    pub size_pt: f64,
+}
+
+impl Default for PanelLetters {
+    fn default() -> Self {
+        PanelLetters {
+            case: LetterCase::Upper,
+            size_pt: LETTER_PT,
+        }
+    }
+}
+
+impl PanelLetters {
+    /// Upper-case letters at the default size, or none.
+    pub fn on(letters: bool) -> Self {
+        PanelLetters {
+            case: if letters {
+                LetterCase::Upper
+            } else {
+                LetterCase::None
+            },
+            size_pt: LETTER_PT,
+        }
+    }
+
+    /// The letter for panel `i` in this case (empty for none).
+    pub fn text(&self, i: usize) -> String {
+        match self.case {
+            LetterCase::Upper => letter(i),
+            LetterCase::Lower => letter(i).to_lowercase(),
+            LetterCase::None => String::new(),
+        }
+    }
+}
 
 /// Panel letter for index `i`: A … Z, then AA, AB, ….
 pub fn letter(i: usize) -> String {
@@ -26,19 +82,24 @@ fn prefix_ids(g: &mut Group, p: &str) {
     }
 }
 
-/// Letter size in points.
-const LETTER_PT: f64 = 10.0;
+/// Default letter size in points.
+pub const LETTER_PT: f64 = 10.0;
 /// Space around a panel letter, in points.
 const LETTER_PAD: f64 = 3.0;
 
 /// Width of the gutter left of every panel that holds the panel letters: the widest letter,
 /// measured with the bundled font, plus padding on both sides. Zero without letters.
 pub fn letter_gutter(panels: usize, letters: bool) -> f64 {
-    if !letters || panels == 0 {
+    letter_gutter_with(panels, &PanelLetters::on(letters))
+}
+
+/// [`letter_gutter`] for letters in a given case and size.
+pub fn letter_gutter_with(panels: usize, letters: &PanelLetters) -> f64 {
+    if letters.case == LetterCase::None || panels == 0 || letters.size_pt <= 0.0 {
         return 0.0;
     }
     let widest = (0..panels)
-        .map(|i| crate::text::plain_width(&letter(i), LETTER_PT, Weight::Bold))
+        .map(|i| crate::text::plain_width(&letters.text(i), letters.size_pt, Weight::Bold))
         .fold(0.0, f64::max);
     (widest + 2.0 * LETTER_PAD).ceil()
 }
@@ -50,8 +111,14 @@ pub fn letter_gutter(panels: usize, letters: bool) -> f64 {
 /// prefixed `p{i}-`; the panel group itself is `panel-{i}` with target `/graphs/{i}` (the
 /// layout's list).
 pub fn compose_layout(panels: &[Scene], columns: usize, letters: bool) -> Scene {
+    compose_layout_with(panels, columns, &PanelLetters::on(letters))
+}
+
+/// [`compose_layout`] with the letters in a given case and size.
+pub fn compose_layout_with(panels: &[Scene], columns: usize, letters: &PanelLetters) -> Scene {
+    let show = letters.case != LetterCase::None && letters.size_pt > 0.0;
     let columns = columns.max(1).min(panels.len().max(1));
-    let gutter = letter_gutter(panels.len(), letters);
+    let gutter = letter_gutter_with(panels.len(), letters);
     let pw = panels.iter().map(|p| p.width).fold(0.0, f64::max).max(28.0);
     let cw = pw + gutter;
     let ch = panels
@@ -85,7 +152,7 @@ pub fn compose_layout(panels: &[Scene], columns: usize, letters: bool) -> Scene 
         } else {
             g.push(Node::Group(inner));
         }
-        if letters {
+        if show {
             let ink = background.map_or(crate::scene::Color::rgb(0, 0, 0), |b| {
                 if b.luminance() < 0.2 {
                     crate::scene::Color::rgb(0xe8, 0xea, 0xe8)
@@ -97,8 +164,8 @@ pub fn compose_layout(panels: &[Scene], columns: usize, letters: bool) -> Scene 
             lg.push(Node::Text(crate::plot::text_node(
                 LETTER_PAD,
                 LETTER_PAD,
-                &letter(i),
-                LETTER_PT,
+                &letters.text(i),
+                letters.size_pt,
                 ink,
                 Anchor::Start,
                 Baseline::Top,
@@ -181,5 +248,27 @@ mod tests {
         // The page grows by one gutter per column, no more.
         assert!((page.width - 2.0 * (a.0.style.size_mm.width * 72.0 / 25.4 + gutter)).abs() < 1e-6);
         assert_eq!(letter_gutter(3, false), 0.0);
+    }
+
+    #[test]
+    fn lower_case_letters_at_a_chosen_size() {
+        let a = crate::samples::sample("column").unwrap();
+        let s = crate::scene(&a.0, &a.1).unwrap();
+        let l = PanelLetters {
+            case: LetterCase::Lower,
+            size_pt: 8.0,
+        };
+        let page = compose_layout_with(&[s.clone(), s], 2, &l);
+        let svg = crate::to_svg(&page);
+        assert!(
+            svg.contains(">a</text>") && svg.contains(">b</text>"),
+            "{svg}"
+        );
+        assert!(letter_gutter_with(2, &l) < letter_gutter(2, true));
+        let none = PanelLetters {
+            case: LetterCase::None,
+            size_pt: 8.0,
+        };
+        assert_eq!(letter_gutter_with(2, &none), 0.0);
     }
 }

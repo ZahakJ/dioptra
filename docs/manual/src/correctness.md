@@ -6,7 +6,7 @@ record: every comparison, every NIST data set, and the cases where a difference 
 investigated.
 
 The short version: **all 58 NIST StRD reference data sets** used (univariate, linear
-regression, one-way ANOVA and nonlinear regression) pass, and **8,327 comparisons in 300
+regression, one-way ANOVA and nonlinear regression) pass, and **7,841 comparisons in 300
 oracle cases across 28 families** of methods agree with SciPy, statsmodels, lifelines and
 scikit-learn within the tolerance stored with each case, with no failures.
 

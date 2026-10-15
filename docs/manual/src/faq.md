@@ -85,7 +85,7 @@ in [Performance](performance.md).
 They are checked against the strongest references available: the NIST Statistical
 Reference Datasets, whose answers are certified to 15 digits, and the established
 implementations in SciPy, statsmodels, lifelines and scikit-learn. All 58 NIST data sets
-pass, and 8,327 comparisons in 300 oracle cases agree within their stated tolerances. The
+pass, and 7,841 comparisons in 300 oracle cases agree within their stated tolerances. The
 whole record, including the places where a reference library turned out to be the less
 accurate one, is in [Correctness](correctness.md). If you find a disagreement, please open
 a *numerical discrepancy* issue with the data and the reference value.
@@ -103,7 +103,7 @@ into APA or BibTeX. Cite the version you used (it is in every methods sentence),
 example:
 
 > ZahakJ. Dioptra: data, statistics and publication graphs without the spreadsheet
-> (version 0.3.0) [Computer software]. 2026. https://github.com/ZahakJ/dioptra
+> (version 0.4.0) [Computer software]. 2026. https://github.com/ZahakJ/dioptra
 
 ## How can I help?
 

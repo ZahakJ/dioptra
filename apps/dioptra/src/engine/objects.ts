@@ -272,12 +272,14 @@ export interface LayoutInfo {
   title: string;
   graphs: Id[];
   columns: number;
+  /** Final-size settings (Dioptra Lab): page width, one text size and line width, letters. */
+  style?: JsonObject;
 }
 export async function getLayout(e: Engine, id: Id): Promise<LayoutInfo> {
   return strip(await expectType(e, { type: 'get_layout', id }, 'layout'));
 }
-export async function updateLayout(e: Engine, id: Id, graphs: Id[], columns: number): Promise<Changed> {
-  return changedOf(await call(e, { type: 'update_layout', id, graphs, columns }));
+export async function updateLayout(e: Engine, id: Id, graphs: Id[], columns: number, style?: JsonObject): Promise<Changed> {
+  return changedOf(await call(e, { type: 'update_layout', id, graphs, columns, ...(style ? { style } : {}) }));
 }
 
 // ---- transforms ----

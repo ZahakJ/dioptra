@@ -10,6 +10,7 @@ import type {
   Id,
   PasteOptions,
   PasteReport,
+  PlateSummary,
   ProjectView,
   PValueStyle,
   Range,
@@ -168,11 +169,18 @@ export async function importText(
 ): Promise<PasteReport> {
   return strip(await expectType(e, { type: 'import_text', text, kind, title, options }, 'paste_report'));
 }
-export async function importBytes(e: Engine, name: string, base64: string, kind: TableKind | null): Promise<PasteReport> {
-  return strip(await expectType(e, { type: 'import_bytes', name, base64, kind }, 'paste_report'));
+export async function importBytes(e: Engine, name: string, base64: string, kind: TableKind | null, plateMap?: string): Promise<PasteReport> {
+  return strip(await expectType(e, { type: 'import_bytes', name, base64, kind, ...(plateMap ? { plate_map: plateMap } : {}) }, 'paste_report'));
 }
-export async function importPath(e: Engine, path: string, kind: TableKind | null): Promise<PasteReport> {
-  return strip(await expectType(e, { type: 'import_path', path, kind }, 'paste_report'));
+export async function importPath(e: Engine, path: string, kind: TableKind | null, plateMap?: string): Promise<PasteReport> {
+  return strip(await expectType(e, { type: 'import_path', path, kind, ...(plateMap ? { plate_map: plateMap } : {}) }, 'paste_report'));
+}
+/** The plate-reader export in a file, or `null` when it is an ordinary data file. */
+export async function inspectPlate(e: Engine, file: { name: string; base64?: string; path?: string }): Promise<PlateSummary | null> {
+  return (await expectType(e, { type: 'inspect_plate', ...file }, 'plate')).plate;
+}
+export async function replaceTableData(e: Engine, table: Id, name: string, base64: string, plateMap?: string): Promise<PasteReport> {
+  return strip(await expectType(e, { type: 'replace_table_data', table, name, base64, ...(plateMap ? { plate_map: plateMap } : {}) }, 'paste_report'));
 }
 export async function exportTable(e: Engine, table: Id, format: TableFormat): Promise<{ name: string; mime: string; base64: string }> {
   return strip(await expectType(e, { type: 'export_table', table, format }, 'bytes'));

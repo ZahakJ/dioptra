@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleHelp,
   Eye,
+  FileSignature,
   FileText,
   Pencil,
   Plus,
@@ -272,5 +273,6 @@ export const MENU_ICONS: Record<MenuName, React.ReactElement> = {
   View: <Eye size={16} {...lucide} />,
   Analyze: <Sigma size={16} {...lucide} />,
   Graph: <ChartSpline size={16} {...lucide} />,
+  Records: <FileSignature size={16} {...lucide} />,
   Help: <CircleHelp size={16} {...lucide} />,
 };

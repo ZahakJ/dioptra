@@ -216,7 +216,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                     pts: out,
                     shape,
                     size: st.size * 0.8,
-                    paint: Paint::both(t.background, Stroke::solid(line, 0.6)),
+                    paint: Paint::both(t.background, Stroke::solid(line, t.fixed(0.6))),
                 });
             }
         }

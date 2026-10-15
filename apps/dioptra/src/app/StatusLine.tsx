@@ -6,6 +6,7 @@ import { formatStat, summarize, type SelectionSummary } from '../grid/stats';
 import { useSelection } from '../grid/store';
 import { useActiveItem } from '../store/project';
 import { useEngineStatus } from '../store/status';
+import { RecordsStatusItem } from './Records';
 import { cellCache, useTableMeta, useTables, useTableVersion } from '../store/table';
 
 const MAX_FETCH_CELLS = 250_000;
@@ -106,6 +107,7 @@ export function StatusLine() {
         )}
       </div>
       <div className="sl-right">
+        <RecordsStatusItem />
         <span className={'sl-item sl-state' + (busy || !status.ready ? ' is-busy' : '')} data-testid="recompute-state">
           {!status.ready ? (status.error ? 'Engine failed to load' : 'Loading the engine...') : busy ? 'Computing...' : 'Up to date'}
         </span>

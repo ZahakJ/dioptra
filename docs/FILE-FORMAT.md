@@ -22,7 +22,7 @@ extensions/<name>        UTF-8 files kept for other components, e.g. Dioptra Lab
 ## manifest.json
 
 ```json
-{ "format": "dioptra/1.1", "app": "0.3.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
+{ "format": "dioptra/1.2", "app": "0.4.0", "created": "2026-10-11T09:00:00Z", "modified": "..." }
 ```
 
 Readers must accept any `dioptra/1.x`; unknown keys are preserved on round trip where
@@ -95,11 +95,12 @@ written exactly as format 1.0 wrote it.
 |---|---|---|
 | `dioptra/1` | 0.1, 0.2 | First format |
 | `dioptra/1.1` | 0.3 | Graph specs gain `options.connecting`, `orientation`, `error_direction`, `cap_pt`, `bar_width`, `group_width`, `bar_fill`, `summary_line` and `style.datasets[].pattern`. The `before_after` family is retired. |
+| `dioptra/1.2` | 0.4 | Layouts gain `style` (page width, font size, line width, panel letters). Files may carry `extensions/<name>`. Readers of 1.1 open 1.2 files and ignore the additions. |
 
 Migration 1.0 → 1.1 runs when a file is opened: a graph whose family is `before_after`
 becomes the `strip` spec that draws the same picture (`jitter: 0`, `error_bars: none`,
 `summary_line: false`, `connecting.connect` `both` when `mean_line` was on and `individuals`
-otherwise, opacity 0.4). Nothing else changes; saving writes format 1.1. A 0.2 reader opens a
+otherwise, opacity 0.4). Nothing else changes; saving writes the current format. A 0.2 reader opens a
 1.1 file (the minor number is additive) and ignores the new fields, so it draws such a graph
 without its connecting lines.
 

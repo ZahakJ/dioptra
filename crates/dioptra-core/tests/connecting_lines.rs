@@ -71,11 +71,11 @@ fn spec_round_trips_through_patch_and_file() {
     );
     let svg2 = ok(&mut s2, json!({"type": "render_graph", "id": g}))["svg"].clone();
     assert_eq!(svg1, svg2);
-    // The manifest says 1.1.
+    // The manifest names the current format.
     let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
     let mut m = String::new();
     std::io::Read::read_to_string(&mut z.by_name("manifest.json").unwrap(), &mut m).unwrap();
-    assert!(m.contains("\"dioptra/1.1\""), "{m}");
+    assert!(m.contains(dioptra_core::file::FORMAT), "{m}");
 }
 
 fn strip_type(mut v: Value) -> Value {
@@ -123,7 +123,7 @@ fn v1_file(mean_line: bool) -> Vec<u8> {
         let mut text = String::new();
         std::io::Read::read_to_string(&mut f, &mut text).unwrap();
         if name == "manifest.json" {
-            text = text.replace("dioptra/1.1", "dioptra/1");
+            text = text.replace(dioptra_core::file::FORMAT, "dioptra/1");
         }
         if name == format!("graphs/{g}.json") {
             let mut v: Value = serde_json::from_str(&text).unwrap();

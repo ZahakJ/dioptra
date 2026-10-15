@@ -14,7 +14,7 @@ use crate::table::Table;
 
 /// Format identifier written by this version. 1.1 (Dioptra 0.3) added connecting lines,
 /// orientation and bar options to graph specs and retired the `before_after` family.
-pub const FORMAT: &str = "dioptra/1.1";
+pub const FORMAT: &str = "dioptra/1.2";
 
 /// Bring a graph spec read from an older file up to this format: format 1.0 graphs of the
 /// retired `before_after` family become the `strip` spec with connecting lines that draws

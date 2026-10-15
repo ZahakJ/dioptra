@@ -70,6 +70,18 @@ pub fn svg_to_png(
     height_mm: f64,
     dpi: f64,
 ) -> Result<Vec<u8>, OutputError> {
+    let png = rasterise(svg, width_mm, height_mm, dpi)?
+        .encode_png()
+        .map_err(|e| OutputError::Png(e.to_string()))?;
+    Ok(insert_phys(png, dpi))
+}
+
+fn rasterise(
+    svg: &str,
+    width_mm: f64,
+    height_mm: f64,
+    dpi: f64,
+) -> Result<resvg::tiny_skia::Pixmap, OutputError> {
     if !(dpi > 0.0 && dpi <= 2400.0) {
         return Err(OutputError::Size("DPI must be between 1 and 2400".into()));
     }
@@ -86,10 +98,26 @@ pub fn svg_to_png(
     let transform =
         resvg::tiny_skia::Transform::from_scale(w as f32 / ts.width(), h as f32 / ts.height());
     resvg::render(&tree, transform, &mut pixmap.as_mut());
-    let png = pixmap
-        .encode_png()
-        .map_err(|e| OutputError::Png(e.to_string()))?;
-    Ok(insert_phys(png, dpi))
+    Ok(pixmap)
+}
+
+/// Pixels of a rendered scene: width, height and 8-bit RGB rows with the drawing
+/// composited onto white (journals want opaque artwork; a transparent background
+/// becomes white). The same rasteriser as [`to_png`], so the two match pixel for pixel
+/// where the PNG is opaque.
+pub fn to_rgb(scene: &Scene, dpi: f64) -> Result<(u32, u32, Vec<u8>), OutputError> {
+    let pm = rasterise(&to_svg(scene), scene.width_mm(), scene.height_mm(), dpi)?;
+    let mut out = Vec::with_capacity(pm.width() as usize * pm.height() as usize * 3);
+    for p in pm.pixels() {
+        // Premultiplied: over white is c + (255 - a).
+        let inv = 255 - p.alpha();
+        out.extend_from_slice(&[
+            p.red().saturating_add(inv),
+            p.green().saturating_add(inv),
+            p.blue().saturating_add(inv),
+        ]);
+    }
+    Ok((pm.width(), pm.height(), out))
 }
 
 /// Render a scene to a one-page PDF with the fonts embedded as subsets.
@@ -106,6 +134,58 @@ pub fn svg_to_pdf(svg: &str) -> Result<Vec<u8>, OutputError> {
     };
     let page = svg2pdf::PageOptions { dpi: 72.0 };
     svg2pdf::to_pdf(&tree, conv, page).map_err(|e| OutputError::Pdf(e.to_string()))
+}
+
+/// Several SVGs written by this engine as the pages of one PDF, each page the size of
+/// its SVG, fonts embedded as subsets (each page through svg2pdf, placed as a form
+/// XObject).
+pub fn svgs_to_pdf(pages: &[String]) -> Result<Vec<u8>, OutputError> {
+    use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref};
+    if pages.is_empty() {
+        return Err(OutputError::Pdf("a PDF needs at least one page".into()));
+    }
+    let mut alloc = Ref::new(1);
+    let catalog = alloc.bump();
+    let tree_id = alloc.bump();
+    let mut pdf = Pdf::new();
+    let mut kids = Vec::new();
+    let mut chunks = Vec::new();
+    for svg in pages {
+        let tree = parse(svg)?;
+        let (w, h) = (tree.size().width(), tree.size().height());
+        let conv = svg2pdf::ConversionOptions {
+            embed_text: true,
+            ..Default::default()
+        };
+        let (chunk, xref) =
+            svg2pdf::to_chunk(&tree, conv).map_err(|e| OutputError::Pdf(e.to_string()))?;
+        let mut map = std::collections::HashMap::new();
+        let chunk = chunk.renumber(|old| *map.entry(old).or_insert_with(|| alloc.bump()));
+        let xref = map[&xref];
+        let page_id = alloc.bump();
+        let content_id = alloc.bump();
+        let mut page = pdf.page(page_id);
+        page.media_box(Rect::new(0.0, 0.0, w, h));
+        page.parent(tree_id);
+        page.contents(content_id);
+        page.resources().x_objects().pair(Name(b"P"), xref);
+        page.finish();
+        let mut content = Content::new();
+        content
+            .transform([w, 0.0, 0.0, h, 0.0, 0.0])
+            .x_object(Name(b"P"));
+        pdf.stream(content_id, &content.finish());
+        kids.push(page_id);
+        chunks.push(chunk);
+    }
+    pdf.catalog(catalog).pages(tree_id);
+    pdf.pages(tree_id)
+        .kids(kids.iter().copied())
+        .count(kids.len() as i32);
+    for c in &chunks {
+        pdf.extend(c);
+    }
+    Ok(pdf.finish())
 }
 
 fn crc32(bytes: &[u8]) -> u32 {

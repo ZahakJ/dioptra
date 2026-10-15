@@ -1,0 +1,174 @@
+/* Records for regulated labs: users, signatures, the audit-trail viewer. Tokens only. */
+
+.records-note {
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--fg);
+}
+
+.records-note.is-caution {
+  background: var(--caution-soft);
+  border-left: 3px solid var(--caution);
+}
+
+.records-banner {
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--fg);
+}
+
+.records-banner.is-ok {
+  background: var(--ok-soft);
+  border-left: 3px solid var(--ok);
+}
+
+.records-banner.is-fail {
+  background: var(--fail-soft);
+  border-left: 3px solid var(--fail);
+  font-weight: var(--fw-strong);
+}
+
+.records-table-wrap {
+  max-height: min(52vh, 480px);
+  overflow: auto;
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-sheet);
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.records-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-head);
+  color: var(--fg-muted);
+  font-weight: var(--fw-medium);
+  text-align: left;
+  padding: var(--s1) var(--s2);
+  border-bottom: var(--border) solid var(--line-strong);
+}
+
+.records-table td {
+  padding: var(--s1) var(--s2);
+  border-bottom: var(--border) solid var(--line);
+  vertical-align: top;
+  color: var(--fg);
+}
+
+.records-table td.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.records-table td.mono,
+.records-log .mono {
+  font-family: var(--font-mono);
+}
+
+.records-table td.nowrap {
+  white-space: nowrap;
+}
+
+.records-table tr.is-signature td,
+.records-table tr.is-new_version td,
+.records-table tr.is-regulated td {
+  background: var(--accent-soft);
+}
+
+.records-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.records-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--fs-sm);
+}
+
+.records-sigs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--fs-sm);
+}
+
+.records-sig {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+  color: var(--fg);
+}
+
+.records-sig-status {
+  margin-left: auto;
+  color: var(--fg-muted);
+}
+
+.records-sig.is-valid .records-sig-status {
+  color: var(--ok);
+}
+
+.records-sig.is-content_changed .records-sig-status {
+  color: var(--fail);
+  font-weight: var(--fw-strong);
+}
+
+.records-manifest {
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  background: var(--bg-inset);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--fg);
+}
+
+.records-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.records-add {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: var(--border) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+}
+
+.records-add-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+.records-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+  color: var(--fg);
+}
+
+.sl-records.is-fail,
+.sl-right .sl-records.is-fail {
+  color: var(--fail);
+  font-weight: var(--fw-strong);
+}
