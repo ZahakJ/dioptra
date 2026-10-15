@@ -60,10 +60,15 @@ is displayed. Importing the `.xlsx` file directly avoids this and reads the stor
   built into Dioptra, so it works the same on every system and needs no Office
   installation. Cell values are read as stored, at full precision, not as displayed. Date
   cells become ISO dates (`2026-10-11`) and the import notes say how many;
-- Prism `.pzfx` files: the data tables come across, with their titles and column names.
-  Prism's analyses and graphs are stored in an undocumented form and are
-  not converted; run the analyses again in Dioptra, which takes a minute and gives you
-  assumption checks you did not have before.
+- Prism `.pzfx` files and Prism 10 `.prism` files: the data tables come across, with their
+  titles, kinds (nested and multiple-variables included), column names, subcolumn titles,
+  row titles and excluded values. Summary formats Dioptra lacks are converted and the
+  import notes say how: mean, %CV, N becomes mean, SD, N; mean with +/− error or with upper
+  and lower limits becomes a "(mean)" data set plus a lower, upper data set. Date X values
+  keep Prism's elapsed time as X and the dates as row titles. An X error subcolumn is not
+  imported (Dioptra tables have no X error). Prism's analyses and graphs are not converted;
+  run the analyses again in Dioptra, which takes a minute and gives you assumption checks
+  you did not have before.
 
 Each imported column remembers the file, sheet and column it came from.
 

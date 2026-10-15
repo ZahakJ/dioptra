@@ -14,7 +14,7 @@ export interface DialogFilter {
 export const PROJECT_FILTER: DialogFilter = { name: 'Dioptra project', extensions: ['dioptra'] };
 export const IMPORT_FILTER: DialogFilter = {
   name: 'Data files',
-  extensions: ['csv', 'tsv', 'txt', 'xlsx', 'xls', 'ods', 'pzfx'],
+  extensions: ['csv', 'tsv', 'txt', 'xlsx', 'xls', 'ods', 'pzfx', 'prism'],
 };
 
 /** Desktop: ask for a file to open. */

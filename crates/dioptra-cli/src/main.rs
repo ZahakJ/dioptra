@@ -76,7 +76,7 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = SheetFormat::Tsv)]
         format: SheetFormat,
     },
-    /// Import a data file (csv, tsv, txt, xlsx, xls, ods, pzfx) into a new project file.
+    /// Import a data file (csv, tsv, txt, xlsx, xls, ods, pzfx, prism) into a new project file.
     Import {
         /// Data file.
         data: PathBuf,

@@ -171,7 +171,7 @@ export function FileImportDialog({ close }: { close: (spec: FileImportSpec | nul
     >
       <DialogHeader
         title="Import a file"
-        sub="CSV, TSV and text files, Excel (xlsx, xls), OpenDocument (ods) and Prism (pzfx). Workbooks and Prism files keep their own structure."
+        sub="CSV, TSV and text files, Excel (xlsx, xls), OpenDocument (ods) and Prism (pzfx, prism). Workbooks and Prism files keep their own structure."
       />
       <div className="field-label">Table kind for delimited text</div>
       <RadioRow checked={kind === 'detect'} onSelect={() => setKind('detect')} hint="A multiple-variables table unless the file says otherwise.">

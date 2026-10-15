@@ -29,10 +29,10 @@ first.
 
 ## Can I open my Prism files?
 
-Prism's XML format, `.pzfx`, can be imported: the data tables come across. Prism stores its
-analyses and graphs in a form that is not documented, so they are not converted; re-run the
-analyses in Dioptra. The binary `.pzf` and the newer `.prism` formats are not read yet. If
-you have only those, export the data tables from Prism as text or `.pzfx`. Dioptra does not
+Prism's XML format, `.pzfx`, and the Prism 10 format, `.prism`, can be imported: the data
+tables come across. Prism's analyses and graphs are not converted; re-run the analyses in
+Dioptra. The old binary `.pzf` format is not read; if you have only that, open it in Prism
+and save it as `.pzfx` or `.prism`. Dioptra does not
 write Prism formats; it exports CSV, TSV and XLSX for anyone who needs the data elsewhere.
 
 ## Where are my data? Does anything leave my computer?

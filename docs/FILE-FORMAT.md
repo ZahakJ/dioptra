@@ -48,6 +48,8 @@ possible and ignored otherwise.
 - `values` is a dense array the length of the table's row count; `null` means empty.
 - `excluded` is a sorted list of row indices.
 - `text` holds non-numeric entries by row index (kept, shown, never used in numerics).
+- `title` on a subcolumn names it (a replicate or a nested subgroup, e.g. from Prism's
+  subcolumn titles); absent when unnamed. The X column's title is the same field.
 - `source` is one of `entered`, `pasted {at}`, `imported {file, sheet, column}`,
   `formula {expr}`, `derived {table, op}`.
 - `edits` is the sparse per-cell edit log that, with `source`, gives each cell's provenance.

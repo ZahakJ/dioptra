@@ -106,7 +106,7 @@ says what to click.
 | Graphs | Twenty-three families including violin, raincloud, estimation, SuperPlot, Kaplan–Meier and volcano; an interactive editor; three themes; colour-blind-safe palettes; multi-panel layouts |
 | Paired graphs | Connecting lines on bar, dot, box and violin graphs: a line per subject, the means or medians, or both; colour by data set, subject or a grouping column; a gap or a join at a missing value; grouped tables within or across groups; horizontal graphs; the default graph of paired and repeated-measures tests ([manual](https://zahakj.github.io/dioptra/manual/graphs/connecting-lines.html)) |
 | Export | SVG with real text, PDF with embedded fonts, PNG at any resolution; sizes in mm and points; identical bytes on every platform; tables to CSV, TSV and XLSX |
-| Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS and Prism `.pzfx` data |
+| Import | Paste with decimal-comma detection; CSV, TSV, XLSX, XLS, ODS and Prism `.pzfx` and `.prism` data |
 | File format | `.dioptra`: a zip of documented JSON with data, formulas, specifications and the command history ([format](docs/FILE-FORMAT.md)) |
 | Command line | `dioptra analyze data.csv --kind column --test one_way_anova`; `run`, `render`, `export` and `bench` on a project file, for scripted pipelines |
 | Platforms | Linux (AppImage, deb, rpm), Windows (msi, exe), macOS (Apple silicon and Intel) |
