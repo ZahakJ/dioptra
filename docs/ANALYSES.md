@@ -1,4 +1,4 @@
-# Analyses
+# Analysis reference: every statistical test
 
 One entry per analysis kind: when to use it, the tables it accepts, its options (JSON keys
 of the spec, with defaults; every key may be left out), what it checks, what the results
@@ -18,7 +18,9 @@ or `"auto"`.
 
 ---
 
-## descriptive — Descriptive statistics
+## Descriptive statistics (`descriptive`)
+
+How to get descriptive statistics in Dioptra (mean, SD, SEM, confidence interval of the mean, median, quartiles): select a table, press Analyze (Ctrl-Shift-A) and choose *Descriptive statistics*.
 
 - **When:** describe each data set (n, mean, SD, SEM, CI of the mean, quartiles, range, CV,
   geometric mean).
@@ -34,7 +36,9 @@ or `"auto"`.
   - Median 5.155, quartiles by Prism's rule.
   - Checks: every value used.
 
-## t_test — t tests
+## t test (unpaired, Welch, paired, one-sample) (`t_test`)
+
+How to run a t test in Dioptra: enter the two groups as data sets of a column table (one row per subject for a paired test), press Analyze (Ctrl-Shift-A) and choose *t test*, then pick Welch, unpaired, paired, ratio paired or one-sample.
 
 - **When:** compare two means (unpaired or paired), a ratio of paired values, or one mean
   with a hypothetical value.
@@ -57,7 +61,9 @@ or `"auto"`.
   - Welch (as unpaired groups): 1.6 (95% CI -0.2 to 3.4), t(17.8) = 1.86, p = .079.
   - The pairing removes the between-subject scatter: same difference, much narrower CI.
 
-## mann_whitney — Mann–Whitney test
+## Mann–Whitney test (`mann_whitney`)
+
+How to run a Mann–Whitney test in Dioptra: enter the two groups as data sets of a column table, press Analyze (Ctrl-Shift-A) and choose *Mann–Whitney test*.
 
 - **When:** two unpaired groups, no assumption of Gaussian distributions.
 - **Tables:** column, variables.
@@ -76,7 +82,9 @@ or `"auto"`.
   - Medians 1.75 and 0.35; ties, so P is the normal approximation.
   - Check "Exact or approximate P" is a caution.
 
-## wilcoxon — Wilcoxon signed-rank test
+## Wilcoxon signed-rank test (`wilcoxon`)
+
+How to run a Wilcoxon signed-rank test in Dioptra: enter the paired values as two data sets of a column table, one subject per row, press Analyze (Ctrl-Shift-A) and choose *Wilcoxon signed-rank test*.
 
 - **When:** paired values (two columns) or one column against a hypothetical median, no
   Gaussian assumption.
@@ -95,7 +103,9 @@ or `"auto"`.
   - W+ = 45, W− = 0, p = .008 (normal approximation: the differences have ties).
   - Symmetry check passes.
 
-## one_way_anova — One-way ANOVA
+## One-way ANOVA (`one_way_anova`)
+
+How to run a one-way ANOVA in Dioptra: enter each group as a data set of a column table, press Analyze (Ctrl-Shift-A) and choose *One-way ANOVA*, and pick the multiple comparisons.
 
 - **When:** three or more independent groups, compare means.
 - **Tables:** column, nested.
@@ -117,7 +127,9 @@ or `"auto"`.
   - Tukey: trt1 vs. trt2 differs (mean difference -0.87, 95% CI -1.56 to -0.17, p = .012).
   - The graph carries three brackets: p = .391, p = .198, p = .012.
 
-## repeated_measures_anova — Repeated-measures one-way ANOVA
+## Repeated-measures ANOVA (`repeated_measures_anova`)
+
+How to run a repeated-measures one-way ANOVA in Dioptra: enter one subject per row and one condition per data set of a column table, press Analyze (Ctrl-Shift-A) and choose *Repeated-measures one-way ANOVA*.
 
 - **When:** each row is one subject measured under every condition (columns).
 - **Tables:** column.
@@ -136,7 +148,9 @@ or `"auto"`.
   - Every pair differs after Holm–Šidák (largest adjusted p = .007).
   - Sphericity passes (corrected P in use).
 
-## two_way_anova — Two-way ANOVA
+## Two-way ANOVA (`two_way_anova`)
+
+How to run a two-way ANOVA in Dioptra: put one factor in the rows and the other in the data sets of a grouped table, replicates in subcolumns, press Analyze (Ctrl-Shift-A) and choose *Two-way ANOVA*.
 
 - **When:** two factors: rows of a grouped table (factor A) and its data sets (factor B),
   replicates in subcolumns.
@@ -161,7 +175,9 @@ or `"auto"`.
   - Row factor F(1, 8) = 18.69, p = .003; column factor F(1, 8) = 72.20, p < .001.
   - Tukey within rows: B exceeds A in both rows (p = .004 and p < .001).
 
-## kruskal_wallis — Kruskal–Wallis test
+## Kruskal–Wallis test (`kruskal_wallis`)
+
+How to run a Kruskal–Wallis test in Dioptra: enter each group as a data set of a column table, press Analyze (Ctrl-Shift-A) and choose *Kruskal–Wallis test*.
 
 - **When:** three or more independent groups, no Gaussian assumption.
 - **Tables:** column, nested.
@@ -177,7 +193,9 @@ or `"auto"`.
   - Dunn (Holm): trt1 vs. trt2 differs (p = .015).
   - The other two comparisons do not reach adjusted p < .05.
 
-## friedman — Friedman test
+## Friedman test (`friedman`)
+
+How to run a Friedman test in Dioptra: enter one subject per row and one condition per data set of a column table, press Analyze (Ctrl-Shift-A) and choose *Friedman test*.
 
 - **When:** matched rows (subjects) under three or more conditions, no Gaussian assumption.
 - **Tables:** column.
@@ -193,7 +211,9 @@ or `"auto"`.
   - Dunn (Holm): Pre vs. Post differs (p = .002).
   - Chi-square approximation flagged (fewer than 10 subjects).
 
-## chi_square — Chi-square test
+## Chi-square test (`chi_square`)
+
+How to run a chi-square test in Dioptra: enter the counts in a contingency table, press Analyze (Ctrl-Shift-A) and choose *Chi-square test*.
 
 - **When:** association between the rows and columns of a table of counts; goodness of fit
   to equal proportions for a parts-of-whole table (or a one-column table).
@@ -212,7 +232,9 @@ or `"auto"`.
   - χ²(1, N = 39) = 5.77, p = .016, Cramér's V = .38; Fisher p = .025 shown alongside.
   - Expected counts pass (smallest 8.28).
 
-## fisher_exact — Fisher's exact test
+## Fisher's exact test (`fisher_exact`)
+
+How to run Fisher's exact test in Dioptra: enter the counts in a contingency table, press Analyze (Ctrl-Shift-A) and choose *Fisher's exact test*.
 
 - **When:** a 2 × 2 table, especially with small counts; r × c tables by the
   Fisher–Freeman–Halton test within its work limit.
@@ -230,7 +252,9 @@ or `"auto"`.
   - Conditional MLE odds ratio 6.41 (95% CI 0.21 to 626).
   - Relative risk 3.0 (95% CI 0.50 to 18.0).
 
-## correlation — Correlation
+## Correlation (Pearson and Spearman) (`correlation`)
+
+How to compute a correlation in Dioptra: enter the variables in an XY or Multiple variables table, press Analyze (Ctrl-Shift-A) and choose *Correlation*.
 
 - **When:** association between two variables, or a matrix of several.
 - **Tables:** XY (X with each data set by default), variables (numeric variables), column
@@ -249,7 +273,9 @@ or `"auto"`.
   - Spearman on request: ρ with the Bonett–Wright CI.
   - Linearity is stated, not tested: look at the scatter plot.
 
-## linear_regression — Simple linear regression
+## Linear regression (`linear_regression`)
+
+How to run a simple linear regression in Dioptra: enter X and Y in an XY table, press Analyze (Ctrl-Shift-A) and choose *Simple linear regression*.
 
 - **When:** a straight line through XY data, each data set separately.
 - **Tables:** XY (replicates are separate points; mean/SD/N rows give their means).
@@ -269,7 +295,9 @@ or `"auto"`.
   - R² = .999, F(1, 8) = 7052.15, p < .001.
   - Runs test passes.
 
-## nonlinear_regression — Nonlinear regression (curve fit)
+## Nonlinear regression and curve fitting (dose-response, EC50) (`nonlinear_regression`)
+
+How to fit a curve in Dioptra, such as a dose-response curve for an EC50: enter X and Y in an XY table, press Analyze (Ctrl-Shift-A) and choose *Nonlinear regression (curve fit)*, and pick an equation.
 
 - **When:** fit a model (dose-response, exponential, enzyme kinetics, binding, growth, or a
   formula) to XY data.
@@ -300,7 +328,9 @@ or `"auto"`.
   - HillSlope = 0.75 (95% CI 0.63 to 0.87); R² = .995.
   - Against the fixed-slope model: F(1, 18) = 14.52, p = .001; AICc prefers the variable slope (99.2%).
 
-## normality — Normality tests
+## Normality tests (Shapiro–Wilk, D'Agostino) (`normality`)
+
+How to test for normality in Dioptra: select a table, press Analyze (Ctrl-Shift-A) and choose *Normality tests*.
 
 - **When:** look at the distribution of each data set.
 - **Tables:** column, XY, grouped, variables, nested.
@@ -317,7 +347,9 @@ or `"auto"`.
   - All three groups are consistent with a Gaussian distribution.
   - That is absence of evidence, not proof.
 
-## outliers — Identify outliers
+## Identify outliers (Grubbs, ROUT) (`outliers`)
+
+How to find outliers in Dioptra: select a table, press Analyze (Ctrl-Shift-A) and choose *Identify outliers*.
 
 - **When:** look for values that may be errors, one data set at a time.
 - **Tables:** column, XY, grouped, variables, nested.
@@ -334,7 +366,9 @@ or `"auto"`.
   - Without it M = 10.1, SD = 0.172 (with it M = 11.9, SD = 5.29).
   - The value stays in the table until you exclude it.
 
-## survival — Survival curves (Kaplan–Meier)
+## Kaplan–Meier survival analysis (`survival`)
+
+How to draw Kaplan–Meier survival curves and compare them in Dioptra: enter times as X and events (1) or censoring (0) per group in a survival table, press Analyze (Ctrl-Shift-A) and choose *Survival curves (Kaplan–Meier)*.
 
 - **When:** time to an event with censoring, one or more groups.
 - **Tables:** survival (X = time; each data set 1 = event, 0 = censored).
@@ -354,7 +388,9 @@ or `"auto"`.
   - Log-rank χ²(1) = 16.79, p < .001.
   - Hazard ratio (6-MP / placebo, Mantel–Haenszel) 0.19 (95% CI 0.09 to 0.43).
 
-## roc — ROC curve
+## ROC curve (`roc`)
+
+How to draw a ROC curve in Dioptra: enter controls and patients as two data sets of a column table, press Analyze (Ctrl-Shift-A) and choose *ROC curve*.
 
 - **When:** how well a measurement separates patients from controls; choose a cut-off.
 - **Tables:** column (controls first, then patients), variables (a score variable and a
@@ -372,7 +408,9 @@ or `"auto"`.
   - Youden cut-off ≥ 3.3: sensitivity 80.0%, specificity 90.0%.
   - Direction check passes.
 
-## bland_altman — Bland–Altman
+## Bland–Altman analysis (`bland_altman`)
+
+How to run a Bland–Altman analysis in Dioptra: enter the two methods as two data sets of a column table, one subject per row, press Analyze (Ctrl-Shift-A) and choose *Bland–Altman*.
 
 - **When:** agreement between two methods measured on the same subjects.
 - **Tables:** column, variables (two data sets paired by row).
@@ -390,7 +428,9 @@ or `"auto"`.
   - Limits of agreement -3.4 (95% CI -4.6 to -2.2) to 0.20 (95% CI -0.96 to 1.36).
   - No proportional bias (p = .458).
 
-## pca — Principal component analysis
+## Principal component analysis (PCA) (`pca`)
+
+How to run a principal component analysis in Dioptra: enter the variables in a Multiple variables table, press Analyze (Ctrl-Shift-A) and choose *Principal component analysis*.
 
 - **When:** summarise several correlated numeric variables by a few components.
 - **Tables:** variables.

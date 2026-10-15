@@ -150,7 +150,7 @@
   }
   markMine();
 
-  if (window.fetch) {
+  if (window.fetch && document.querySelector('a.dl[data-asset]')) {
     var done = false;
     var timer = setTimeout(function () { if (!done) { done = true; fallback(); } }, 8000);
     fetch(API, { headers: { 'Accept': 'application/vnd.github+json' } })
