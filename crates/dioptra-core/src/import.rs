@@ -1,4 +1,4 @@
-//! Getting data in: clipboard paste, delimited text, spreadsheets and Prism `.pzfx`.
+//! Getting data in: clipboard paste, delimited text, spreadsheets and Prism `.pzfx`/`.prism`.
 //!
 //! Paste parsing decides the separator, the decimal mark and whether the first row is a
 //! header, and says what it decided in a [`PasteReport`] (DESIGN §7). Text that is not a
@@ -846,6 +846,7 @@ struct PzSub {
 
 #[derive(Default)]
 struct PzCol {
+    attrs: BTreeMap<String, String>,
     title: String,
     subs: Vec<PzSub>,
 }
@@ -856,6 +857,11 @@ struct PzTable {
     title: String,
     row_titles: Option<PzCol>,
     x: Option<PzCol>,
+    /// `<XAdvancedColumn>`: the date text of a date X column.
+    x_adv: Option<PzCol>,
+    /// `<SubColumnTitles>`: one subcolumn per subcolumn index, holding one title
+    /// (`OwnSet="0"`, shared) or one per data set (`OwnSet="1"`).
+    sub_titles: Option<PzCol>,
     ys: Vec<PzCol>,
 }
 
@@ -936,9 +942,13 @@ pub fn read_pzfx(
                     }
                     "Title" if cur.is_some() => title_buf = Some(String::new()),
                     "XColumn" | "XAdvancedColumn" | "YColumn" | "RowTitlesColumn"
+                    | "SubColumnTitles"
                         if cur.is_some() =>
                     {
-                        col = Some(PzCol::default())
+                        col = Some(PzCol {
+                            attrs,
+                            ..Default::default()
+                        })
                     }
                     "Subcolumn" if col.is_some() => sub = Some(PzSub::default()),
                     "d" if sub.is_some() => {
@@ -947,6 +957,8 @@ pub fn read_pzfx(
                     }
                     "BR" if title_buf.is_some() => {}
                     "B" | "I" | "U" | "Font" | "Sup" | "Sub" | "BR" => {}
+                    // Category lists of multiple-variables columns; the cells hold the text.
+                    "CategoryDictionary" | "d" => {}
                     _ => {
                         let in_table = cur.is_some() && parent != "d";
                         let known_outside = cur.is_none()
@@ -1076,10 +1088,12 @@ fn end_tag(
         }
         "XAdvancedColumn" => {
             if let (Some(c), Some(t)) = (col.take(), cur.as_mut()) {
-                // Date X columns carry the date text here; keep it when there is no XColumn.
-                if t.x.is_none() {
-                    t.x = Some(c);
-                }
+                t.x_adv = Some(c);
+            }
+        }
+        "SubColumnTitles" => {
+            if let (Some(c), Some(t)) = (col.take(), cur.as_mut()) {
+                t.sub_titles = Some(c);
             }
         }
         "YColumn" => {
@@ -1135,32 +1149,54 @@ fn pz_column(sub: &PzSub, rows: usize) -> Column {
     c
 }
 
+/// How a Prism summary format without a Dioptra twin is converted.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum PzConvert {
+    /// Stored as is.
+    Keep,
+    /// Mean, %CV(, N) → mean, SD(, N) with SD = CV / 100 × |mean|.
+    Cv,
+    /// Mean, +error, −error → a mean data set plus lower (mean − error), upper (mean + error).
+    PlusMinus,
+    /// Mean, upper limit, lower limit → a mean data set plus lower, upper.
+    Limits,
+}
+
 fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
-    let tt = pt.attrs.get("TableType").map(String::as_str).unwrap_or("");
-    let kind = match tt {
-        "XY" => TableKind::Xy,
-        "OneWay" => TableKind::Column,
-        "TwoWay" => TableKind::Grouped,
-        "Contingency" => TableKind::Contingency,
-        "Survival" => TableKind::Survival,
-        "PartsOfWhole" => TableKind::Parts,
-        "MultipleVariables" => TableKind::Variables,
-        "Nested" => TableKind::Nested,
-        "" => {
+    let title = if pt.title.is_empty() {
+        pt.attrs
+            .get("ID")
+            .cloned()
+            .unwrap_or_else(|| "Prism table".into())
+    } else {
+        pt.title.clone()
+    };
+    let attr = |k: &str| pt.attrs.get(k).map(String::as_str).unwrap_or("");
+    // Prism 6+ writes nested and multiple-variables tables as TwoWay/OneWay plus ExtTableType.
+    let kind = match (attr("ExtTableType"), attr("TableType")) {
+        ("Nested", _) | (_, "Nested") => TableKind::Nested,
+        ("MultipleVariables", _) | (_, "MultipleVariables") => TableKind::Variables,
+        (_, "XY") => TableKind::Xy,
+        (_, "OneWay") => TableKind::Column,
+        (_, "TwoWay") => TableKind::Grouped,
+        (_, "Contingency") => TableKind::Contingency,
+        (_, "Survival") => TableKind::Survival,
+        (_, "PartsOfWhole") => TableKind::Parts,
+        (_, "") => {
             if pt.x.is_some() {
                 TableKind::Xy
             } else {
                 TableKind::Column
             }
         }
-        other => {
+        (_, other) => {
             notes.push(format!(
-                "Table \"{}\": unknown table type {other}; imported as a column table.",
-                pt.title
+                "Table \"{title}\": unknown table type {other}; imported as a column table."
             ));
             TableKind::Column
         }
     };
+    let forced = forced_format(kind);
     let yformat = pt
         .attrs
         .get("YFormat")
@@ -1171,42 +1207,41 @@ fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
         .get("Replicates")
         .and_then(|r| r.parse().ok())
         .unwrap_or(1);
-    let declared = match yformat {
-        "replicates" => Some(SubcolumnFormat::Values(reps.max(1))),
-        "SDN" => Some(SubcolumnFormat::MeanSdN),
-        "SEN" => Some(SubcolumnFormat::MeanSemN),
-        "SD" => Some(SubcolumnFormat::MeanSd),
-        "SE" => Some(SubcolumnFormat::MeanSem),
+    // (format, conversion, subcolumns Prism writes for it)
+    let (declared, convert, raw) = match yformat {
+        "replicates" => (
+            Some(SubcolumnFormat::Values(reps.max(1))),
+            PzConvert::Keep,
+            0,
+        ),
+        "SDN" => (Some(SubcolumnFormat::MeanSdN), PzConvert::Keep, 0),
+        "SEN" => (Some(SubcolumnFormat::MeanSemN), PzConvert::Keep, 0),
+        "SD" => (Some(SubcolumnFormat::MeanSd), PzConvert::Keep, 0),
+        "SE" => (Some(SubcolumnFormat::MeanSem), PzConvert::Keep, 0),
+        "CVN" => (Some(SubcolumnFormat::MeanSdN), PzConvert::Cv, 3),
+        "CV" => (Some(SubcolumnFormat::MeanSd), PzConvert::Cv, 2),
+        "low-high" => (Some(SubcolumnFormat::LowerUpper), PzConvert::PlusMinus, 3),
+        "upper-lower-limits" => (Some(SubcolumnFormat::LowerUpper), PzConvert::Limits, 3),
         other => {
             notes.push(format!(
-                "Table \"{}\": the {other} error format has no Dioptra equivalent yet; its subcolumns were kept as plain values.",
-                pt.title
+                "Table \"{title}\": the {other} error format has no Dioptra equivalent yet; its subcolumns were kept as plain values."
             ));
-            None
+            (None, PzConvert::Keep, 0)
         }
     };
-    if pt.attrs.get("XFormat").is_some_and(|f| f == "error") {
-        notes.push(format!(
-            "Table \"{}\": the X error subcolumn was not imported.",
-            pt.title
-        ));
-    }
     let mut rows = 0;
-    for c in pt.x.iter().chain(pt.ys.iter()).chain(pt.row_titles.iter()) {
+    for c in
+        pt.x.iter()
+            .chain(pt.x_adv.iter())
+            .chain(pt.ys.iter())
+            .chain(pt.row_titles.iter())
+    {
         for s in &c.subs {
             rows = rows.max(s.values.len());
         }
     }
-    let title = if pt.title.is_empty() {
-        pt.attrs
-            .get("ID")
-            .cloned()
-            .unwrap_or_else(|| "Prism table".into())
-    } else {
-        pt.title.clone()
-    };
     let mut t = Table::new(id, kind, title, 0, SubcolumnFormat::Values(1), rows);
-    if let Some(x) = &pt.x {
+    if let Some(x) = pt.x.as_ref().or(pt.x_adv.as_ref()) {
         if let Some(s) = x.subs.first() {
             let mut c = pz_column(s, rows);
             c.title = if x.title.is_empty() {
@@ -1216,6 +1251,17 @@ fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
             };
             if t.x.is_some() {
                 t.x = Some(c);
+                if let Some(e) = x.subs.get(1) {
+                    let n = e
+                        .values
+                        .iter()
+                        .filter(|(v, _)| !v.trim().is_empty())
+                        .count();
+                    notes.push(format!(
+                        "Table \"{}\": Dioptra has no X error bars; the X error subcolumn ({n} values) was not imported.",
+                        t.title
+                    ));
+                }
             } else {
                 notes.push(format!(
                     "Table \"{}\": an X column was present but this kind has none; it was dropped.",
@@ -1229,14 +1275,96 @@ fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
             t.row_titles = s.values.iter().map(|(v, _)| v.trim().to_string()).collect();
         }
     }
+    if attr("XFormat") == "date" {
+        // X holds Prism's numbers (time since the first date); keep the dates beside them.
+        if let Some(s) = pt.x_adv.as_ref().and_then(|c| c.subs.first()) {
+            for (r, (d, _)) in s.values.iter().enumerate() {
+                let d = d.trim();
+                if d.is_empty() {
+                    continue;
+                }
+                if t.row_titles.len() <= r {
+                    t.row_titles.resize(r + 1, String::new());
+                }
+                let rt = &mut t.row_titles[r];
+                *rt = if rt.is_empty() {
+                    d.to_string()
+                } else {
+                    format!("{rt} ({d})")
+                };
+            }
+        }
+        notes.push(format!(
+            "Table \"{}\": X holds dates in Prism. X now holds Prism's elapsed time since the first date (in the unit set in Prism); the dates were kept as row titles.",
+            t.title
+        ));
+    }
+    if forced.is_none() {
+        match convert {
+            PzConvert::Keep => {}
+            PzConvert::Cv => notes.push(format!(
+                "Table \"{}\": Prism's mean and %CV were converted to mean and SD (SD = CV / 100 × |mean|).",
+                t.title
+            )),
+            PzConvert::PlusMinus | PzConvert::Limits => notes.push(format!(
+                "Table \"{}\": Dioptra has no format for a mean with two limits; each data set's mean became a data set \"<name> (mean)\" and {}.",
+                t.title,
+                if convert == PzConvert::PlusMinus {
+                    "its +error and −error became lower and upper limits (mean − error, mean + error)"
+                } else {
+                    "its limits were kept in lower, upper format"
+                }
+            )),
+        }
+    }
+    let sub_titles = pt.sub_titles.as_ref();
+    let own_set = sub_titles.is_some_and(|c| c.attrs.get("OwnSet").is_some_and(|v| v == "1"));
+    let sub_title = |i: usize, k: usize| -> Option<String> {
+        let s = sub_titles?.subs.get(k)?;
+        let (v, _) = s.values.get(if own_set { i } else { 0 })?;
+        Some(v.trim().to_string()).filter(|v| !v.is_empty())
+    };
+    let mut unplaced_titles = false;
     for (i, y) in pt.ys.iter().enumerate() {
         let n = y.subs.len().max(1);
-        let format = match (forced_format(kind), declared) {
+        let conv = if forced.is_none() && n == raw {
+            convert
+        } else {
+            PzConvert::Keep
+        };
+        let format = match (forced, declared) {
             (Some(f), _) => f,
-            (None, Some(f)) if crate::table::subcolumn_count(f) == n => f,
+            (None, Some(f)) if conv != PzConvert::Keep => f,
+            (None, Some(f)) if crate::table::subcolumn_count(f) == n && raw == 0 => f,
             _ => SubcolumnFormat::Values(n as u16),
         };
         let mut subs: Vec<Column> = y.subs.iter().map(|s| pz_column(s, rows)).collect();
+        let mut mean = None;
+        match conv {
+            PzConvert::Keep => {}
+            PzConvert::Cv => {
+                let m = subs[0].values.clone();
+                for (sd, m) in subs[1].values.iter_mut().zip(m) {
+                    *sd = *sd / 100.0 * m.abs();
+                }
+            }
+            PzConvert::PlusMinus | PzConvert::Limits => {
+                let (m, a, b) = (subs.remove(0), subs.remove(0), subs.remove(0));
+                let (lower, upper) = if conv == PzConvert::Limits {
+                    (b, a)
+                } else {
+                    let shift = |mut e: Column, sign: f64| {
+                        for (v, m) in e.values.iter_mut().zip(&m.values) {
+                            *v = m + sign * *v;
+                        }
+                        e
+                    };
+                    (shift(b, -1.0), shift(a, 1.0))
+                };
+                subs = vec![lower, upper];
+                mean = Some(m);
+            }
+        }
         let want = crate::table::subcolumn_count(format);
         if subs.len() > want {
             notes.push(format!(
@@ -1248,19 +1376,46 @@ fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
         while subs.len() < want {
             subs.push(Column::empty(rows));
         }
+        for (k, c) in subs.iter_mut().enumerate() {
+            if let Some(st) = sub_title(i, k) {
+                if matches!(format, SubcolumnFormat::Values(_)) {
+                    c.title = st;
+                } else {
+                    unplaced_titles = true;
+                }
+            }
+        }
         let name = if y.title.is_empty() {
-            t.default_dataset_name(i)
+            t.default_dataset_name(t.datasets.len())
         } else {
             y.title.clone()
         };
-        let var_type =
-            (kind == TableKind::Variables).then(|| infer_type(&subs[0].values, &subs[0].text));
+        let var_type = (kind == TableKind::Variables).then(|| {
+            if y.attrs
+                .get("MVType")
+                .is_some_and(|m| m.contains("Categorical"))
+            {
+                VariableType::Category
+            } else {
+                infer_type(&subs[0].values, &subs[0].text)
+            }
+        });
+        let source = |column: String| ColumnSource::Imported {
+            file: "Prism file".into(),
+            sheet: Some(t.title.clone()),
+            column,
+        };
+        if let Some(mut m) = mean {
+            m.source = source(name.clone());
+            t.datasets.push(Dataset {
+                name: format!("{name} (mean)"),
+                format: SubcolumnFormat::Values(1),
+                subcolumns: vec![m],
+                var_type: None,
+            });
+        }
         for c in &mut subs {
-            c.source = ColumnSource::Imported {
-                file: "Prism file".into(),
-                sheet: Some(t.title.clone()),
-                column: name.clone(),
-            };
+            c.source = source(name.clone());
         }
         t.datasets.push(Dataset {
             name,
@@ -1269,7 +1424,308 @@ fn pz_to_table(pt: PzTable, id: String, notes: &mut Vec<String>) -> Table {
             var_type,
         });
     }
+    if unplaced_titles {
+        notes.push(format!(
+            "Table \"{}\": subcolumn titles of summary data sets were not kept (Dioptra names those subcolumns by their format).",
+            t.title
+        ));
+    }
     t
+}
+
+// ---------------------------------------------------------------------------
+// Prism .prism (Prism 10+)
+// ---------------------------------------------------------------------------
+
+/// Read a Prism file from its bytes: a `.prism` zip or a `.pzfx` XML document.
+pub fn read_prism_file(
+    bytes: &[u8],
+    new_id: impl FnMut() -> String,
+) -> Result<(Vec<Table>, Vec<String>), String> {
+    if bytes.starts_with(b"PK\x03\x04") {
+        read_prism(bytes, new_id)
+    } else {
+        read_pzfx(&String::from_utf8_lossy(bytes), new_id)
+    }
+}
+
+type PrismZip<'a> = zip::ZipArchive<std::io::Cursor<&'a [u8]>>;
+
+fn prism_entry(z: &mut PrismZip<'_>, path: &str) -> Result<Option<String>, String> {
+    use std::io::Read;
+    match z.by_name(path) {
+        Ok(mut f) => {
+            let mut s = String::new();
+            f.read_to_string(&mut s)
+                .map_err(|e| format!("cannot read {path} in the .prism file: {e}"))?;
+            Ok(Some(s))
+        }
+        Err(zip::result::ZipError::FileNotFound) => Ok(None),
+        Err(e) => Err(format!("cannot read {path} in the .prism file: {e}")),
+    }
+}
+
+fn prism_json(z: &mut PrismZip<'_>, path: &str) -> Result<Option<serde_json::Value>, String> {
+    prism_entry(z, path)?
+        .map(|s| serde_json::from_str(&s).map_err(|e| format!("{path} in the .prism file: {e}")))
+        .transpose()
+}
+
+/// A title: a plain string or rich text `{"string": …, "formatting": […]}`.
+fn prism_text(v: &serde_json::Value) -> String {
+    v.as_str()
+        .or_else(|| v.get("string").and_then(|s| s.as_str()))
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+/// Indices of a Prism range such as `3`, `0~8` or `0~2,5`.
+fn prism_range(s: &str) -> Vec<usize> {
+    s.split(',')
+        .filter_map(|p| {
+            let (a, b) = p.split_once('~').unwrap_or((p, p));
+            Some(a.trim().parse::<usize>().ok()?..=b.trim().parse::<usize>().ok()?)
+        })
+        .flatten()
+        .collect()
+}
+
+/// Subcolumns of a data set, and the rows each subcolumn marks as excluded.
+fn prism_set_layout(
+    set: &serde_json::Value,
+    table: &serde_json::Value,
+) -> (usize, Vec<BTreeSet<usize>>) {
+    // Replicate descriptors come as a list or as ranges of subcolumns sharing one descriptor.
+    let mut reps: Vec<(usize, &serde_json::Value)> = set["replicates"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .collect();
+    for r in set["replicate ranges"].as_array().into_iter().flatten() {
+        for k in prism_range(r["range"].as_str().unwrap_or("")) {
+            reps.push((k, &r["replicate"]));
+        }
+    }
+    let width = match set["format"].as_str() {
+        Some("y_replicates") => table["replicatesCount"].as_u64().unwrap_or(1) as usize,
+        _ => reps.iter().map(|(k, _)| k + 1).max().unwrap_or(1),
+    }
+    .max(1);
+    let mut excluded = vec![BTreeSet::new(); width];
+    for (k, r) in reps.into_iter().filter(|(k, _)| *k < width) {
+        for c in r["cellAttributes"].as_array().into_iter().flatten() {
+            let marked = c["attributes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|a| a.as_str().is_some_and(|a| a.contains("EXCLUDED")));
+            if marked {
+                excluded[k].extend(prism_range(c["rows"].as_str().unwrap_or("")));
+            }
+        }
+    }
+    (width, excluded)
+}
+
+/// Parse a Prism 10 `.prism` file into tables (data only). The file is a zip:
+/// `document.json` lists the sheets; each data sheet's `data/sheets/<id>/sheet.json` names
+/// its table and data sets; `data/tables/<id>/data.csv` holds the grid (row titles, X, then
+/// each data set's subcolumns); `data/sets/<id>.json` holds a data set's title and format.
+/// Read against format versions 1-2-0 to 1-6-0.
+pub fn read_prism(
+    bytes: &[u8],
+    mut new_id: impl FnMut() -> String,
+) -> Result<(Vec<Table>, Vec<String>), String> {
+    let mut z = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+        .map_err(|e| format!("not a readable .prism file: {e}"))?;
+    let doc =
+        prism_json(&mut z, "document.json")?.ok_or("not a Prism .prism file (no document.json)")?;
+    let mut notes = Vec::new();
+    let version = doc["formatVersion"].as_str().unwrap_or("?");
+    let v: Vec<u32> = version.split('-').filter_map(|p| p.parse().ok()).collect();
+    if !(v.len() == 3 && v[0] == 1 && (2..=6).contains(&v[1])) {
+        notes.push(format!(
+            "The file is .prism format {version}; Dioptra knows 1-2-0 to 1-6-0. Check the imported tables."
+        ));
+    }
+    let sheets = &doc["sheets"];
+    let mut total = 0;
+    let skipped: Vec<String> = [
+        ("analyses", "analysis", "analyses"),
+        ("graphs", "graph", "graphs"),
+        ("layouts", "layout", "layouts"),
+    ]
+    .into_iter()
+    .filter_map(|(k, one, many)| {
+        let n = sheets[k].as_array().map_or(0, Vec::len);
+        total += n;
+        (n > 0).then(|| format!("{n} {}", if n == 1 { one } else { many }))
+    })
+    .collect();
+    if !skipped.is_empty() {
+        notes.push(format!(
+            "Only data tables were imported; Prism's {} {} not.",
+            skipped.join(", "),
+            if total == 1 { "was" } else { "were" }
+        ));
+    }
+    let mut out = Vec::new();
+    for sid in sheets["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|s| s.as_str())
+    {
+        let Some(sheet) = prism_json(&mut z, &format!("data/sheets/{sid}/sheet.json"))? else {
+            notes.push(format!("Data sheet {sid} is listed but missing; skipped."));
+            continue;
+        };
+        let table = &sheet["table"];
+        let mut title = prism_text(&sheet["title"]);
+        if title.is_empty() {
+            title = prism_text(&doc["sheetAttributesMap"][sid]["title"]);
+        }
+        let format = table["format"].as_str().unwrap_or("");
+        if format == "view" {
+            continue;
+        }
+        let tid = table["uid"].as_str().unwrap_or("");
+        let csv = prism_entry(&mut z, &format!("data/tables/{tid}/data.csv"))?.unwrap_or_default();
+        let mut grid: Vec<Vec<String>> = Vec::new();
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .flexible(true)
+            .from_reader(csv.as_bytes());
+        for (r, rec) in reader.records().enumerate() {
+            let rec = rec.map_err(|e| format!("table \"{title}\" in the .prism file: {e}"))?;
+            for (c, f) in rec.iter().enumerate() {
+                if grid.len() <= c {
+                    grid.resize(c + 1, Vec::new());
+                }
+                grid[c].resize(r, String::new());
+                grid[c].push(f.to_string());
+            }
+        }
+        let mut next = 0;
+        let mut take = |n: usize, excluded: &[BTreeSet<usize>]| -> Vec<PzSub> {
+            let subs = (0..n)
+                .map(|k| PzSub {
+                    values: grid
+                        .get(next + k)
+                        .into_iter()
+                        .flatten()
+                        .enumerate()
+                        .map(|(r, v)| (v.clone(), excluded.get(k).is_some_and(|e| e.contains(&r))))
+                        .collect(),
+                })
+                .collect();
+            next += n;
+            subs
+        };
+        let mut pt = PzTable {
+            title,
+            ..Default::default()
+        };
+        if table["rowTitlesDataSet"].is_string() {
+            pt.row_titles = Some(PzCol {
+                subs: take(1, &[]),
+                ..Default::default()
+            });
+        }
+        let mut sets = Vec::new();
+        for id in table["dataSets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|s| s.as_str())
+        {
+            match prism_json(&mut z, &format!("data/sets/{id}.json"))? {
+                Some(s) => sets.push(s),
+                None => notes.push(format!(
+                    "Table \"{}\": data set {id} is missing; its columns may be misplaced.",
+                    pt.title
+                )),
+            }
+        }
+        let mut y_width = None;
+        for set in &sets {
+            let (width, excluded) = prism_set_layout(set, table);
+            let col = PzCol {
+                title: prism_text(&set["title"]),
+                subs: take(width, &excluded),
+                ..Default::default()
+            };
+            let is_x = set["attributes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|a| a == "DS_ATTR_X");
+            if is_x && pt.x.is_none() {
+                if width > 1 {
+                    pt.attrs.insert("XFormat".into(), "error".into());
+                }
+                pt.x = Some(col);
+            } else {
+                y_width.get_or_insert(width);
+                pt.ys.push(col);
+            }
+        }
+        // Prism keeps untitled, empty data sets at the end of a table; they are not data.
+        while pt.ys.last().is_some_and(|c| {
+            c.title.is_empty()
+                && c.subs
+                    .iter()
+                    .all(|s| s.values.iter().all(|(v, _)| v.trim().is_empty()))
+        }) {
+            pt.ys.pop();
+        }
+        let extra = grid[next.min(grid.len())..]
+            .iter()
+            .filter(|c| c.iter().any(|v| !v.trim().is_empty()))
+            .count();
+        if extra > 0 {
+            notes.push(format!(
+                "Table \"{}\": {extra} filled columns of the grid belong to no data set and were not imported.",
+                pt.title
+            ));
+        }
+        let (tt, ext) = match format {
+            "xy" => ("XY", ""),
+            "column" => ("OneWay", ""),
+            "grouped" => ("TwoWay", ""),
+            "contingency" => ("Contingency", ""),
+            "survival" => ("Survival", ""),
+            "parts_of_whole" | "partsOfWhole" => ("PartsOfWhole", ""),
+            "multiple_variables" | "multipleVariables" => ("OneWay", "MultipleVariables"),
+            "nested" => ("TwoWay", "Nested"),
+            other => (other, ""),
+        };
+        let yformat = match table["dataFormat"].as_str().unwrap_or("y_single") {
+            "y_single" | "y_replicates" | "text" => "replicates",
+            // Unseen in the corpus; named after the two that are.
+            "y_sd_n" => "SDN",
+            "y_sem_n" | "y_se_n" => "SEN",
+            "y_cv_n" => "CVN",
+            "y_sd" => "SD",
+            "y_sem" | "y_se" => "SE",
+            "y_cv" => "CV",
+            other => other,
+        };
+        pt.attrs.insert("TableType".into(), tt.into());
+        if !ext.is_empty() {
+            pt.attrs.insert("ExtTableType".into(), ext.into());
+        }
+        pt.attrs.insert("YFormat".into(), yformat.into());
+        pt.attrs
+            .insert("Replicates".into(), y_width.unwrap_or(1).to_string());
+        out.push(pz_to_table(pt, new_id(), &mut notes));
+    }
+    if out.is_empty() {
+        return Err("no data tables found in the .prism file".into());
+    }
+    Ok((out, notes))
 }
 
 #[cfg(test)]

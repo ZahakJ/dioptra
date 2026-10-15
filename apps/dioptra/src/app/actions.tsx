@@ -171,7 +171,7 @@ export async function importFile(): Promise<void> {
     const r = await mutateReport((e) => cmd.importPath(e, path, spec.kind));
     if (r) reportImport(r);
   } else {
-    const file = await pickFile('.csv,.tsv,.txt,.xlsx,.xls,.ods,.pzfx');
+    const file = await pickFile('.csv,.tsv,.txt,.xlsx,.xls,.ods,.pzfx,.prism');
     if (!file) return;
     const b64 = await fileToBase64(file);
     const r = await mutateReport((e) => cmd.importBytes(e, file.name, b64, spec.kind));

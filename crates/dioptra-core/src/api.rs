@@ -413,7 +413,7 @@ pub enum Command {
         /// Hints.
         options: PasteOptions,
     },
-    /// Import a file by path (desktop): csv, tsv, txt, xlsx, xls, ods, pzfx.
+    /// Import a file by path (desktop): csv, tsv, txt, xlsx, xls, ods, pzfx, prism.
     ImportPath {
         /// Absolute path.
         path: String,

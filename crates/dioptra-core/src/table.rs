@@ -743,7 +743,8 @@ impl Table {
         }
     }
 
-    /// Header text of a flat column (`Control`, `Control (2)`, `Control (SD)`).
+    /// Header text of a flat column (`Control`, `Control (2)`, `Control (SD)`), or the
+    /// subcolumn's own title when it has one (`Control (Mouse 3)`).
     pub fn col_header(&self, flat: usize) -> String {
         match self.locate(flat) {
             Some(ColLoc::X) => {
@@ -756,8 +757,12 @@ impl Table {
             }
             Some(ColLoc::Y { dataset, sub }) => {
                 let ds = &self.datasets[dataset];
+                let own = ds.subcolumns.get(sub).map_or("", |c| c.title.as_str());
                 if ds.subcolumns.len() == 1 {
                     ds.name.clone()
+                } else if !own.is_empty() {
+                    // A named replicate or nested subgroup.
+                    format!("{} ({own})", ds.name)
                 } else if let Some(names) = subcolumn_names(ds.format) {
                     format!("{} ({})", ds.name, names.get(sub).copied().unwrap_or("?"))
                 } else {

@@ -411,9 +411,8 @@ impl Session {
                     log,
                 )
             }
-            "pzfx" => {
-                let text = String::from_utf8_lossy(&bytes);
-                let (mut tables, notes) = import::read_pzfx(&text, Project::new_id)?;
+            "pzfx" | "prism" => {
+                let (mut tables, notes) = import::read_prism_file(&bytes, Project::new_id)?;
                 let mut snaps = vec![Snapshot::Order(self.project.order.clone())];
                 let mut ids = Vec::new();
                 for t in &mut tables {
