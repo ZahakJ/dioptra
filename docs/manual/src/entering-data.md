@@ -36,7 +36,7 @@ like `1.5`; if comma decimals are the majority, commas are decimal marks, and th
 report says so: "Commas were read as decimal marks (24 values looked like 1,5)." With
 comma separators the decimal mark is always the point, because a comma cannot be both.
 
-Some values are honestly ambiguous: `1,234` is one thousand two hundred thirty-four in
+Some values are ambiguous: `1,234` is one thousand two hundred thirty-four in
 Boston and one point two three four in Berlin. Dioptra does not guess. It keeps such values
 as text, counts them in the report, and asks you to choose the decimal mark in the dialog.
 
@@ -71,6 +71,51 @@ is displayed. Importing the `.xlsx` file directly avoids this and reads the stor
   you did not have before.
 
 Each imported column remembers the file, sheet and column it came from.
+
+### Plate readers
+
+Exports of four plate-reader programs are recognised by their content and read as plates:
+
+| Program | File | Reads |
+|---|---|---|
+| Molecular Devices SoftMax Pro | `.txt` (UTF-16 or UTF-8), plate or time format | endpoint, kinetic, several wavelengths and plates |
+| BMG Labtech MARS | `.csv`, `.txt` | endpoint plate grids |
+| Agilent BioTek Gen5 | `.txt` | endpoint result grids (one read per label), kinetic time courses |
+| Tecan Magellan | `.xlsx` with a *Well positions* column | endpoint labels, kinetic cycles |
+
+Without a plate map, an endpoint file becomes a grouped table: rows A, B, … down, one data
+set per read with the plate columns 1, 2, … as subcolumns. A kinetic file becomes an XY
+table with time in seconds as X and one data set per well.
+
+After choosing a plate file, *Import* asks for an optional **plate map**: paste a grid as
+copied from a spreadsheet (row letters and column numbers optional), or one `well, label`
+line per well. A label is a group (`Control`), a dose (`10`), or both (`Drug A @ 10`); in
+the list form the dose may be a third column. Empty cells leave a well out.
+
+```text
+	1	2	3
+A	Blank	Drug A @ 0.1	Drug A @ 1
+B	Blank	Drug A @ 0.1	Drug A @ 1
+```
+
+With groups only, the plate becomes a column table, one data set per group. With doses, it
+becomes an XY table: X is the dose, one data set per group, and wells with the same group
+and dose are replicates. Kinetic reads keep time as X, with one data set per group.
+
+Not read: spectrum and well-scan reads, SoftMax Pro group (calculation) blocks, Gen5
+calculated results in kinetic files and MARS table-view exports. The import notes list what
+was left out and any well values that were not numbers (`OVRFLW`, `>4.000`).
+
+### Replacing a table's data
+
+**File → Replace table data…** reads a file into the open table instead of a new one. The
+table keeps its name, data set names and column formulas; its analyses, graphs and layouts
+recompute. Data columns are filled left to right, skipping formula columns. A file with
+more columns adds data sets; a file with fewer clears the columns it does not reach. The
+file must give the same kind of table. One undo restores the old data.
+
+This re-runs a project on new data by hand. [Batch analysis](batch.md) does it for many
+files at once.
 
 ## Missing values
 

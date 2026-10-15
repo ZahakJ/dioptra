@@ -230,7 +230,7 @@ deferred). A CLI binary runs analyses and renders graphs from a project file for
 
 ## 10. Out of scope for v0.1
 
-See `docs/DEFERRED.md`: mixed-effects models, nested ANOVA beyond descriptive summaries,
+See `docs/ROADMAP.md`: mixed-effects models, nested ANOVA beyond descriptive summaries,
 multiple logistic regression, Bayesian anything, scripting language beyond the formula
 language, cloud sync, collaboration, WebGL rendering for >10⁶ points, plugin system.
 
@@ -264,7 +264,7 @@ the things people like, kept on purpose. Phases refer to PLAN.md.
 | P21 | Opaque file format | `.dioptra` is documented JSON in a zip (docs/FILE-FORMAT.md) | 3 |
 | P22 | Version lock-in | Format versioned, readers open every older version; export to CSV/XLSX always | 3 |
 | P23 | No version control | Pretty-printed, stable-ordered JSON diffs after `unzip`; history is line-oriented | 3 |
-| P24 | Collaboration is file passing | Open format makes git-based collaboration possible; realtime sync deferred (docs/DEFERRED.md) | — |
+| P24 | Collaboration is file passing | Open format makes git-based collaboration possible; realtime sync deferred (docs/ROADMAP.md) | — |
 | P25 | Export needs Illustrator workarounds | Clean SVG with real text, PDF with embedded subset fonts, no clipping masks, no invisible objects | 4 |
 | P26 | Figures finished elsewhere | Typographic control in points and mm, journal width presets, multi-panel layouts in the app | 4, 5 |
 | P27 | Limited colour and theme control | Designed themes, colour-blind-safe palettes, per-dataset overrides, light and dark | 4 |
