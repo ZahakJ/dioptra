@@ -84,6 +84,9 @@ pub struct Project {
     pub dirty: bool,
     /// Creation time.
     pub created: String,
+    /// UTF-8 text files kept for other components (Dioptra Lab's audit trail), saved as
+    /// `extensions/<name>` and read back unchanged.
+    pub extensions: std::collections::BTreeMap<String, Vec<u8>>,
 }
 
 impl Project {

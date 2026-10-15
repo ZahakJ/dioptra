@@ -107,6 +107,9 @@ pub fn save_bytes(p: &Project, history: &[HistoryEntry]) -> Result<Vec<u8>, Stri
         log.push(b'\n');
     }
     put("history.jsonl", &log)?;
+    for (name, bytes) in &p.extensions {
+        put(&format!("extensions/{name}"), bytes)?;
+    }
     let out = z.finish().map_err(|e| e.to_string())?;
     Ok(out.into_inner())
 }
@@ -175,6 +178,8 @@ pub fn open_bytes(bytes: &[u8]) -> Result<(Project, Vec<HistoryEntry>), String> 
             let mut g: Graph = serde_json::from_str(&read(n)?).map_err(|e| format!("{n}: {e}"))?;
             migrate_graph(&manifest.format, &mut g.spec);
             p.graphs.insert(g.id.clone(), g);
+        } else if let Some(rest) = n.strip_prefix("extensions/").filter(|r| !r.is_empty()) {
+            p.extensions.insert(rest.to_string(), read(n)?.into_bytes());
         } else if let Some(rest) = n
             .strip_prefix("results/")
             .and_then(|r| r.strip_suffix(".json"))
@@ -275,3 +280,16 @@ pub fn write_path(_: &str, _: &[u8]) -> Result<(), String> {
 
 #[cfg(target_arch = "wasm32")]
 const NO_PATHS: &str = "file paths are not available in the browser build; use the *Bytes commands";
+
+#[cfg(test)]
+mod extension_tests {
+    #[test]
+    fn extensions_survive_save_and_open() {
+        let mut p = crate::project::Project::new();
+        p.extensions
+            .insert("lab-audit.jsonl".into(), b"{\"seq\":1}\n".to_vec());
+        let bytes = super::save_bytes(&p, &[]).unwrap();
+        let (q, _) = super::open_bytes(&bytes).unwrap();
+        assert_eq!(q.extensions, p.extensions);
+    }
+}

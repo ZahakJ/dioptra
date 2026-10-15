@@ -15,6 +15,8 @@ analyses/<id>.json       analysis spec (table id, kind, options); no results
 graphs/<id>.json         graph spec (source id, family, mapping, style, axes, legend, options, annotations; docs/GRAPHS.md)
 results/<id>.json        cached results sheets (optional; recomputed when absent or stale)
 history.jsonl            command log: one JSON object per line, newest last
+extensions/<name>        UTF-8 files kept for other components, e.g. Dioptra Lab's audit
+                         trail; read back and saved unchanged by the core
 ```
 
 ## manifest.json
