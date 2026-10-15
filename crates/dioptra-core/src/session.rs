@@ -137,6 +137,17 @@ impl Session {
         &self.project
     }
 
+    /// A file another component keeps in the project (see `Project::extensions`).
+    pub fn extension(&self, name: &str) -> Option<&[u8]> {
+        self.project.extensions.get(name).map(Vec::as_slice)
+    }
+
+    /// Store such a file; the project then has unsaved changes. Not an undoable edit.
+    pub fn set_extension(&mut self, name: &str, bytes: Vec<u8>) {
+        self.project.extensions.insert(name.to_string(), bytes);
+        self.project.dirty = true;
+    }
+
     /// Recompute every table, then every analysis. Returns error messages, if any.
     pub fn recompute_all(&mut self) -> Vec<String> {
         let mut errors = deps::recompute_all(&mut self.project);
