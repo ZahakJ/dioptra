@@ -102,3 +102,25 @@ jobs:
           dmg="$(find "target/${{ matrix.target }}/release/bundle/dmg" -maxdepth 1 -name '*.dmg' | head -1)"
           if [ -z "$dmg" ]; then echo "::error::no dmg was built"; exit 1; fi
           ./scripts/verify-macos-signature.sh "$dmg"
+
+  # SHA256SUMS.txt for every asset of the release, for installation qualification
+  # (docs/validation/iq-protocol.md). Runs after every platform job that finished, so a
+  # partial release still carries the sums of what it holds.
+  checksums:
+    name: SHA256SUMS
+    needs: desktop
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Publish SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir assets
+          cd assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*'
+          rm -f SHA256SUMS.txt
+          sha256sum -- * | LC_ALL=C sort -k2 > ../SHA256SUMS.txt
+          cat ../SHA256SUMS.txt
+          gh release upload "$TAG" ../SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber

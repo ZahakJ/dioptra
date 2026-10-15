@@ -1,0 +1,133 @@
+/* The Journal popover of the graph editor and the layout view. Tokens only; both themes. */
+
+.jp {
+  width: 380px;
+  max-width: calc(100vw - 16px);
+  max-height: min(640px, calc(100vh - 80px));
+  overflow: auto;
+}
+
+.jp-body,
+.jp-off {
+  padding: var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-size: var(--fs-md);
+}
+
+.jp-off p {
+  margin: 0;
+  line-height: var(--lh);
+}
+
+.jp-off .btn {
+  align-self: flex-start;
+}
+
+.jp-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+
+.jp-label {
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}
+
+.jp-spec {
+  margin: 0;
+  line-height: var(--lh);
+}
+
+.jp-actions {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.jp-section {
+  border-top: var(--border) solid var(--line);
+  padding-top: var(--s2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.jp-h {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.jp-sum {
+  font-weight: var(--fw-regular);
+}
+
+.jp-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jp-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s1) var(--s2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: var(--lh);
+  text-align: left;
+}
+
+.jp-issue.is-link {
+  cursor: pointer;
+}
+
+.jp-issue.is-link:hover {
+  background: var(--bg-inset);
+}
+
+.jp-issue.is-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.jp-ic {
+  flex: none;
+  margin-top: 2px;
+}
+
+.jp-ic.is-error {
+  color: var(--fail);
+}
+
+.jp-ic.is-warning {
+  color: var(--caution);
+}
+
+.jp-ic.is-info {
+  color: var(--fg-muted);
+}
+
+.ex-lab {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--fg-muted);
+  font-size: var(--fs-sm);
+}

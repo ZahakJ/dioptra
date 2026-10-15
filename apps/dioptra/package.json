@@ -1,6 +1,6 @@
 {
   "name": "dioptra-app",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Dioptra: data, statistics and publication graphs without the spreadsheet. Tauri app frontend.",

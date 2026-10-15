@@ -71,7 +71,7 @@ Shorter, more technical. Check that the subreddit allows tool announcements that
 > - `dioptra analyze data.csv --kind column --test one_way_anova` for scripted pipelines;
 >   `render` and `export` produce the same SVG/PDF bytes on every platform.
 > - Reads Prism `.pzfx`; project files are a zip of documented JSON that diffs under git.
-> - Checked against NIST StRD (58/58) and 8,327 comparisons with SciPy, statsmodels,
+> - Checked against NIST StRD (58/58) and 7,841 comparisons with SciPy, statsmodels,
 >   lifelines and scikit-learn.
 >
 > Linux AppImage/deb/rpm, Windows, macOS. Feedback and numerical bug reports welcome.
@@ -102,7 +102,7 @@ field empty; post the first comment yourself within a minute.
 > - The UI is React in Tauri 2 and never does arithmetic. It sends JSON commands to one
 >   `dispatch` function. The same engine compiles to wasm, so the end-to-end tests drive
 >   the real engine in a headless browser, and the CLI gives the same numbers.
-> - Correctness: all 58 NIST StRD data sets used pass, and 8,327 comparisons against SciPy,
+> - Correctness: all 58 NIST StRD data sets used pass, and 7,841 comparisons against SciPy,
 >   statsmodels, lifelines and scikit-learn agree within tolerance. Every function cites its
 >   reference in METHODS.md. The record is in the manual's correctness chapter.
 > - The project file is a zip of documented JSON with the data, formulas, analysis specs
@@ -143,7 +143,7 @@ Each post ≤300 characters (count them in the composer).
    and the mean difference with its bootstrap 95% confidence interval on the right."*
 
 4. It opens Prism .pzfx files, so your old projects don't die with the licence. The
-   numbers are checked against NIST reference data and 8,327 comparisons with SciPy and
+   numbers are checked against NIST reference data and 7,841 comparisons with SciPy and
    statsmodels.
 
 5. Download: github.com/ZahakJ/dioptra/releases/latest

@@ -419,6 +419,9 @@ pub enum Command {
         path: String,
         /// Target kind for delimited files.
         kind: Option<TableKind>,
+        /// Plate map for plate-reader exports (see `plate::parse_plate_map`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        plate_map: Option<String>,
     },
     /// Import a file from bytes (base64), format from the name's extension.
     ImportBytes {
@@ -428,6 +431,35 @@ pub enum Command {
         base64: String,
         /// Target kind for delimited files.
         kind: Option<TableKind>,
+        /// Plate map for plate-reader exports (see `plate::parse_plate_map`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        plate_map: Option<String>,
+    },
+    /// What a plate-reader export holds, or `None` when the file is not one; returns
+    /// `Response::Plate`. Give `base64` (or `path` on desktop).
+    InspectPlate {
+        /// File name.
+        name: String,
+        /// Base64 content.
+        #[serde(default)]
+        base64: Option<String>,
+        /// Absolute path (desktop).
+        #[serde(default)]
+        path: Option<String>,
+    },
+    /// Read a file and put its data into an existing table of the same kind, keeping the
+    /// table's id, names, column formulas, analyses and graphs (one undo step). Columns are
+    /// filled left to right, skipping formula columns; returns `Response::PasteReport`.
+    ReplaceTableData {
+        /// Table id.
+        table: Id,
+        /// File name (the format follows its extension and content).
+        name: String,
+        /// Base64 content.
+        base64: String,
+        /// Plate map for plate-reader exports.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        plate_map: Option<String>,
     },
     /// Export a table; returns `Response::Bytes`.
     ExportTable {
@@ -588,6 +620,10 @@ pub enum Command {
         graphs: Vec<Id>,
         /// Columns in the grid (at least 1).
         columns: usize,
+        /// Final-size settings; absent keeps the current ones. Setting anything but the
+        /// default needs Dioptra Lab.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        style: Option<crate::graph::LayoutStyle>,
     },
     /// Export a layout to a path (desktop).
     ExportLayoutPath {
@@ -746,9 +782,17 @@ pub enum Response {
         graphs: Vec<Id>,
         /// Columns in the grid.
         columns: usize,
+        /// Final-size settings.
+        #[serde(default)]
+        style: crate::graph::LayoutStyle,
     },
     /// License state.
     License(crate::lab::LicenseView),
+    /// Reply to `InspectPlate`.
+    Plate {
+        /// The plate export, if the file is one.
+        plate: Option<crate::plate::PlateSummary>,
+    },
     /// History entries, newest first. (A struct variant: serde cannot tag a bare list.)
     History {
         /// Entries.
@@ -764,6 +808,8 @@ pub struct Session {
     pub(crate) renderer: Box<dyn crate::graph::Renderer>,
     pub(crate) engine: crate::analysis::AnalysisEngine,
     pub(crate) lab: crate::lab::LabState,
+    /// State other components keep for the session (not saved with the project).
+    pub(crate) memo: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl Session {

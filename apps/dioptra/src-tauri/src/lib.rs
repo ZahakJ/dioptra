@@ -8,6 +8,8 @@ use serde::Deserialize;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Runtime, State};
 
+mod batch;
+
 struct Engine(Mutex<Session>);
 
 #[tauri::command]
@@ -143,11 +145,43 @@ fn license_key_write<R: Runtime>(app: AppHandle<R>, key: Option<String>) -> Resu
     }
 }
 
+/// Where Dioptra Lab's users are kept: `lab-users.json` in the app's config directory.
+fn users_path<R: Runtime>(app: &AppHandle<R>) -> Result<std::path::PathBuf, String> {
+    use tauri::Manager;
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    Ok(dir.join("lab-users.json"))
+}
+
+/// The users file of Records for regulated labs, if any. The engine checks it
+/// (`lab_users_load`).
+#[tauri::command]
+fn lab_users_read<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(users_path(&app)?) {
+        Ok(k) => Ok(Some(k)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Store the users file, writing next to it and renaming so a crash never leaves half a
+/// file.
+#[tauri::command]
+fn lab_users_write<R: Runtime>(app: AppHandle<R>, file: String) -> Result<(), String> {
+    let path = users_path(&app)?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let tmp = path.with_extension("json.saving");
+    std::fs::write(&tmp, file).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+}
+
 /// Build and run the application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(Engine(Mutex::new(Session::new())))
+        .manage(batch::Watching::default())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -162,7 +196,15 @@ pub fn run() {
             dispatch,
             set_native_menu,
             license_key_read,
-            license_key_write
+            license_key_write,
+            batch::batch_file,
+            batch::batch_summary,
+            batch::batch_list,
+            batch::batch_read,
+            batch::watch_start,
+            batch::watch_stop,
+            lab_users_read,
+            lab_users_write
         ])
         .run(tauri::generate_context!())
         .expect("error while running Dioptra");

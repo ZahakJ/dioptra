@@ -84,7 +84,7 @@ pub fn scene(ctx: &Ctx<'_>, donut: bool) -> Scene {
                 .unwrap_or_else(|| name.clone());
             LegendEntry {
                 label: format!("{label}  {:.1}%", v / total * 100.0),
-                swatch: Swatch::Fill(Paint::both(colour(*k), Stroke::solid(t.axis, 0.4))),
+                swatch: Swatch::Fill(Paint::both(colour(*k), Stroke::solid(t.axis, t.fixed(0.4)))),
                 dataset: Some(*k),
             }
         })

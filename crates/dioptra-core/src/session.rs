@@ -15,6 +15,7 @@ use crate::formula;
 use crate::graph::{self, DioptraRenderer, Graph, GraphSpec, Layout, Renderer};
 use crate::history::{capture_cells, Entry, History, HistoryEntry, Snapshot, Touched};
 use crate::import::{self, Origin, PasteReport};
+use crate::plate;
 use crate::project::Project;
 use crate::table::{CellEdit, CellValue, Table};
 use crate::util::{base64_decode, base64_encode, now};
@@ -36,6 +37,7 @@ impl Default for Session {
                 e
             },
             lab: Default::default(),
+            memo: Default::default(),
         }
     }
 }
@@ -146,6 +148,29 @@ impl Session {
     pub fn set_extension(&mut self, name: &str, bytes: Vec<u8>) {
         self.project.extensions.insert(name.to_string(), bytes);
         self.project.dirty = true;
+    }
+
+    /// Session state another component keeps (Dioptra Lab's signed-in user); not saved.
+    pub fn memo(&self, name: &str) -> Option<&Json> {
+        self.memo.get(name)
+    }
+
+    /// Set (`Some`) or clear (`None`) such state.
+    pub fn set_memo(&mut self, name: &str, value: Option<Json>) {
+        match value {
+            Some(v) => self.memo.insert(name.to_string(), v),
+            None => self.memo.remove(name),
+        };
+    }
+
+    /// The command history of the open project, oldest first.
+    pub fn history_log(&self) -> &[HistoryEntry] {
+        &self.history.log
+    }
+
+    /// Bring every table's formula and derived values up to date (as saving does).
+    pub fn refresh_tables(&mut self) {
+        deps::recompute_all_tables(&mut self.project);
     }
 
     /// Recompute every table, then every analysis. Returns error messages, if any.
@@ -397,6 +422,7 @@ impl Session {
         name: &str,
         bytes: Vec<u8>,
         kind: Option<TableKind>,
+        plate_map: Option<&str>,
         log: Json,
     ) -> R<Response> {
         let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
@@ -406,6 +432,26 @@ impl Session {
             .unwrap_or(stem)
             .to_string();
         let title = self.project.unique_title(&stem);
+        if let Some(export) = plate::read(name, &bytes)? {
+            let map = plate_map_of(plate_map)?;
+            let mut report = PasteReport::default();
+            let id = Project::new_id();
+            let file = name.rsplit(['/', '\\']).next().unwrap_or(name);
+            let t =
+                plate::build_table(id.clone(), title, file, &export, map.as_ref(), &mut report)?;
+            let snaps = self.new_object_snapshots(&id);
+            let label = format!("Import {file} as \"{}\"", t.title);
+            self.project.tables.insert(id.clone(), t);
+            self.project.order.push(id.clone());
+            self.data_changed(&id, None);
+            self.commit(label, log, snaps);
+            report.changed = Changed {
+                ids: vec![id.clone()],
+                tree: true,
+                created: Some(id),
+            };
+            return Ok(Response::PasteReport(report));
+        }
         match ext.as_str() {
             "xlsx" | "xlsm" | "xlsb" | "xls" | "ods" => {
                 let (block, mut report, sheet) = import::read_workbook(bytes, None)?;
@@ -500,6 +546,33 @@ impl Session {
                 )
             }
         }
+    }
+
+    fn replace_table_data(
+        &mut self,
+        id: &str,
+        name: &str,
+        bytes: Vec<u8>,
+        plate_map: Option<&str>,
+        log: Json,
+    ) -> R<Response> {
+        let old = self.editable(id)?;
+        let map = plate_map_of(plate_map)?;
+        let (new, mut report) = crate::replace::file_table(name, bytes, old.kind, map.as_ref())?;
+        let (t, notes) = crate::replace::merge(old, &new)?;
+        report.notes.extend(notes);
+        let file = name.rsplit(['/', '\\']).next().unwrap_or(name);
+        let label = format!("Replace the data of \"{}\" with {file}", old.title);
+        let snaps = vec![self.table_snapshot(id)];
+        self.project.tables.insert(id.to_string(), t);
+        let ids = self.data_changed(id, None);
+        self.commit(label, log, snaps);
+        report.changed = Changed {
+            ids,
+            tree: false,
+            created: None,
+        };
+        Ok(Response::PasteReport(report))
     }
 
     fn export_table_bytes(
@@ -1311,13 +1384,41 @@ impl Session {
                 let at = now();
                 self.import_block(kind, title, &block, &Origin::Pasted(&at), &mut report, log)
             }
-            Command::ImportPath { path, kind } => {
+            Command::ImportPath {
+                path,
+                kind,
+                plate_map,
+            } => {
                 let bytes = file::read_path(&path)?;
-                self.import_file(&path, bytes, kind, log)
+                self.import_file(&path, bytes, kind, plate_map.as_deref(), log)
             }
-            Command::ImportBytes { name, base64, kind } => {
+            Command::ImportBytes {
+                name,
+                base64,
+                kind,
+                plate_map,
+            } => {
                 let bytes = base64_decode(&base64)?;
-                self.import_file(&name, bytes, kind, log)
+                self.import_file(&name, bytes, kind, plate_map.as_deref(), log)
+            }
+            Command::InspectPlate { name, base64, path } => {
+                let bytes = match (base64, path) {
+                    (Some(b), _) => base64_decode(&b)?,
+                    (None, Some(p)) => file::read_path(&p)?,
+                    (None, None) => return Err("give the file's bytes or path".into()),
+                };
+                Ok(Response::Plate {
+                    plate: plate::read(&name, &bytes)?.map(|e| e.summary()),
+                })
+            }
+            Command::ReplaceTableData {
+                table,
+                name,
+                base64,
+                plate_map,
+            } => {
+                let bytes = base64_decode(&base64)?;
+                self.replace_table_data(&table, &name, bytes, plate_map.as_deref(), log)
             }
             Command::ExportTable { table, format } => {
                 let (bytes, name, mime) = self.export_table_bytes(&table, format)?;
@@ -1597,6 +1698,7 @@ impl Session {
                         title: title.clone(),
                         graphs,
                         columns: columns.max(1),
+                        style: Default::default(),
                     },
                 );
                 self.project.order.push(id.clone());
@@ -1614,12 +1716,14 @@ impl Session {
                     title: l.title.clone(),
                     graphs: l.graphs.clone(),
                     columns: l.columns,
+                    style: l.style.clone(),
                 })
             }
             Command::UpdateLayout {
                 id,
                 graphs,
                 columns,
+                style,
             } => {
                 let l = self
                     .project
@@ -1631,6 +1735,14 @@ impl Session {
                         return Err(format!("no graph with id {g}"));
                     }
                 }
+                if let Some(st) = &style {
+                    st.validate()?;
+                    // Final-size layouts are a Dioptra Lab feature; going back to the
+                    // default needs no key, and files keep drawing as saved either way.
+                    if *st != l.style && !st.is_default() {
+                        self.lab.require("Journal figures")?;
+                    }
+                }
                 let snaps = vec![Snapshot::Layout {
                     id: id.clone(),
                     layout: Some(l.clone()),
@@ -1639,18 +1751,23 @@ impl Session {
                 let l = self.project.layouts.get_mut(&id).expect("layout");
                 l.graphs = graphs;
                 l.columns = columns.max(1);
+                if let Some(st) = style {
+                    l.style = st;
+                }
                 self.commit(format!("Edit layout \"{title}\""), log, snaps);
                 Ok(changed(vec![id], false, None))
             }
             Command::ExportLayoutPath { id, format, path } => {
-                let (panels, columns) = self.layout_panels(&id)?;
-                let (bytes, _, _) = self.renderer.export_layout(&panels, columns, format)?;
+                let (panels, columns, letters) = self.layout_panels(&id)?;
+                let (bytes, _, _) = self
+                    .renderer
+                    .export_layout(&panels, columns, &letters, format)?;
                 file::write_path(&path, &bytes)?;
                 Ok(changed(vec![], false, None))
             }
             Command::RenderLayout { id } => {
-                let (panels, columns) = self.layout_panels(&id)?;
-                let r = self.renderer.render_layout(&panels, columns)?;
+                let (panels, columns, letters) = self.layout_panels(&id)?;
+                let r = self.renderer.render_layout(&panels, columns, &letters)?;
                 Ok(Response::Svg {
                     svg: r.svg,
                     width_mm: r.width_mm,
@@ -1659,8 +1776,10 @@ impl Session {
                 })
             }
             Command::ExportLayout { id, format } => {
-                let (panels, columns) = self.layout_panels(&id)?;
-                let (bytes, mime, ext) = self.renderer.export_layout(&panels, columns, format)?;
+                let (panels, columns, letters) = self.layout_panels(&id)?;
+                let (bytes, mime, ext) = self
+                    .renderer
+                    .export_layout(&panels, columns, &letters, format)?;
                 Ok(Response::Bytes {
                     name: format!("{}.{ext}", file_stem(&self.project.layouts[&id].title)),
                     mime: mime.into(),
@@ -1715,8 +1834,17 @@ impl Session {
         Ok(changed(vec![id], false, None))
     }
 
-    /// Specs and data of a layout's graphs, in reading order, and its column count.
-    fn layout_panels(&mut self, id: &str) -> R<(Vec<(GraphSpec, graph::GraphData)>, usize)> {
+    /// Specs (with the layout's style applied) and data of a layout's graphs, in reading
+    /// order, its column count and its panel letters.
+    #[allow(clippy::type_complexity)]
+    fn layout_panels(
+        &mut self,
+        id: &str,
+    ) -> R<(
+        Vec<(GraphSpec, graph::GraphData)>,
+        usize,
+        graph::PanelLetters,
+    )> {
         let l = self
             .project
             .layouts
@@ -1738,7 +1866,75 @@ impl Session {
             }
             panels.push((spec, data));
         }
-        Ok((panels, l.columns))
+        let mut specs: Vec<GraphSpec> = panels.iter().map(|(s, _)| s.clone()).collect();
+        l.style.apply(&mut specs, l.columns);
+        for ((s, _), styled) in panels.iter_mut().zip(specs) {
+            *s = styled;
+        }
+        Ok((panels, l.columns, l.style.letters()))
+    }
+
+    /// The scene a graph exports to, at its own size or `size`: for checks that must see
+    /// exactly what is written (Dioptra Lab's figure check).
+    pub fn graph_scene(
+        &mut self,
+        id: &str,
+        size: Option<crate::api::SizeMm>,
+    ) -> R<dioptra_plot::Scene> {
+        let mut spec = self
+            .project
+            .graphs
+            .get(id)
+            .ok_or_else(|| format!("no graph with id {id}"))?
+            .spec
+            .clone();
+        if let Some(s) = size {
+            spec.style.size_mm = s;
+        }
+        let data = self.graph_data(&spec)?;
+        dioptra_plot::scene(&spec, &data).map_err(|e| e.to_string())
+    }
+
+    /// The scene a layout exports to (its style applied).
+    pub fn layout_scene(&mut self, id: &str) -> R<dioptra_plot::Scene> {
+        let (panels, columns, letters) = self.layout_panels(id)?;
+        graph::layout_scene(&panels, columns, &letters)
+    }
+
+    /// Run several commands as one undo step labelled `label`. When one fails, the ones
+    /// before it are taken back and the error is returned; nothing enters the undo stack.
+    /// The audit log keeps every command.
+    pub fn batch(&mut self, label: &str, cmds: Vec<Command>) -> R<Vec<Response>> {
+        let saved = std::mem::take(&mut self.history.undo);
+        let redo = self.history.redo.clone();
+        let mut out = Vec::with_capacity(cmds.len());
+        let mut failed = None;
+        for cmd in cmds {
+            match self.dispatch(cmd) {
+                Response::Error { message } => {
+                    failed = Some(message);
+                    break;
+                }
+                r => out.push(r),
+            }
+        }
+        let steps = std::mem::replace(&mut self.history.undo, saved);
+        if let Some(message) = failed {
+            for e in steps.into_iter().rev() {
+                self.rollback(e.snapshots);
+            }
+            self.history.redo = redo;
+            return Err(message);
+        }
+        if !steps.is_empty() {
+            let snapshots = steps.into_iter().flat_map(|e| e.snapshots).collect();
+            self.history.push(Entry {
+                label: label.to_string(),
+                snapshots,
+            });
+            self.history.coalesce = None;
+        }
+        Ok(out)
     }
 }
 
@@ -1771,5 +1967,14 @@ pub fn merge_patch(target: &mut Json, patch: &Json) {
             }
         }
         other => *target = other.clone(),
+    }
+}
+
+fn plate_map_of(text: Option<&str>) -> R<Option<plate::PlateMap>> {
+    match text.map(str::trim).filter(|t| !t.is_empty()) {
+        Some(t) => Ok(Some(
+            plate::parse_plate_map(t).map_err(|e| format!("plate map: {e}"))?,
+        )),
+        None => Ok(None),
     }
 }

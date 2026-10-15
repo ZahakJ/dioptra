@@ -2,11 +2,16 @@
 // command palette all read this one registry. Phase 5B adds its commands with
 // `commands.register(...)` (menus `Analyze` and `Graph` are reserved for it).
 import * as grid from '../grid/actions';
+import { copyMethods, exportReport, hasProjectContent } from '../graph/journal';
+import { exportPrism, hasTables } from '../io/prismExport';
 import { useGrid } from '../grid/store';
 import { useLab } from '../store/lab';
 import { useProject } from '../store/project';
 import { nextTheme, resolveTheme, useUi } from '../store/ui';
 import * as app from './actions';
+import { RECORDS_COMMANDS } from './Records';
+import { OQ_COMMANDS } from './OqDialog';
+import { BATCH_COMMANDS } from '../io/batchCommands';
 import { CommandRegistry, type AppCommand } from './registry';
 
 export const commands = new CommandRegistry();
@@ -26,6 +31,9 @@ export const CORE_COMMANDS: AppCommand[] = [
   { id: 'file.import', title: 'Import file...', menu: 'File', group: 'io', shortcut: 'Mod+I', keywords: ['csv', 'xlsx', 'excel', 'pzfx', 'prism'], run: app.importFile },
   { id: 'file.pasteNew', title: 'Paste as new table...', menu: 'File', group: 'io', shortcut: 'Mod+Shift+V', keywords: ['clipboard', 'import'], run: () => app.pasteAsNewTable() },
   { id: 'file.export', title: 'Export table...', menu: 'File', group: 'io', shortcut: 'Mod+Shift+E', keywords: ['csv', 'tsv', 'xlsx'], enabled: grid.hasActiveTable, run: app.exportTable },
+  { id: 'file.exportPrism', title: 'Export to Prism...', menu: 'File', group: 'io', keywords: ['pzfx', 'graphpad', 'prism', 'lab'], enabled: hasTables, run: exportPrism },
+  { id: 'file.exportReport', title: 'Export report...', menu: 'File', group: 'io', keywords: ['docx', 'word', 'pdf', 'lab'], enabled: hasProjectContent, run: exportReport },
+  { id: 'file.methods', title: 'Copy methods paragraph...', menu: 'File', group: 'io', keywords: ['methods', 'references', 'citation', 'lab'], enabled: () => !!useProject.getState().view?.items.some((i) => i.kind === 'analysis'), run: () => copyMethods('project') },
   { id: 'project.rename', title: 'Rename project...', menu: 'File', group: 'object', keywords: ['title', 'name'], run: app.renameProject },
   { id: 'object.rename', title: 'Rename object...', menu: 'File', group: 'object', keywords: ['title'], enabled: () => !!useProject.getState().activeId, run: () => app.renameObject() },
   { id: 'object.delete', title: 'Delete object...', menu: 'File', group: 'object', keywords: ['remove'], enabled: () => !!useProject.getState().activeId, run: () => app.deleteObject() },
@@ -88,3 +96,6 @@ export const CORE_COMMANDS: AppCommand[] = [
 ];
 
 commands.register(...CORE_COMMANDS);
+commands.register(...RECORDS_COMMANDS);
+commands.register(...OQ_COMMANDS);
+commands.register(...BATCH_COMMANDS);

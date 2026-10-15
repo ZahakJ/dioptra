@@ -1,5 +1,6 @@
 // The one engine singleton. Every engine call in the UI goes through `engine()`.
 import { createEngine, serialized, type Engine } from './bridge';
+import { guarded } from './guard';
 
 let instance: Promise<Engine> | null = null;
 let ready: Engine | null = null;
@@ -9,7 +10,7 @@ const listeners = new Set<(engine: Engine) => void>();
 export function engine(): Promise<Engine> {
   if (!instance) {
     instance = createEngine().then((e) => {
-      ready = serialized(e);
+      ready = guarded(serialized(e));
       for (const l of listeners) l(ready);
       return ready;
     });

@@ -2,8 +2,8 @@
 // command palette all read. Phase 5B registers its own commands (Analyze, New graph, ...) here.
 import { matchesShortcut, type KeyLike } from './keys';
 
-export type MenuName = 'File' | 'Edit' | 'Insert' | 'Data' | 'View' | 'Analyze' | 'Graph' | 'Help';
-export const MENUS: readonly MenuName[] = ['File', 'Edit', 'Insert', 'Data', 'View', 'Analyze', 'Graph', 'Help'];
+export type MenuName = 'File' | 'Edit' | 'Insert' | 'Data' | 'View' | 'Analyze' | 'Graph' | 'Records' | 'Help';
+export const MENUS: readonly MenuName[] = ['File', 'Edit', 'Insert', 'Data', 'View', 'Analyze', 'Graph', 'Records', 'Help'];
 
 export type CommandScope = 'global' | 'grid';
 

@@ -46,6 +46,108 @@ pub struct Layout {
     pub graphs: Vec<Id>,
     /// Columns in the grid.
     pub columns: usize,
+    /// Final-size settings (page width, one font size and line width for every panel,
+    /// panel letters). Absent in files that never set them.
+    #[serde(default, skip_serializing_if = "LayoutStyle::is_default")]
+    pub style: LayoutStyle,
+}
+
+pub use dioptra_plot::compose::{LetterCase, PanelLetters};
+
+/// How a layout is set at its final size. Every field is optional: the default draws
+/// each panel at its own size with upper-case 10 pt letters, as before.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LayoutStyle {
+    /// Page width in millimetres: the panels are resized (keeping their aspect ratio) so
+    /// that `columns` of them, with their letter gutters, fill exactly this width. Fonts
+    /// and lines are not scaled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width_mm: Option<f64>,
+    /// Tick-label size in every panel (titles keep their offset), whatever each graph says.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_pt: Option<f64>,
+    /// Axis line width in every panel (data lines scale with it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_pt: Option<f64>,
+    /// Panel letters: `upper` (A, B, C), `lower` (a, b, c) or `none`.
+    pub letters: LetterCase,
+    /// Letter size in points (absent: 10 pt).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub letter_pt: Option<f64>,
+}
+
+impl LayoutStyle {
+    /// Whether nothing is set.
+    pub fn is_default(&self) -> bool {
+        *self == LayoutStyle::default()
+    }
+
+    /// The panel letters this style draws.
+    pub fn letters(&self) -> PanelLetters {
+        PanelLetters {
+            case: self.letters,
+            size_pt: self
+                .letter_pt
+                .filter(|p| *p > 0.0)
+                .unwrap_or(dioptra_plot::compose::LETTER_PT),
+        }
+    }
+
+    /// Check the numbers.
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(w) = self.width_mm {
+            if !(20.0..=1000.0).contains(&w) {
+                return Err(format!(
+                    "the layout width must be between 20 and 1000 mm (got {w} mm)"
+                ));
+            }
+        }
+        for (name, v, lo, hi) in [
+            ("font size", self.font_pt, 2.0, 72.0),
+            ("line width", self.line_pt, 0.05, 10.0),
+            ("letter size", self.letter_pt, 2.0, 72.0),
+        ] {
+            if let Some(v) = v {
+                if !(lo..=hi).contains(&v) {
+                    return Err(format!(
+                        "the layout {name} must be between {lo} and {hi} pt (got {v})"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Apply the style to the specs of a layout's panels: one font size and line width,
+    /// and the panel size that fills `width_mm`.
+    pub fn apply(&self, specs: &mut [GraphSpec], columns: usize) {
+        let n = specs.len();
+        let columns = columns.max(1).min(n.max(1));
+        let gutter_pt = dioptra_plot::compose::letter_gutter_with(n, &self.letters());
+        for spec in specs.iter_mut() {
+            if let Some(f) = self.font_pt {
+                spec.style.font_pt = Some(f);
+            }
+            if let Some(l) = self.line_pt {
+                spec.style.line_pt = Some(l);
+            }
+            if let Some(w) = self.width_mm {
+                let cell_pt = w * 72.0 / 25.4 / columns as f64;
+                let pw = ((cell_pt - gutter_pt) * 25.4 / 72.0).clamp(10.0, 1000.0);
+                let SizeMm { width, height } = spec.style.size_mm;
+                let ph = if width > 0.0 {
+                    height * pw / width
+                } else {
+                    height
+                };
+                spec.style.size_mm = SizeMm {
+                    width: pw,
+                    height: ph.clamp(10.0, 1000.0),
+                };
+            }
+        }
+    }
 }
 
 /// Error bounds for a summary row (mean/SD/N and friends), converted to what the spec
@@ -546,8 +648,9 @@ pub trait Renderer: Send + Sync {
         &self,
         panels: &[(GraphSpec, GraphData)],
         columns: usize,
+        letters: &PanelLetters,
     ) -> Result<Rendered, String> {
-        let _ = (panels, columns);
+        let _ = (panels, columns, letters);
         Err("this renderer cannot draw layouts".into())
     }
 
@@ -556,11 +659,14 @@ pub trait Renderer: Send + Sync {
         &self,
         panels: &[(GraphSpec, GraphData)],
         columns: usize,
+        letters: &PanelLetters,
         format: GraphFormat,
     ) -> Result<Exported, String> {
         match format {
             GraphFormat::Svg => Ok((
-                self.render_layout(panels, columns)?.svg.into_bytes(),
+                self.render_layout(panels, columns, letters)?
+                    .svg
+                    .into_bytes(),
                 "image/svg+xml",
                 "svg",
             )),
@@ -599,15 +705,19 @@ fn export_scene(s: &dioptra_plot::Scene, format: GraphFormat) -> Result<Exported
     }
 }
 
-fn layout_scene(
+/// The scene of a layout from its (already styled) panels: what SVG, PDF and PNG export.
+pub fn layout_scene(
     panels: &[(GraphSpec, GraphData)],
     columns: usize,
+    letters: &PanelLetters,
 ) -> Result<dioptra_plot::Scene, String> {
     let scenes = panels
         .iter()
         .map(|(s, d)| dioptra_plot::scene(s, d).map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(dioptra_plot::compose_layout(&scenes, columns, true))
+    Ok(dioptra_plot::compose::compose_layout_with(
+        &scenes, columns, letters,
+    ))
 }
 
 impl Renderer for DioptraRenderer {
@@ -633,17 +743,19 @@ impl Renderer for DioptraRenderer {
         &self,
         panels: &[(GraphSpec, GraphData)],
         columns: usize,
+        letters: &PanelLetters,
     ) -> Result<Rendered, String> {
-        Ok(from_scene(&layout_scene(panels, columns)?))
+        Ok(from_scene(&layout_scene(panels, columns, letters)?))
     }
 
     fn export_layout(
         &self,
         panels: &[(GraphSpec, GraphData)],
         columns: usize,
+        letters: &PanelLetters,
         format: GraphFormat,
     ) -> Result<Exported, String> {
-        export_scene(&layout_scene(panels, columns)?, format)
+        export_scene(&layout_scene(panels, columns, letters)?, format)
     }
 }
 
@@ -681,7 +793,11 @@ mod tests {
             .iter()
             .any(|t| t.id == "axis-x" && t.target == "/axes/x"));
         let page = DioptraRenderer
-            .render_layout(&[(spec.clone(), data.clone()), (spec, data)], 2)
+            .render_layout(
+                &[(spec.clone(), data.clone()), (spec, data)],
+                2,
+                &PanelLetters::default(),
+            )
             .unwrap();
         assert_eq!(page.svg.matches("<circle").count(), 6);
         let gutter_mm = dioptra_plot::compose::letter_gutter(2, true) * 25.4 / 72.0;

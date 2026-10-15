@@ -13,6 +13,7 @@ import { useTableMeta } from '../store/table';
 import { addBracket, addReferenceLine, addText, customSize, exportGraphDialog, sourceTableId, tableMeta } from './actions';
 import { ERROR_BARS, familiesFor, familyName, PALETTES, PRESETS, paletteColours, SIZE_PRESETS, THEMES } from './families';
 import { getPath } from './patch';
+import { JournalButton } from './JournalPanel';
 import { loadGraph, listenForGraphChanges, selectTarget, setGraphValue, setZoom, useGraph, type Zoom } from './store';
 import { axisMap, moveBy, tidy } from './svgAxes';
 import { byAreaDescending, describeTarget, isDraggable, textPathOf } from './targets';
@@ -123,6 +124,14 @@ function GraphToolbar({ id, spec }: { id: Id; spec: GraphSpecT | null }) {
       <span className="tb-gap" />
       <MoreMenu id={id} spec={spec} />
       <AddMenu id={id} />
+      <JournalButton
+        id={id}
+        kind="graph"
+        onSelect={(el) => {
+          selectTarget(id, el);
+          return true;
+        }}
+      />
       <Button size="sm" icon={<Download size={16} strokeWidth={1.5} aria-hidden="true" />} onClick={() => void exportGraphDialog(id)} testId="tb-export" aria-label="Export" tipText="Export the figure" shortcut="Mod+Alt+E">
         Export…
       </Button>

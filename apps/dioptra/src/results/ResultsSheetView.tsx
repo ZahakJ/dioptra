@@ -1,6 +1,6 @@
 // The results sheet: title and method line, assumption checks first, the summary sentences,
 // the typed tables, then the checklist. Opens beside its table when both are open.
-import { ArrowRight, Check, ChartColumn, Copy, Minus, SlidersHorizontal, TriangleAlert, X } from 'lucide-react';
+import { ArrowRight, Check, ChartColumn, Copy, FileText, Minus, SlidersHorizontal, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import { showContextMenu } from '../app/ContextMenu';
@@ -11,6 +11,7 @@ import type { Id, PValueStyle } from '../engine/types';
 import { TableView } from '../grid/TableView';
 import { editAnalysisOptions } from '../analysis/actions';
 import { makeGraphFromAnalysis } from '../graph/actions';
+import { copyMethods, METHODS_WHAT } from '../graph/journal';
 import { withEngine } from '../store/engine';
 import { notify, notifyError } from '../store/notices';
 import { itemById, usePValueStyle, useProject } from '../store/project';
@@ -154,6 +155,10 @@ function SheetPane({
             <button type="button" className="btn btn-sm btn-quiet" onClick={copySheet} data-testid="sheet-copy" data-tip="Copy every table as TSV or Markdown">
               <Copy size={16} strokeWidth={1.5} aria-hidden="true" />
               <span className="btn-text">Copy sheet</span>
+            </button>
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => void copyMethods([id])} data-testid="sheet-methods-paragraph" data-tip={`${METHODS_WHAT} Copied to the clipboard. Dioptra Lab.`}>
+              <FileText size={16} strokeWidth={1.5} aria-hidden="true" />
+              <span className="btn-text">Methods paragraph…</span>
             </button>
             <button type="button" className="btn btn-sm btn-quiet" onClick={() => void makeGraphFromAnalysis(id)} data-testid="sheet-make-graph" data-tip={sheet.graph_family === 'paired' ? 'Bars of the mean with a line joining each subject’s values' : 'A graph of this result'}>
               <ChartColumn size={16} strokeWidth={1.5} aria-hidden="true" />

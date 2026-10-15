@@ -10,6 +10,9 @@ import { Download } from 'lucide-react';
 import { Rulers, ZoomControl } from './chrome';
 import { Button, Segmented } from '../ui';
 import { exportLayoutDialog } from './actions';
+import { JournalButton } from './JournalPanel';
+import type { LayoutStyle } from './journal';
+import type { JsonObject } from '../engine/types';
 import { boxToPx, clampZoom, fitZoom, mmToPt, pxPerPt } from './units';
 
 export function LayoutView({ item }: WorkAreaProps) {
@@ -53,6 +56,11 @@ export function LayoutView({ item }: WorkAreaProps) {
     if (!info || columns === info.columns) return;
     void mutate((e) => obj.updateLayout(e, id, info.graphs, columns));
   };
+  const setStyle = (style: LayoutStyle) => {
+    if (!info) return;
+    const clean = Object.fromEntries(Object.entries(style).filter(([, v]) => v !== null && v !== undefined)) as JsonObject;
+    void mutate((e) => obj.updateLayout(e, id, info.graphs, info.columns, clean));
+  };
   return (
     <div className="graph-editor layout-view" data-testid="layout-view">
       <div className="graph-toolbar" role="toolbar" aria-label="Layout">
@@ -77,6 +85,7 @@ export function LayoutView({ item }: WorkAreaProps) {
             />
           </span>
         )}
+        {info && <JournalButton id={id} kind="layout" layoutStyle={(info.style ?? {}) as LayoutStyle} onLayoutStyle={setStyle} />}
         <Button
           size="sm"
           icon={<Download size={16} strokeWidth={1.5} aria-hidden="true" />}

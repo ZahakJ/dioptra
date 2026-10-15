@@ -12,6 +12,7 @@ import { INSPECTOR_MAX, INSPECTOR_MIN, RAIL_MAX, RAIL_MIN, resolveTheme, useUi }
 import { ContextMenuHost } from './ContextMenu';
 import { DialogHost } from './dialogs';
 import { LabDialog } from './LabDialog';
+import { startRecords } from './Records';
 import { Inspector } from './inspector';
 import { registerCoreInspectorSections } from './inspectorSections';
 import { TooltipHost } from '../ui';
@@ -117,6 +118,7 @@ export function App() {
   );
 
   useEffect(() => {
+    startRecords();
     bootEngine()
       .then(() => useLab.getState().load().catch(() => undefined))
       .then(() => useProject.getState().refresh())

@@ -2323,7 +2323,7 @@ pub fn render(ctx: &Ctx<'_>, mut plot: Plot) -> Scene {
     // Gridlines.
     if spec.axes.grid.unwrap_or(t.grid_on) {
         let mut g = Group::new("grid", "/axes/grid");
-        let st = Stroke::solid(t.grid, 0.5);
+        let st = Stroke::solid(t.grid, t.fixed(0.5));
         if !x.categorical {
             for v in &x.ticks.major {
                 let px = x.map.map_t(*v);

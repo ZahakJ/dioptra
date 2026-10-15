@@ -172,7 +172,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                     shape,
                     size: st.size * 0.8,
                     paint: if t.mono {
-                        Paint::both(t.background, Stroke::solid(t.axis, 0.6))
+                        Paint::both(t.background, Stroke::solid(t.axis, t.fixed(0.6)))
                     } else {
                         st.marker_paint(t.background)
                     },

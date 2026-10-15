@@ -5,8 +5,11 @@ import { DialogHeader } from '../app/dialogs';
 import { Button, NumberField, Segmented, TextInput, Toggle } from '../ui';
 import type { SizeMm } from '../engine/types';
 import { inToMm, mmToIn, pngPixels, trim } from './units';
+import { useLab } from '../store/lab';
+import { TIFF_WHAT } from './journal';
+import './journal.css';
 
-export type ExportFormat = 'svg' | 'pdf' | 'png';
+export type ExportFormat = 'svg' | 'pdf' | 'png' | 'tiff';
 
 export interface ExportChoice {
   format: ExportFormat;
@@ -48,6 +51,8 @@ export function ExportGraphDialog({
   const [trans, setTrans] = useState(transparent);
   const [name, setName] = useState(fileStem(title));
   const dpi = dpiChoice === 'custom' ? Number(customDpi) : dpiChoice;
+  const lab = useLab((st) => st.view.lab_enabled);
+  const raster = format === 'png' || format === 'tiff';
   const toMm = (s: string) => {
     const v = Number(s.replace(',', '.'));
     return unit === 'mm' ? v : inToMm(v);
@@ -55,13 +60,15 @@ export function ExportGraphDialog({
   const wMm = toMm(w);
   const hMm = toMm(h);
   const sizeOk = !allowSize || (wMm >= 10 && wMm <= 1000 && hMm >= 10 && hMm <= 1000);
-  const dpiOk = format !== 'png' || (Number.isFinite(dpi) && dpi >= 36 && dpi <= 2400);
+  const dpiOk = !raster || (Number.isFinite(dpi) && dpi >= 36 && dpi <= 2400);
   const nameOk = name.trim().length > 0;
   const filename = `${name.trim()}.${format}`;
   const effW = allowSize ? wMm : size.width;
   const effH = allowSize ? hMm : size.height;
   const detail =
-    format === 'png'
+    format === 'tiff'
+      ? `${pngPixels(effW, dpi)} × ${pngPixels(effH, dpi)} pixels at ${dpi} dpi, ${trim(effW, 1)} × ${trim(effH, 1)} mm, RGB with LZW compression on a white background.`
+      : format === 'png'
       ? `${pngPixels(effW, dpi)} × ${pngPixels(effH, dpi)} pixels at ${dpi} dpi, ${trim(effW, 1)} × ${trim(effH, 1)} mm${trans ? ', transparent background' : ''}.`
       : format === 'pdf'
         ? `Vector PDF, ${trim(effW, 1)} × ${trim(effH, 1)} mm, fonts embedded.`
@@ -77,7 +84,7 @@ export function ExportGraphDialog({
     setH(conv(h));
     setUnit(u);
   };
-  const ok = sizeOk && dpiOk && nameOk;
+  const ok = sizeOk && dpiOk && nameOk && (format !== 'tiff' || lab);
   return (
     <form
       className="modal-body export-dialog"
@@ -99,11 +106,23 @@ export function ExportGraphDialog({
             { value: 'pdf' as ExportFormat, label: 'PDF', hint: 'Vector, fonts embedded; for journals.' },
             { value: 'svg' as ExportFormat, label: 'SVG', hint: 'Vector; for editing in other tools.' },
             { value: 'png' as ExportFormat, label: 'PNG', hint: 'Pixels at a chosen resolution.' },
+            { value: 'tiff' as ExportFormat, label: 'TIFF', hint: `${TIFF_WHAT} Dioptra Lab.`, testId: 'export-format-tiff' },
           ]}
           value={format}
           onChange={setFormat}
         />
-        {format === 'png' && (
+        {format === 'tiff' && !lab && (
+          <>
+            <span className="ex-label">TIFF</span>
+            <div className="ex-lab" data-testid="export-tiff-lab">
+              <span>{TIFF_WHAT} Part of Dioptra Lab.</span>
+              <Button size="sm" onClick={() => useLab.getState().setDialogOpen(true)}>
+                Dioptra Lab…
+              </Button>
+            </div>
+          </>
+        )}
+        {raster && (
           <>
             <span className="ex-label">Resolution</span>
             <div className="ex-row">

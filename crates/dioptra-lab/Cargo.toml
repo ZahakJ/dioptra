@@ -13,6 +13,15 @@ dioptra-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 base64 = "0.22"
+dioptra-plot.workspace = true
+tiff.workspace = true
+zip.workspace = true
+sha2 = "0.10"
+hmac = "0.12"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+getrandom.workspace = true
+dioptra-stats.workspace = true
 
 [dev-dependencies]
+quick-xml.workspace = true
 dioptra-license.workspace = true

@@ -9,11 +9,11 @@ import {
   desktopSavePath,
   downloadBytes,
   fileToBase64,
-  IMPORT_FILTER,
   isDesktop,
   pickFile,
   PROJECT_FILTER,
 } from '../io/files';
+import { importChosenFile } from '../io/fileImport';
 import { FileImportDialog, PasteImportDialog, type FileImportSpec, type PasteImportSpec } from '../io/ImportDialog';
 import { formatPasteReport } from '../io/report';
 import { withEngine } from '../store/engine';
@@ -162,21 +162,7 @@ function reportImport(r: { rows: number; cols: number } & Parameters<typeof form
 export async function importFile(): Promise<void> {
   const spec = await openDialog<FileImportSpec | null>((close) => <FileImportDialog close={close} />, null);
   if (!spec) return;
-  if (isDesktop()) {
-    const path = await desktopOpenPath([IMPORT_FILTER]).catch((e: unknown) => {
-      notifyError(e);
-      return null;
-    });
-    if (!path) return;
-    const r = await mutateReport((e) => cmd.importPath(e, path, spec.kind));
-    if (r) reportImport(r);
-  } else {
-    const file = await pickFile('.csv,.tsv,.txt,.xlsx,.xls,.ods,.pzfx,.prism');
-    if (!file) return;
-    const b64 = await fileToBase64(file);
-    const r = await mutateReport((e) => cmd.importBytes(e, file.name, b64, spec.kind));
-    if (r) reportImport(r);
-  }
+  await importChosenFile(spec.kind);
 }
 
 export async function pasteAsNewTable(initial?: string): Promise<void> {

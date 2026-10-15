@@ -71,7 +71,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 shape,
                 size: t.marker_pt * 0.6,
                 paint: if open {
-                    Paint::stroke(Stroke::solid(col.alpha(0.6), 0.5))
+                    Paint::stroke(Stroke::solid(col.alpha(0.6), t.fixed(0.5)))
                 } else {
                     Paint::fill(col.alpha(0.45))
                 },
@@ -87,7 +87,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 pts: vec![(*mx, *m)],
                 shape,
                 size: t.marker_pt * 1.9,
-                paint: Paint::both(colours[*g], Stroke::solid(t.axis, 0.75)),
+                paint: Paint::both(colours[*g], Stroke::solid(t.axis, t.fixed(0.75))),
             });
         }
         let mv: Vec<f64> = means.iter().map(|m| m.2).collect();
@@ -121,7 +121,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
                 .unwrap_or_else(|| format!("Replicate {}", g + 1)),
             swatch: Swatch::Marker(
                 shape,
-                Paint::both(colours[g], Stroke::solid(t.axis, 0.6)),
+                Paint::both(colours[g], Stroke::solid(t.axis, t.fixed(0.6))),
                 t.marker_pt * 1.4,
             ),
             dataset: None,

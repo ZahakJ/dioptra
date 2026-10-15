@@ -648,3 +648,99 @@ fn save_and_open_by_path() {
     let v = ok(&mut s2, json!({"type": "get_project"}));
     assert_eq!(v["path"], json!(path));
 }
+
+#[test]
+fn layout_style_needs_lab_and_draws_at_final_size() {
+    let mut s = Session::new();
+    let g1 = scatter_graph(&mut s);
+    let g2 = scatter_graph(&mut s);
+    let l = ok(
+        &mut s,
+        json!({"type": "create_layout", "graphs": [g1, g2], "columns": 2}),
+    )["changed"]["created"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let style =
+        json!({"width_mm": 183, "font_pt": 6, "line_pt": 0.5, "letters": "lower", "letter_pt": 8});
+    let cmd =
+        json!({"type": "update_layout", "id": l, "graphs": [g1, g2], "columns": 2, "style": style});
+    assert!(err(&mut s, cmd.clone()).contains("Dioptra Lab"));
+    ok(
+        &mut s,
+        json!({"type": "set_license", "key": dioptra_license::TEST_KEY, "today": "2026-01-15"}),
+    );
+    ok(&mut s, cmd);
+    let v = ok(&mut s, json!({"type": "get_layout", "id": l}));
+    assert_eq!(v["style"]["letters"], "lower");
+    let r = ok(&mut s, json!({"type": "render_layout", "id": l}));
+    assert!(
+        (r["width_mm"].as_f64().unwrap() - 183.0).abs() < 1e-6,
+        "{}",
+        r["width_mm"]
+    );
+    let svg = r["svg"].as_str().unwrap();
+    assert!(svg.contains(">a</text>") && svg.contains(">b</text>"));
+    assert!(
+        svg.contains("font-size=\"6\""),
+        "panels share the layout's text size"
+    );
+    // Leaving the style out keeps it; going back to the default needs no key.
+    ok(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": [g1, g2], "columns": 1}),
+    );
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_layout", "id": l}))["style"]["letters"],
+        "lower"
+    );
+    ok(
+        &mut s,
+        json!({"type": "set_license", "key": dioptra_license::TEST_KEY, "today": "2026-10-14"}),
+    );
+    ok(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": [g1, g2], "columns": 2, "style": {}}),
+    );
+    assert_eq!(
+        ok(&mut s, json!({"type": "get_layout", "id": l}))["style"]["letters"],
+        "upper"
+    );
+    // Out-of-range numbers are refused.
+    assert!(err(
+        &mut s,
+        json!({"type": "update_layout", "id": l, "graphs": [g1], "columns": 1, "style": {"width_mm": 5}}),
+    )
+    .contains("between 20 and 1000"));
+}
+
+#[test]
+fn batch_is_one_undo_step_and_all_or_nothing() {
+    use dioptra_core::api::Command;
+    let mut s = Session::new();
+    let g1 = scatter_graph(&mut s);
+    let g2 = scatter_graph(&mut s);
+    let patch = |id: &str, w: f64| Command::PatchGraph {
+        id: id.into(),
+        patch: json!({"style": {"size_mm": {"width": w}}}),
+        coalesce: false,
+    };
+    let width = |s: &mut Session, id: &str| s.project().graphs[id].spec.style.size_mm.width;
+    s.batch("Resize", vec![patch(&g1, 100.0), patch(&g2, 120.0)])
+        .unwrap();
+    assert_eq!((width(&mut s, &g1), width(&mut s, &g2)), (100.0, 120.0));
+    let h = ok(&mut s, json!({"type": "get_history", "limit": 50}));
+    assert!(h["entries"].as_array().unwrap().len() >= 2);
+    ok(&mut s, json!({"type": "undo"}));
+    assert_eq!((width(&mut s, &g1), width(&mut s, &g2)), (85.0, 85.0));
+    ok(&mut s, json!({"type": "redo"}));
+    assert_eq!((width(&mut s, &g1), width(&mut s, &g2)), (100.0, 120.0));
+    // A failing command takes the earlier ones back.
+    let e = s
+        .batch("Resize", vec![patch(&g1, 90.0), patch("missing", 90.0)])
+        .unwrap_err();
+    assert!(e.contains("no graph"), "{e}");
+    assert_eq!(width(&mut s, &g1), 100.0);
+    ok(&mut s, json!({"type": "undo"}));
+    assert_eq!(width(&mut s, &g1), 85.0);
+}

@@ -84,7 +84,7 @@ pub fn plot(ctx: &Ctx<'_>) -> Plot {
     for (g, (c, name)) in [up, down, ns].iter().zip(names).enumerate().rev() {
         let mut l = Layer::new(format!("series-{g}"), "/options/fc_threshold".to_string());
         let paint = if t.mono && g == 1 {
-            Paint::both(t.background, Stroke::solid(*c, 0.6))
+            Paint::both(t.background, Stroke::solid(*c, t.fixed(0.6)))
         } else {
             Paint::fill(c.alpha(if g == 2 { 0.7 } else { 0.9 }))
         };
