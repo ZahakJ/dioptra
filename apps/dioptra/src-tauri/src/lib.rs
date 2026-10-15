@@ -108,6 +108,41 @@ fn set_native_menu<R: Runtime>(
     }
 }
 
+/// Where the Dioptra Lab key is kept: `license.key` in the app's config directory.
+fn license_path<R: Runtime>(app: &AppHandle<R>) -> Result<std::path::PathBuf, String> {
+    use tauri::Manager;
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    Ok(dir.join("license.key"))
+}
+
+/// The stored Dioptra Lab key, if any. The engine checks it (`set_license`).
+#[tauri::command]
+fn license_key_read<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(license_path(&app)?) {
+        Ok(k) => Ok(Some(k)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Store a Dioptra Lab key, or remove it with `None`.
+#[tauri::command]
+fn license_key_write<R: Runtime>(app: AppHandle<R>, key: Option<String>) -> Result<(), String> {
+    let path = license_path(&app)?;
+    match key {
+        Some(k) => {
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&path, k.trim()).map_err(|e| e.to_string())
+        }
+        None => match std::fs::remove_file(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        },
+    }
+}
+
 /// Build and run the application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -123,7 +158,12 @@ pub fn run() {
                 log::warn!("menu event not delivered: {e}");
             }
         })
-        .invoke_handler(tauri::generate_handler![dispatch, set_native_menu])
+        .invoke_handler(tauri::generate_handler![
+            dispatch,
+            set_native_menu,
+            license_key_read,
+            license_key_write
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Dioptra");
 }

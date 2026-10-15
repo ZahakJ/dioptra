@@ -21,6 +21,7 @@ rust-version = "1.85"
 dioptra-stats = { path = "crates/dioptra-stats" }
 dioptra-core = { path = "crates/dioptra-core" }
 dioptra-plot = { path = "crates/dioptra-plot" }
+dioptra-license = { path = "crates/dioptra-license" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 thiserror = "2"

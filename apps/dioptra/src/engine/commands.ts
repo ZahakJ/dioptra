@@ -6,6 +6,7 @@ import type {
   CellView,
   Changed,
   HistoryEntry,
+  LicenseView,
   Id,
   PasteOptions,
   PasteReport,
@@ -193,4 +194,13 @@ export async function getHistory(e: Engine, limit = 200): Promise<HistoryEntry[]
 }
 export async function recomputeAll(e: Engine): Promise<Changed> {
   return changedOf(await call(e, { type: 'recompute_all' }));
+}
+
+// ---- Dioptra Lab ----
+
+export async function setLicense(e: Engine, key: string | null, today: string): Promise<LicenseView> {
+  return strip(await expectType(e, { type: 'set_license', key, today }, 'license'));
+}
+export async function getLicense(e: Engine, today: string): Promise<LicenseView> {
+  return strip(await expectType(e, { type: 'get_license', today }, 'license'));
 }

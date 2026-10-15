@@ -25,6 +25,10 @@ pub const DOMAIN: &[u8] = b"dioptra-lab-license-v1\0";
 /// Days a lapsed license keeps Lab features on.
 pub const GRACE_DAYS: i64 = 30;
 
+/// A real key, signed by the issuing key, for a trial that ran through January 2026.
+/// Tests use it to exercise every standing without the private key.
+pub const TEST_KEY: &str = "DIOPTRA-LAB-1.eyJpZCI6IlRFU1QtMDAwMSIsImxpY2Vuc2VlIjoiRGlvcHRyYSB0ZXN0IHN1aXRlIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUub3JnIiwicGxhbiI6InRyaWFsIiwic2VhdHMiOjEsImlzc3VlZCI6IjIwMjYtMDEtMDEiLCJleHBpcmVzIjoiMjAyNi0wMS0zMSJ9.NQ7t5Q4k8yw4hlyf1WHdIy6-YCV5c9-WIYRRX0RjWOqb_9wb72J-dNNA39sm9GGc0XqGDnmgSXhteBCose36Cw";
+
 /// The public half of the signing key that issues Dioptra Lab licenses.
 pub const PUBLIC_KEY: [u8; 32] = [
     0xbd, 0x2f, 0x31, 0xc0, 0xc0, 0x78, 0xd7, 0x81, 0xad, 0x70, 0xc2, 0xcf, 0xa5, 0xbf, 0x7f, 0x5b,
@@ -352,6 +356,14 @@ mod tests {
         );
         // The real public key does not accept test keys.
         assert_eq!(verify(&key), Err(KeyError::BadSignature));
+    }
+
+    #[test]
+    fn issued_test_key() {
+        let l = verify(TEST_KEY).unwrap();
+        assert_eq!(l.plan, Plan::Trial);
+        assert!(l.standing("2026-01-15").lab_enabled());
+        assert!(!l.standing("2026-10-14").lab_enabled());
     }
 
     #[test]

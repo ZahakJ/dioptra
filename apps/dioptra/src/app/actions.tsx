@@ -98,20 +98,22 @@ export async function openSampleProject(): Promise<void> {
   }
 }
 
-/** The manual in the system browser (desktop) or a new tab. */
-export async function openManual(): Promise<void> {
+/** A web page in the system browser (desktop) or a new tab. */
+export async function openExternal(url: string): Promise<void> {
   if (isDesktop()) {
     try {
       const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(MANUAL_URL);
-      return;
+      await openUrl(url);
     } catch (err) {
       notifyError(err);
-      return;
     }
+    return;
   }
-  window.open(MANUAL_URL, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
+
+/** The manual in the system browser (desktop) or a new tab. */
+export const openManual = () => openExternal(MANUAL_URL);
 
 function fileStem(title: string): string {
   return (title.trim() || 'Untitled').replace(/[\\/:*?"<>|]+/g, '-');

@@ -5,11 +5,13 @@ import { useShallow } from 'zustand/react/shallow';
 import { TableView } from '../grid/TableView';
 import { registerFeatures } from '../features';
 import { bootEngine } from '../store/engine';
+import { useLab } from '../store/lab';
 import { useProject } from '../store/project';
 import { useEngineStatus } from '../store/status';
 import { INSPECTOR_MAX, INSPECTOR_MIN, RAIL_MAX, RAIL_MIN, resolveTheme, useUi } from '../store/ui';
 import { ContextMenuHost } from './ContextMenu';
 import { DialogHost } from './dialogs';
+import { LabDialog } from './LabDialog';
 import { Inspector } from './inspector';
 import { registerCoreInspectorSections } from './inspectorSections';
 import { TooltipHost } from '../ui';
@@ -116,6 +118,7 @@ export function App() {
 
   useEffect(() => {
     bootEngine()
+      .then(() => useLab.getState().load().catch(() => undefined))
       .then(() => useProject.getState().refresh())
       .then((view) => {
         const first = view?.items[0];
@@ -162,6 +165,7 @@ export function App() {
       <StatusLine />
       <Palette />
       <ShortcutsDialog />
+      <LabDialog />
       <DialogHost />
       <ContextMenuHost />
       <Notices />

@@ -35,6 +35,7 @@ impl Default for Session {
                 crate::compute::register_all(&mut e);
                 e
             },
+            lab: Default::default(),
         }
     }
 }
@@ -630,6 +631,12 @@ impl Session {
             Command::Ping => Ok(Response::Pong {
                 version: env!("CARGO_PKG_VERSION").into(),
             }),
+
+            // ---- Dioptra Lab ----
+            Command::SetLicense { key, today } => {
+                Ok(Response::License(self.lab.set_key(key.as_deref(), &today)))
+            }
+            Command::GetLicense { today } => Ok(Response::License(self.lab.view(&today))),
 
             // ---- project ----
             Command::NewProject => {
