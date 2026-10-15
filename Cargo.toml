@@ -6,6 +6,7 @@ members = [
   "crates/dioptra-plot",
   "crates/dioptra-wasm",
   "crates/dioptra-cli",
+  "crates/dioptra-license",
   "apps/dioptra/src-tauri",
 ]
 
