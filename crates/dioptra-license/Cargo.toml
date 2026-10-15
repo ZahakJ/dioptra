@@ -1,0 +1,14 @@
+[package]
+name = "dioptra-license"
+description = "Offline verification of Dioptra Lab license keys (ed25519)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+ed25519-dalek = { version = "2.2", default-features = false, features = ["std"] }
+base64 = "0.22"
+
