@@ -26,7 +26,7 @@ impl Engine {
 
     /// JSON command in, JSON response out.
     pub fn dispatch(&mut self, json: &str) -> String {
-        self.session.dispatch_json(json)
+        dioptra_lab::dispatch_json(&mut self.session, json)
     }
 }
 

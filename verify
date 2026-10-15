@@ -27,7 +27,7 @@ step "fmt"
 cargo fmt --all -- --check
 
 step "clippy (engine crates)"
-cargo clippy -p dioptra-stats -p dioptra-core -p dioptra-plot -p dioptra-cli -p dioptra-wasm --all-targets -- -D warnings
+cargo clippy -p dioptra-stats -p dioptra-core -p dioptra-plot -p dioptra-cli -p dioptra-wasm -p dioptra-license -p dioptra-lab --all-targets -- -D warnings
 
 step "cargo test"
 cargo test --workspace --exclude dioptra-app

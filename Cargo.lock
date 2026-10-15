@@ -1021,6 +1021,7 @@ name = "dioptra-app"
 version = "0.3.0"
 dependencies = [
  "dioptra-core",
+ "dioptra-lab",
  "log",
  "serde",
  "serde_json",
@@ -1040,6 +1041,7 @@ dependencies = [
  "anyhow",
  "clap",
  "dioptra-core",
+ "dioptra-lab",
  "dioptra-plot",
  "dioptra-stats",
  "serde_json",
@@ -1065,6 +1067,15 @@ dependencies = [
  "thiserror 2.0.21",
  "uuid",
  "zip 9.0.1",
+]
+
+[[package]]
+name = "dioptra-lab"
+version = "0.3.0"
+dependencies = [
+ "dioptra-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1108,6 +1119,7 @@ name = "dioptra-wasm"
 version = "0.3.0"
 dependencies = [
  "dioptra-core",
+ "dioptra-lab",
  "getrandom 0.3.4",
  "js-sys",
  "wasm-bindgen",

@@ -1,0 +1,14 @@
+[package]
+name = "dioptra-lab"
+description = "Dioptra Lab: batch analysis, journal figures, Prism export and audit trails (needs a license key)"
+version.workspace = true
+edition.workspace = true
+license = "LicenseRef-Dioptra-Lab"
+license-file = "../../LICENSE-LAB"
+repository.workspace = true
+publish = false
+
+[dependencies]
+dioptra-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
